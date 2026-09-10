@@ -20,7 +20,7 @@ import {
 import api from '../../lib/api';
 import type { Event } from '../../types';
 import AppSelect from '../../components/AppSelect';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -106,6 +106,17 @@ export default function EventList() {
     return null;
   }
 
+  // Component to recenter map and fix size when modal opens
+  function RecenterMap({ center }: { center: [number, number] }) {
+    const map = useMap();
+    useEffect(() => {
+      map.setView(center);
+      // Ensure map renders correctly after modal transition
+      setTimeout(() => map.invalidateSize(), 0);
+    }, [center, map]);
+    return null;
+  }
+
   const handleMapClick = async (lat: number, lng: number) => {
     setMapCenter([lat, lng]);
     if (!userTypedLocation) {
@@ -180,7 +191,7 @@ export default function EventList() {
     setShowModal(true);
   };
 
-  const openEditModal = (ev: Event) => {
+  const openEditModal = async (ev: Event) => {
     setEditId(ev.id);
     setFormName(ev.name || '');
     setFormType(ev.event_type || 'wedding');
@@ -194,7 +205,24 @@ export default function EventList() {
     setLogoPreview(ev.logo ? `/storage/${ev.logo}` : null);
     setBackgroundPreview(ev.background ? `/storage/${ev.background}` : null);
     setFormStatus(ev.status || 'active');
-    setMapCenter([10.4806, -66.9036]); // In a real app we'd parse coordinates from event
+    
+    if (ev.location) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(ev.location)}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          setMapCenter([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+        } else {
+          setMapCenter([10.4806, -66.9036]);
+        }
+      } catch (err) {
+        console.error("Geocoding error", err);
+        setMapCenter([10.4806, -66.9036]);
+      }
+    } else {
+      setMapCenter([10.4806, -66.9036]);
+    }
+
     setUserTypedLocation(false);
     setShowModal(true);
   };
@@ -806,6 +834,7 @@ export default function EventList() {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     <Marker position={mapCenter} />
+                    <RecenterMap center={mapCenter} />
                     <MapClickHandler onMapClick={handleMapClick} />
                   </MapContainer>
                 </div>
