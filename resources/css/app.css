@@ -1,0 +1,331 @@
+@import "tailwindcss";
+@theme {
+  /* New accent theme tokens */
+  --color-coral: #E07A5F;
+  --color-coral-light: #FDE0D8;
+  --color-gold: #F2CC8F;
+  --color-success: #52B788;
+  --color-warning: #F2CC8F;
+  --color-danger: #E63946;
+
+  /* Legacy tokens for backward compat */
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F5F5F5;
+  --color-surface-dark: #171717;
+  --color-surface-dark-secondary: #0a0a0a;
+  --color-text: #212121;
+  --color-text-secondary: #757575;
+  --color-text-dark: #f5f5f5;
+  --color-text-dark-secondary: #a3a3a3;
+  --color-border: #E0E0E0;
+  --color-border-dark: #262626;
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #52B788;
+  --color-primary-600: #16a34a;
+  --color-primary-700: #15803d;
+  --color-primary-800: #166534;
+  --color-primary-900: #14532d;
+  --color-accent-50: #fff7ed;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-300: #F2CC8F;
+  --color-accent-400: #E07A5F;
+  --color-accent-500: #E07A5F;
+  --color-accent-600: #c65f45;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-app: #FDFCFB;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #F5F5F5;
+  --text-main: #212121;
+  --text-muted: #757575;
+  --border-color: #E0E0E0;
+  --primary-accent: #E07A5F;
+  --primary-accent-light: #FDE9E2;
+  --secondary-accent: #F2CC8F;
+  --gradient-accent: linear-gradient(135deg, #E07A5F, #F2CC8F);
+  --success: #52B788;
+  --warning: #F2CC8F;
+  --danger: #E63946;
+  --widget-timer-bg: #E07A5F;
+  --widget-timer-box: #C65F45;
+  --shadow-card: 0px 8px 24px rgba(33, 33, 33, 0.06);
+  --radius-card: 8px;
+  --radius-btn: 9999px;
+
+  /* Map Puck Azure (blue) to our Coral accent for BOTH modes */
+  --puck-color-azure-01: #34201A !important;
+  --puck-color-azure-02: #5A2E20 !important;
+  --puck-color-azure-03: #8A4633 !important;
+  --puck-color-azure-04: #A8553D !important;
+  --puck-color-azure-05: #C65F45 !important;
+  --puck-color-azure-06: #E07A5F !important;
+  --puck-color-azure-07: #E89A84 !important;
+  --puck-color-azure-08: #F0B9A8 !important;
+  --puck-color-azure-09: #F4D0C5 !important;
+  --puck-color-azure-10: #F8E5DF !important;
+  --puck-color-azure-11: #FDE9E2 !important;
+  --puck-color-azure-12: #FEF5F2 !important;
+
+  /* Force Puck's primary/action color to Coral (this overrides the default blue focus/selection rings) */
+  --puck-color-primary: var(--primary-accent) !important;
+  --puck-color-action: var(--primary-accent) !important;
+  --puck-color-border-selected: var(--primary-accent) !important;
+  --puck-color-bg-selected: var(--primary-accent-light) !important;
+}
+
+.dark {
+  --bg-app: #0a0a0a;
+  --bg-card: #171717;
+  --bg-sidebar: #171717;
+  --text-main: #f5f5f5;
+  --text-muted: #a3a3a3;
+  --border-color: #262626;
+  --primary-accent: #E07A5F;
+  --primary-accent-light: #34201A;
+  --secondary-accent: #F2CC8F;
+  --gradient-accent: linear-gradient(135deg, #E07A5F, #F2CC8F);
+  --success: #52B788;
+  --warning: #F2CC8F;
+  --danger: #E63946;
+  --widget-timer-bg: #E07A5F;
+  --widget-timer-box: #8A4633;
+  --shadow-card: none;
+  --radius-card: 8px;
+  --radius-btn: 9999px;
+}
+
+/* Puck Dark Mode Overrides (High Specificity) */
+html.dark {
+  --puck-color-grey-01: #f5f5f5 !important;
+  --puck-color-grey-02: #e5e5e5 !important;
+  --puck-color-grey-03: #d4d4d4 !important;
+  --puck-color-grey-04: #a3a3a3 !important;
+  --puck-color-grey-05: #737373 !important;
+  --puck-color-grey-06: #525252 !important;
+  --puck-color-grey-07: #404040 !important;
+  --puck-color-grey-08: #34201A !important;
+  --puck-color-grey-09: #1f1f1f !important; 
+  --puck-color-grey-10: #171717 !important;
+  --puck-color-grey-11: #0a0a0a !important; 
+  --puck-color-grey-12: #000000 !important;
+  
+  --puck-color-white: #171717 !important;
+  --puck-color-black: #f5f5f5 !important;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+/* Style Puck's native header action buttons */
+.puck-custom-actions button,
+.puck-custom-actions [role="button"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.375rem !important; /* rounded-md */
+  padding: 0.375rem 0.75rem !important; /* px-3 py-1.5 */
+  font-size: 0.875rem !important; /* text-sm */
+  font-weight: 500 !important;
+  transition: opacity 0.2s !important;
+  background-color: transparent !important;
+  border: 1px solid var(--primary-accent) !important;
+  color: var(--primary-accent) !important;
+  height: auto !important;
+  box-shadow: none !important;
+}
+
+.puck-custom-actions button:hover,
+.puck-custom-actions [role="button"]:hover {
+  opacity: 0.8 !important;
+  background-color: transparent !important;
+}
+
+.puck-custom-actions button svg,
+.puck-custom-actions [role="button"] svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: var(--primary-accent) !important;
+  fill: transparent !important;
+}
+
+/* Ocultar cualquier texto (como el titulo "Page") que no sea un botón de acción */
+.puck-custom-actions > *:not(button):not([role="button"]) {
+  display: none !important;
+}
+
+/* Forzar que el contenedor raíz de Puck siempre ocupe el 100% de la altura y no colapse */
+.puck-master-wrapper > div {
+  height: 100% !important;
+  flex: 1 1 0% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* --- Lógica de Diseño para Acordeones Exclusivos --- */
+/* Forzamos que la lista interna de componentes de Puck sea un flex column del alto total */
+.puck-components-container > div {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Los acordeones cerrados no crecen, pero los abiertos sí */
+.puck-components-container details {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.puck-components-container details[open] {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* El contenido interno del acordeón abierto activa su propio scroll */
+.puck-components-container details[open] > div {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* --- Hack para Acordeones Transparentes (Eliminar contenedores de Puck) --- */
+div:has(> .puck-accordion-field-root),
+div:has(> div > .puck-accordion-field-root) {
+  padding: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+div:has(> div > div > .puck-accordion-field-root) {
+  gap: 0 !important;
+}
+
+/* --- Acordeones de Propiedades de Altura Completa --- */
+.puck-fields-container form {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  gap: 0 !important;
+}
+.puck-fields-container form > div {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.puck-fields-container form > div:has(.puck-accordion-is-open) {
+  flex: 1;
+  min-height: 0;
+}
+.puck-accordion-field-root {
+  display: flex;
+  flex-direction: column;
+}
+.puck-accordion-field-root:has(.puck-accordion-is-open) {
+  flex: 1;
+  min-height: 0;
+}
+.puck-accordion-is-open {
+  flex: 1;
+  min-height: 0;
+}
+
+/* --- Compact Properties Sidebar (Right Panel) --- */
+[class*="Sidebar--right"] {
+  --puck-space-px: 8px !important;
+}
+
+[class*="Sidebar--right"] [class*="SidebarSection_"] {
+  padding: 8px !important;
+}
+
+[class*="Sidebar--right"] [class*="SidebarSection-content"] {
+  padding: 0 !important;
+}
+
+[class*="Sidebar--right"] [class*="Field_"] {
+  margin-bottom: 8px !important;
+}
+
+/* Also for our custom controls inside the sidebar */
+[class*="Sidebar--right"] .p-4 {
+  padding: 0.5rem !important;
+}
+[class*="Sidebar--right"] .gap-4 {
+  gap: 0.5rem !important;
+}
+
+/* --- Compact Left Sidebar (Layers & Components) --- */
+.puck-outline-container, .puck-components-container {
+  --puck-space-px: 4px !important;
+  --puck-space-1: 2px !important;
+  --puck-space-2: 4px !important;
+  --puck-space-3: 6px !important;
+  --puck-space-4: 8px !important;
+  --puck-font-size-m: 12px !important;
+  --puck-font-size-s: 11px !important;
+  font-size: 12px !important;
+}
+
+/* Make Outline list items physically smaller */
+.puck-outline-container [class*="OutlineItem_"] {
+  padding: 4px 6px !important;
+  min-height: 28px !important;
+  gap: 6px !important;
+}
+
+/* Make component buttons physically smaller */
+.puck-components-container [class*="ComponentList_"] [class*="ComponentItem_"] {
+  padding: 6px 8px !important;
+  min-height: 32px !important;
+  font-size: 12px !important;
+}
+
+/* Downsize SVG icons in lists */
+.puck-outline-container svg, .puck-components-container svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Fix any remaining blue selection states inside Puck's canvas overlays */
+[class*="Overlay_"] {
+  --puck-color-azure-05: var(--primary-accent) !important;
+  border-color: var(--primary-accent) !important;
+}
+[class*="Overlay_"]:hover {
+  border-color: var(--primary-accent) !important;
+}
