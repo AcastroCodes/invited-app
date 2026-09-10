@@ -12,10 +12,28 @@ import {
   X,
   AlertTriangle,
   CheckCircle2,
+  Navigation,
+  Mail,
+  Shield,
+  Smartphone,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Event } from '../../types';
 import AppSelect from '../../components/AppSelect';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default Leaflet marker icon
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   wedding: 'Boda',
@@ -38,6 +56,12 @@ const STATUS_LABELS: Record<string, string> = {
   active: 'Activo',
   completed: 'Finalizado',
   cancelled: 'Cancelado',
+};
+
+const SERVICE_ICONS: Record<string, any> = {
+  INVITACION: Mail,
+  PROTOCOLO: Shield,
+  TOTEM: Smartphone,
 };
 
 export default function EventList() {
@@ -63,8 +87,56 @@ export default function EventList() {
   const [formTime, setFormTime] = useState('18:00');
   const [formLocation, setFormLocation] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formThemeColor, setFormThemeColor] = useState('#22c55e');
+  const [formServices, setFormServices] = useState<string[]>([]);
+  const [formLogo, setFormLogo] = useState<File | null>(null);
+  const [formBackground, setFormBackground] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
   const [formStatus, setFormStatus] = useState('active');
+
+  const [mapCenter, setMapCenter] = useState<[number, number]>([10.4806, -66.9036]); // Default to Caracas or any center
+  const [userTypedLocation, setUserTypedLocation] = useState(false);
+
+  function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
+    useMapEvents({
+      click(e) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      },
+    });
+    return null;
+  }
+
+  const handleMapClick = async (lat: number, lng: number) => {
+    setMapCenter([lat, lng]);
+    if (!userTypedLocation) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await res.json();
+        if (data && data.display_name) {
+          setFormLocation(data.display_name);
+        }
+      } catch (err) {
+        console.error("Geocoding error", err);
+      }
+    }
+  };
+
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          handleMapClick(lat, lng);
+        },
+        (error) => {
+          console.error("Error obtaining location", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
+    }
+  };
 
   const fetchEvents = () => {
     setLoading(true);
@@ -97,8 +169,14 @@ export default function EventList() {
     setFormTime('18:00');
     setFormLocation('');
     setFormDescription('');
-    setFormThemeColor('#22c55e');
+    setFormServices([]);
+    setFormLogo(null);
+    setFormBackground(null);
+    setLogoPreview(null);
+    setBackgroundPreview(null);
     setFormStatus('active');
+    setMapCenter([10.4806, -66.9036]);
+    setUserTypedLocation(false);
     setShowModal(true);
   };
 
@@ -110,8 +188,14 @@ export default function EventList() {
     setFormTime(ev.event_date ? ev.event_date.slice(11, 16) : '18:00');
     setFormLocation(ev.location || '');
     setFormDescription(ev.description || '');
-    setFormThemeColor(ev.theme_color || '#22c55e');
+    setFormServices(ev.services || []);
+    setFormLogo(null);
+    setFormBackground(null);
+    setLogoPreview(ev.logo ? `/storage/${ev.logo}` : null);
+    setBackgroundPreview(ev.background ? `/storage/${ev.background}` : null);
     setFormStatus(ev.status || 'active');
+    setMapCenter([10.4806, -66.9036]); // In a real app we'd parse coordinates from event
+    setUserTypedLocation(false);
     setShowModal(true);
   };
 
@@ -119,22 +203,28 @@ export default function EventList() {
     if (!formName.trim() || !formType || !formDate) return;
     setSaving(true);
     try {
-      const payload = {
-        name: formName.trim(),
-        event_type: formType,
-        event_date: `${formDate} ${formTime || '18:00'}:00`,
-        location: formLocation.trim(),
-        description: formDescription.trim(),
-        theme_color: formThemeColor,
-        status: formStatus,
-      };
+      const payload = new FormData();
+      payload.append('name', formName.trim());
+      payload.append('event_type', formType);
+      payload.append('event_date', `${formDate} ${formTime || '18:00'}:00`);
+      payload.append('location', formLocation.trim());
+      payload.append('description', formDescription.trim());
+      payload.append('services', JSON.stringify(formServices));
+      payload.append('status', formStatus);
+      if (formLogo) payload.append('logo', formLogo);
+      if (formBackground) payload.append('background', formBackground);
 
       if (editId) {
-        const res = await api.put(`/events/${editId}`, payload);
+        payload.append('_method', 'PUT');
+        const res = await api.post(`/events/${editId}`, payload, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         const updated = res.data.data || res.data;
         setEvents((prev) => prev.map((e) => (e.id === editId ? updated : e)));
       } else {
-        const res = await api.post('/events', payload);
+        const res = await api.post('/events', payload, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         const created = res.data.data || res.data;
         setEvents((prev) => [created, ...prev]);
       }
@@ -393,11 +483,18 @@ export default function EventList() {
               </div>
 
               <div className="flex items-center gap-4 px-4 py-2">
+                {/* Logo or avatar */}
                 <div
                   className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg text-lg font-bold text-white"
                   style={{ border: '1px solid var(--border-color)', backgroundColor: ev.theme_color || 'var(--primary-accent)' }}
                 >
-                  <CalendarDays size={24} />
+                  {ev.logo ? (
+                    <img src={`/storage/${ev.logo}`} alt="logo" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>{
+                      ev.name ? ev.name.split(' ').map(w => w[0]).join('').toUpperCase() : ''
+                    }</span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-semibold" style={{ color: 'var(--text-main)' }}>
@@ -420,7 +517,15 @@ export default function EventList() {
                 </div>
               </div>
 
-              <div className="mt-auto flex items-end justify-end">
+              <div className="mt-auto flex items-end justify-between">
+                {/* Ordered service icons */}
+                <div className="flex gap-2 pl-4 pb-2" style={{ color: 'var(--primary-accent)', opacity: 0.8 }}>
+                  {['INVITACION', 'PROTOCOLO', 'TOTEM'].map(srv => {
+                    if (!ev.services?.includes(srv)) return null;
+                    const Icon = SERVICE_ICONS[srv];
+                    return Icon ? <Icon key={srv} size={15} title={srv} /> : null;
+                  })}
+                </div>
                 <div
                   className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
                   style={{ backgroundColor: 'var(--primary-accent)' }}
@@ -456,7 +561,7 @@ export default function EventList() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
           <div
-            className="w-full max-w-lg rounded-md shadow-lg my-8"
+            className="w-full max-w-4xl rounded-md shadow-lg my-8"
             style={{
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
@@ -499,101 +604,207 @@ export default function EventList() {
               </div>
             </div>
 
-            <div className="space-y-4 p-5">
-              <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                  Nombre del Evento
-                </label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Ej: Boda de María y Juan"
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                  Tipo de Evento
-                </label>
-                <AppSelect
-                  value={formType}
-                  onChange={setFormType}
-                  options={EVENT_TYPES}
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="p-5 grid gap-6 sm:grid-cols-5">
+              {/* Left Column 2/5 */}
+              <div className="sm:col-span-2 space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                    Fecha
+                    Nombre del Evento
                   </label>
                   <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Ej: Boda de María y Juan"
                     className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                     style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
                   />
                 </div>
+
                 <div>
                   <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                    Hora
+                    Tipo de Evento
                   </label>
-                  <input
-                    type="time"
-                    value={formTime}
-                    onChange={(e) => setFormTime(e.target.value)}
-                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                  <AppSelect
+                    value={formType}
+                    onChange={setFormType}
+                    options={EVENT_TYPES}
+                  />
+                </div>
+
+                <div className="grid gap-4 grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                      Fecha
+                    </label>
+                    <input
+                      type="date"
+                      value={formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                      style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                      Hora
+                    </label>
+                    <input
+                      type="time"
+                      value={formTime}
+                      onChange={(e) => setFormTime(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                      style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                    Descripción
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
                     style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
                   />
                 </div>
+
+                <div className="grid gap-4 grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                      Logo del Evento
+                    </label>
+                    <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-lg cursor-pointer overflow-hidden transition-colors hover:opacity-80" style={{ backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border-color)' }}>
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="Logo" className="object-contain w-full h-full p-1" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                          <span className="font-medium">Subir imagen</span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormLogo(file);
+                            setLogoPreview(URL.createObjectURL(file));
+                          } else {
+                            setFormLogo(null);
+                            setLogoPreview(null);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                      Fondo del Evento
+                    </label>
+                    <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-lg cursor-pointer overflow-hidden transition-colors hover:opacity-80" style={{ backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border-color)' }}>
+                      {backgroundPreview ? (
+                        <img src={backgroundPreview} alt="Fondo" className="object-cover w-full h-full" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                          <span className="font-medium">Subir imagen</span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormBackground(file);
+                            setBackgroundPreview(URL.createObjectURL(file));
+                          } else {
+                            setFormBackground(null);
+                            setBackgroundPreview(null);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                  Lugar / Dirección
-                </label>
-                <input
-                  type="text"
-                  value={formLocation}
-                  onChange={(e) => setFormLocation(e.target.value)}
-                  placeholder="Ej: Salón Paraíso"
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                  Descripción
-                </label>
-                <textarea
-                  rows={3}
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                  Color Temático
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={formThemeColor}
-                    onChange={(e) => setFormThemeColor(e.target.value)}
-                    className="h-10 w-14 cursor-pointer rounded-lg p-1"
-                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)' }}
-                  />
-                  <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {formThemeColor}
-                  </span>
+              {/* Right Column 3/5 */}
+              <div className="sm:col-span-3 flex flex-col h-full gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                    Servicios
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {['INVITACION', 'PROTOCOLO', 'TOTEM'].map((srv) => {
+                      const Icon = SERVICE_ICONS[srv];
+                      return (
+                      <button
+                        key={srv}
+                        type="button"
+                        onClick={() => {
+                          setFormServices((prev) => 
+                            prev.includes(srv) ? prev.filter((s) => s !== srv) : [...prev, srv]
+                          )
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                        style={{
+                          backgroundColor: formServices.includes(srv) ? 'var(--primary-accent)' : 'var(--bg-app)',
+                          border: `1px solid ${formServices.includes(srv) ? 'var(--primary-accent)' : 'var(--border-color)'}`,
+                          color: formServices.includes(srv) ? 'white' : 'var(--text-main)'
+                        }}
+                      >
+                        {Icon && <Icon size={14} />}
+                        {srv}
+                      </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                    Lugar / Dirección
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={formLocation}
+                      onChange={(e) => {
+                        setFormLocation(e.target.value);
+                        setUserTypedLocation(true);
+                      }}
+                      placeholder="Ej: Salón Paraíso o selecciona en el mapa"
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                      style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={getCurrentLocation}
+                      className="flex h-[38px] w-[42px] shrink-0 items-center justify-center rounded-lg transition-colors hover:opacity-90"
+                      style={{ backgroundColor: 'var(--primary-accent)', color: 'white' }}
+                      title="Usar mi ubicación actual"
+                    >
+                      <Navigation size={18} />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 min-h-[300px] relative rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-color)', zIndex: 0 }}>
+                  <MapContainer
+                    center={mapCenter}
+                    zoom={13}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={mapCenter} />
+                    <MapClickHandler onMapClick={handleMapClick} />
+                  </MapContainer>
                 </div>
               </div>
             </div>

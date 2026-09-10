@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Event;
+use Illuminate\Support\Facades\Storage;
 
 class EventController extends Controller
 {
@@ -20,8 +21,22 @@ class EventController extends Controller
             'event_date' => 'required|date',
             'location' => 'nullable|string',
             'description' => 'nullable|string',
-            'theme_color' => 'nullable|string',
+            'status' => 'nullable|string',
+            'services' => 'nullable|json',
+            'logo' => 'nullable|image|max:2048',
+            'background' => 'nullable|image|max:2048',
         ]);
+
+        if (isset($validated['services'])) {
+            $validated['services'] = json_decode($validated['services'], true);
+        }
+
+        if ($request->hasFile('logo')) {
+            $validated['logo'] = $request->file('logo')->store('events/logos', 'public');
+        }
+        if ($request->hasFile('background')) {
+            $validated['background'] = $request->file('background')->store('events/backgrounds', 'public');
+        }
 
         $event = Event::create($validated);
         return response()->json($event, 201);
@@ -40,8 +55,29 @@ class EventController extends Controller
             'event_date' => 'sometimes|required|date',
             'location' => 'nullable|string',
             'description' => 'nullable|string',
-            'theme_color' => 'nullable|string',
+            'status' => 'nullable|string',
+            'services' => 'nullable|json',
+            'logo' => 'nullable|image|max:2048',
+            'background' => 'nullable|image|max:2048',
         ]);
+
+        if (isset($validated['services'])) {
+            $validated['services'] = json_decode($validated['services'], true);
+        }
+
+        if ($request->hasFile('logo')) {
+            if ($event->logo) {
+                Storage::disk('public')->delete($event->logo);
+            }
+            $validated['logo'] = $request->file('logo')->store('events/logos', 'public');
+        }
+        
+        if ($request->hasFile('background')) {
+            if ($event->background) {
+                Storage::disk('public')->delete($event->background);
+            }
+            $validated['background'] = $request->file('background')->store('events/backgrounds', 'public');
+        }
 
         $event->update($validated);
         return response()->json($event);
@@ -49,6 +85,13 @@ class EventController extends Controller
 
     public function destroy(Event $event)
     {
+        if ($event->logo) {
+            Storage::disk('public')->delete($event->logo);
+        }
+        if ($event->background) {
+            Storage::disk('public')->delete($event->background);
+        }
+        
         $event->delete();
         return response()->json(null, 204);
     }

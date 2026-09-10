@@ -12,10 +12,18 @@ class Event extends Model
         'event_date',
         'location',
         'description',
-        'theme_color',
+        'services',
+        'logo',
+        'background',
         'status',
         'guest_count',
         'confirmed_count',
+    ];
+
+    protected $casts = [
+        'guest_count' => 'integer',
+        'confirmed_count' => 'integer',
+        'services' => 'array',
     ];
 
     public function tables()
