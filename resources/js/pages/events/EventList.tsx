@@ -485,8 +485,8 @@ export default function EventList() {
               <div className="flex items-center gap-4 px-4 py-2">
                 {/* Logo or avatar */}
                 <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg text-lg font-bold text-white"
-                  style={{ border: '1px solid var(--border-color)', backgroundColor: ev.theme_color || 'var(--primary-accent)' }}
+                  className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                  style={{ border: '1px solid var(--border-color)' }}
                 >
                   {ev.logo ? (
                     <img src={`/storage/${ev.logo}`} alt="logo" className="h-full w-full object-cover" />
@@ -521,9 +521,12 @@ export default function EventList() {
                 {/* Ordered service icons */}
                 <div className="flex gap-2 pl-4 pb-2" style={{ color: 'var(--primary-accent)', opacity: 0.8 }}>
                   {['INVITACION', 'PROTOCOLO', 'TOTEM'].map(srv => {
-                    if (!ev.services?.includes(srv)) return null;
                     const Icon = SERVICE_ICONS[srv];
-                    return Icon ? <Icon key={srv} size={15} title={srv} /> : null;
+                    const isActive = ev.services?.includes(srv);
+                    const color = isActive ? 'var(--primary-accent)' : 'var(--border-color)';
+                    return Icon ? (
+                      <Icon key={srv} size={15} title={srv} color={color} />
+                    ) : null;
                   })}
                 </div>
                 <div
