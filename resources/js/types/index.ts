@@ -22,6 +22,7 @@ export interface Partner {
   contact_phone?: string;
   social_links?: SocialLink[];
   is_active: boolean;
+  user?: User;
   users?: User[];
 }
 
@@ -70,6 +71,7 @@ export interface Event {
   cover_image?: string;
   guest_count?: number;
   confirmed_count?: number;
+  guests?: Array<{ id: number; rsvp_status?: string }>;
   partner?: Partner;
 }
 
@@ -86,20 +88,37 @@ export interface InvitationTemplate {
   creator?: User;
 }
 
+export interface Invitation {
+  id: number;
+  event_id: number;
+  title: string;
+  slug?: string;
+  description?: string | null;
+  template: string;
+  content?: any;
+  is_active: boolean;
+  guests_count?: number;
+  guests?: Guest[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Guest {
   id: number;
   event_id: number;
+  table_id?: number | null;
+  invitation_id?: number | null;
   name: string;
-  email: string;
-  phone?: string;
+  email?: string | null;
+  phone?: string | null;
   family_group?: string;
-  plus_allowed: number;
-  rsvp_token: string;
-  rsvp_status: 'pending' | 'confirmed' | 'declined';
-  plus_actual: number;
+  plus_allowed?: number;
+  rsvp_token?: string;
+  rsvp_status?: 'pending' | 'confirmed' | 'declined';
+  plus_actual?: number;
   message?: string;
   allergies?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface MenuItem {

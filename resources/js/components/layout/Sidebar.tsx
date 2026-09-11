@@ -41,19 +41,7 @@ export default function Sidebar({ open, onClose, isCollapsed = false }: SidebarP
   const isDark = theme === 'dark';
   const coralAccent = '#E07A5F';
 
-  const pathParts = location.pathname.split('/');
-  const isEventContext = pathParts[1] === 'events' && pathParts.length >= 3 && pathParts[2] !== 'new';
-  const eventId = isEventContext ? pathParts[2] : null;
-
-  const eventNavItems = [
-    { to: '/events', label: '← All Events', icon: CalendarDays },
-    { to: `/events/${eventId}/edit`, label: 'Event Details', icon: CalendarDays },
-    { to: `/events/${eventId}/guests`, label: 'Guests', icon: Users },
-    { to: `/events/${eventId}/tables`, label: 'Seating Plan', icon: Table2 },
-    { to: `/events/${eventId}/menu`, label: 'Menu', icon: UtensilsCrossed },
-  ];
-
-  const activeNavItems = isEventContext ? eventNavItems : globalNavItems;
+  const activeNavItems = globalNavItems;
 
   const renderNavItem = (item: { to: string; label: string; icon: React.ComponentType<{ size?: number }> }) => {
     const Icon = item.icon;

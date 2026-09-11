@@ -10,7 +10,7 @@ class EventController extends Controller
 {
     public function index()
     {
-        return response()->json(Event::with('partner')->orderBy('created_at', 'desc')->get());
+        return response()->json(Event::with('partner.user')->orderBy('created_at', 'desc')->get());
     }
 
     public function store(Request $request)
@@ -52,12 +52,12 @@ class EventController extends Controller
         }
 
         $event = Event::create($validated);
-        return response()->json($event->load('partner'), 201);
+        return response()->json($event->load('partner.user'), 201);
     }
 
     public function show(Event $event)
     {
-        return response()->json($event->load('partner'));
+        return response()->json($event->load(['partner.user', 'guests']));
     }
 
     public function update(Request $request, Event $event)
@@ -109,7 +109,7 @@ class EventController extends Controller
         }
 
         $event->update($validated);
-        return response()->json($event->load('partner'));
+        return response()->json($event->load('partner.user'));
     }
 
     public function destroy(Event $event)

@@ -488,19 +488,20 @@ export default function PartnerList() {
                     </div>
                   )}
                 </div>
-                <div className="min-w-0">
-                  <h3 className="truncate font-semibold" style={{ color: 'var(--text-main)' }}>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-semibold text-base" style={{ color: 'var(--text-main)' }}>
                     {p.business_name}
                   </h3>
-                  <p className="truncate text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {p.business_address || '—'}
-                  </p>
-                  <span
-                    className="mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium"
-                    style={{ backgroundColor: 'var(--primary-accent)', color: '#FFFFFF' }}
-                  >
-                    RUT: {p.business_rut || 'N/A'}
-                  </span>
+                  {p.user && (
+                    <p className="truncate text-xs font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {p.user.name}
+                    </p>
+                  )}
+                  {p.user?.role && (
+                    <p className="truncate text-[11px] font-normal opacity-75 mt-0.5" style={{ color: 'var(--primary-accent)' }}>
+                      {p.user.role === 'superadmin' ? 'Super Admin' : p.user.role === 'event_planner' ? 'Event Planner' : p.user.role === 'protocol' ? 'Protocolo' : p.user.role === 'host' ? 'Anfitrión' : p.user.role}
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -21,6 +21,7 @@ import {
   ChevronDown,
   EyeOff,
   Building2,
+  Settings,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Event } from '../../types';
@@ -80,6 +81,13 @@ const STATUS_LABELS: Record<string, string> = {
   active: 'Activo',
   completed: 'Finalizado',
   cancelled: 'Cancelado',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: 'Super Admin',
+  event_planner: 'Event Planner',
+  protocol: 'Protocolo',
+  host: 'Anfitrión',
 };
 
 const SERVICE_ICONS: Record<string, any> = {
@@ -681,7 +689,8 @@ export default function EventList() {
           {filtered.map((ev) => (
             <div
               key={ev.id}
-              className="flex flex-col overflow-hidden"
+              onClick={() => navigate(`/events/${ev.id}/config`)}
+              className="flex flex-col overflow-hidden cursor-pointer transition-all hover:shadow-md"
               style={{
                 backgroundColor: 'var(--bg-card)',
                 borderTop: '2px solid var(--primary-accent)',
@@ -752,7 +761,7 @@ export default function EventList() {
                 </div>
               </div>
 
-              <div className="mt-auto flex items-end justify-between">
+              <div className="mt-auto flex items-end justify-between" onClick={(e) => e.stopPropagation()}>
                 {/* Ordered service icons */}
                 <div className="flex gap-2 pl-4 pb-2" style={{ color: 'var(--primary-accent)', opacity: 0.8 }}>
                   {['INVITACION', 'PROTOCOLO', 'TOTEM'].map(srv => {
@@ -764,24 +773,44 @@ export default function EventList() {
                     ) : null;
                   })}
                 </div>
-                <div
-                  className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
-                  style={{ backgroundColor: 'var(--primary-accent)' }}
-                >
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => openEditModal(ev)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
-                    title="Editar"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/events/${ev.id}/config`);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-t-lg rounded-b-none text-white shadow-sm transition-opacity hover:opacity-80"
+                    style={{ backgroundColor: 'var(--primary-accent)' }}
+                    title="Configuración"
                   >
-                    <Pencil size={15} />
+                    <Settings size={16} />
                   </button>
-                  <button
-                    onClick={() => setDeleteId(ev.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
-                    title="Eliminar"
+
+                  <div
+                    className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
+                    style={{ backgroundColor: 'var(--primary-accent)' }}
                   >
-                    <Trash2 size={15} />
-                  </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditModal(ev);
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                      title="Editar"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(ev.id);
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

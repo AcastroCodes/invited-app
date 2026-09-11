@@ -9,6 +9,7 @@ class Guest extends Model
     protected $fillable = [
         'event_id',
         'table_id',
+        'invitation_id',
         'name',
         'email',
         'phone',
@@ -24,5 +25,10 @@ class Guest extends Model
     public function table()
     {
         return $this->belongsTo(Table::class);
+    }
+
+    public function invitation()
+    {
+        return $this->belongsTo(Invitation::class);
     }
 }
