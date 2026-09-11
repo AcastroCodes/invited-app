@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Menu, Bell, ChevronDown, Building2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { usePartner } from '../../context/PartnerContext';
 import api from '../../lib/api';
 import type { Partner } from '../../types';
 
@@ -11,11 +12,11 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
+  const { selectedPartner, setSelectedPartner } = usePartner();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [selectedPartner, setSelectedPartner] = useState<string | number>('all');
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
   const partnerDropdownRef = useRef<HTMLDivElement>(null);
 

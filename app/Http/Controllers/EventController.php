@@ -10,7 +10,7 @@ class EventController extends Controller
 {
     public function index()
     {
-        return response()->json(Event::orderBy('created_at', 'desc')->get());
+        return response()->json(Event::with('partner')->orderBy('created_at', 'desc')->get());
     }
 
     public function store(Request $request)
@@ -19,13 +19,26 @@ class EventController extends Controller
             'name' => 'required|string',
             'event_type' => 'required|string',
             'event_date' => 'required|date',
-            'location' => 'nullable|string',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'itinerary' => 'nullable',
             'description' => 'nullable|string',
             'status' => 'nullable|string',
             'services' => 'nullable|json',
             'logo' => 'nullable|image|max:2048',
             'background' => 'nullable|image|max:2048',
         ]);
+
+        $partnerId = $request->input('partner_id');
+        if ($partnerId && $partnerId !== '' && $partnerId !== 'null' && $partnerId !== 'undefined' && $partnerId !== 'all') {
+            $validated['partner_id'] = (int)$partnerId;
+        } else {
+            $validated['partner_id'] = null;
+        }
+
+        if (isset($validated['itinerary']) && is_string($validated['itinerary'])) {
+            $validated['itinerary'] = json_decode($validated['itinerary'], true);
+        }
 
         if (isset($validated['services'])) {
             $validated['services'] = json_decode($validated['services'], true);
@@ -39,12 +52,12 @@ class EventController extends Controller
         }
 
         $event = Event::create($validated);
-        return response()->json($event, 201);
+        return response()->json($event->load('partner'), 201);
     }
 
     public function show(Event $event)
     {
-        return response()->json($event);
+        return response()->json($event->load('partner'));
     }
 
     public function update(Request $request, Event $event)
@@ -54,12 +67,28 @@ class EventController extends Controller
             'event_type' => 'sometimes|required|string',
             'event_date' => 'sometimes|required|date',
             'location' => 'nullable|string',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'itinerary' => 'nullable',
             'description' => 'nullable|string',
             'status' => 'nullable|string',
             'services' => 'nullable|json',
             'logo' => 'nullable|image|max:2048',
             'background' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->has('partner_id')) {
+            $partnerId = $request->input('partner_id');
+            if ($partnerId && $partnerId !== '' && $partnerId !== 'null' && $partnerId !== 'undefined' && $partnerId !== 'all') {
+                $validated['partner_id'] = (int)$partnerId;
+            } else {
+                $validated['partner_id'] = null;
+            }
+        }
+
+        if (isset($validated['itinerary']) && is_string($validated['itinerary'])) {
+            $validated['itinerary'] = json_decode($validated['itinerary'], true);
+        }
 
         if (isset($validated['services'])) {
             $validated['services'] = json_decode($validated['services'], true);
@@ -80,7 +109,7 @@ class EventController extends Controller
         }
 
         $event->update($validated);
-        return response()->json($event);
+        return response()->json($event->load('partner'));
     }
 
     public function destroy(Event $event)

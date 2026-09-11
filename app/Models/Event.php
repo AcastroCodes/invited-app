@@ -7,10 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class Event extends Model
 {
     protected $fillable = [
+        'partner_id',
         'name',
         'event_type',
         'event_date',
         'location',
+        'latitude',
+        'longitude',
+        'itinerary',
         'description',
         'services',
         'logo',
@@ -24,7 +28,15 @@ class Event extends Model
         'guest_count' => 'integer',
         'confirmed_count' => 'integer',
         'services' => 'array',
+        'itinerary' => 'array',
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
+
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class);
+    }
 
     public function tables()
     {

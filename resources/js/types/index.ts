@@ -41,6 +41,18 @@ export interface SocialLink {
   value: string;
 }
 
+export interface ItineraryItem {
+  id: string;
+  name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  location_name: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export interface Event {
   id: number;
   partner_id: number;
@@ -49,13 +61,16 @@ export interface Event {
   event_type: 'wedding' | 'quince' | 'birthday' | 'corporate' | 'other';
   event_date: string;
   location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  itinerary?: ItineraryItem[] | null;
   description?: string;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
   theme_color?: string;
   cover_image?: string;
-  created_at: string;
   guest_count?: number;
   confirmed_count?: number;
+  partner?: Partner;
 }
 
 export interface InvitationTemplate {

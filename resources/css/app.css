@@ -329,3 +329,53 @@ div:has(> div > div > .puck-accordion-field-root) {
 [class*="Overlay_"]:hover {
   border-color: var(--primary-accent) !important;
 }
+
+/* Custom styling for Date and Time pickers with project branding */
+input[type="date"],
+input[type="time"] {
+  accent-color: var(--primary-accent);
+  color-scheme: light dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(52%) sepia(28%) saturate(1210%) hue-rotate(323deg) brightness(94%) contrast(89%);
+  transition: opacity 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
+}
+
+/* Enforce project palette for HTML select elements and popup option menus */
+select {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+  outline-color: var(--primary-accent) !important;
+}
+
+select option {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+}
+
+/* Custom Leaflet Map Tiles thematic filters for Light and Dark modes */
+.project-map-tiles {
+  transition: filter 0.3s ease;
+}
+
+/* Modo Claro: Tono cálido en armonía con Coral (#E07A5F) y Oro (#F2CC8F) */
+.project-map-tiles {
+  filter: contrast(96%) brightness(98%) sepia(30%) hue-rotate(330deg) saturate(140%);
+}
+
+/* Modo Oscuro: Mapas oscuros elegantes con toques cálidos del proyecto */
+.dark .project-map-tiles {
+  filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%) sepia(25%) saturate(120%);
+}
+
+
+

@@ -111,15 +111,22 @@ export default function AppSelect({
               : { backgroundColor: 'transparent', color: 'var(--text-main)', fontFamily: o.fontFamily || 'inherit' }
           }
           onMouseEnter={(e) => {
-            if (o.value !== value) e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+            if (o.value !== value) {
+              e.currentTarget.style.backgroundColor = 'var(--primary-accent-light)';
+              e.currentTarget.style.color = 'var(--primary-accent)';
+            }
           }}
           onMouseLeave={(e) => {
-            if (o.value !== value) e.currentTarget.style.backgroundColor = 'transparent';
+            if (o.value !== value) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'var(--text-main)';
+            }
           }}
         >
           {o.label}
           {o.value === value && <span style={{ color: 'var(--primary-accent)' }}>✓</span>}
         </button>
+
       ))}
     </div>
   ) : null;
