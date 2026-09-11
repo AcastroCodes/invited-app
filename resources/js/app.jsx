@@ -15,6 +15,7 @@ import EventForm from './pages/events/EventForm.tsx';
 import EventConfig from './pages/events/EventConfig.tsx';
 import GuestList from './pages/events/GuestList.tsx';
 import TableList from './pages/events/TableList.tsx';
+import InvitationDesigner from './pages/events/InvitationDesigner.tsx';
 
 import { AuthProvider } from './hooks/useAuth.tsx';
 import { PartnerProvider } from './context/PartnerContext.tsx';
@@ -39,6 +40,7 @@ function App() {
                                 <Route path="/events/new" element={<EventForm />} />
                                 <Route path="/events/:id/edit" element={<EventForm />} />
                                 <Route path="/events/:id/config" element={<EventConfig />} />
+                                <Route path="/events/:id/invitations/:invitationId/designer" element={<InvitationDesigner />} />
                                 <Route path="/events/:id/guests" element={<GuestList />} />
                                 <Route path="/events/:id/tables" element={<TableList />} />
                             </Route>

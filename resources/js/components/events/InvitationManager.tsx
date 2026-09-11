@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Mail,
@@ -28,6 +29,7 @@ const INVITATION_TYPES = [
 ];
 
 export default function InvitationManager({ eventId }: InvitationManagerProps) {
+  const navigate = useNavigate();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -253,7 +255,7 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
                   <div className="mt-auto flex items-end justify-end">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => alert(`Abrir Diseñador para "${inv.title}"`)}
+                        onClick={() => navigate(`/events/${eventId}/invitations/${inv.id}/designer`)}
                         className="flex h-8 w-8 items-center justify-center rounded-t-lg rounded-b-none text-white shadow-sm transition-opacity hover:opacity-80"
                         style={{ backgroundColor: 'var(--primary-accent)' }}
                         title="Diseñador"
