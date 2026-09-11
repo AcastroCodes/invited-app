@@ -16,6 +16,8 @@ import {
   ZoomIn,
   ZoomOut,
   Smartphone,
+  AlertTriangle,
+  Maximize,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
@@ -47,13 +49,35 @@ export default function InvitationDesigner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
   // Studio UI states
   const [activeLeftTab, setActiveLeftTab] = useState<'layers' | 'text' | 'media' | 'widgets'>('layers');
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
+  const [zoomInputText, setZoomInputText] = useState('100');
   const [isPlaying, setIsPlaying] = useState(false);
   const [timelineTime, setTimelineTime] = useState(0);
+
+  useEffect(() => {
+    setZoomInputText(String(zoom));
+  }, [zoom]);
+
+  const handleZoomInputCommit = (valStr: string) => {
+    const parsed = parseInt(valStr.replace(/\D/g, ''), 10);
+    if (!isNaN(parsed)) {
+      const clamped = Math.min(200, Math.max(25, parsed));
+      setZoom(clamped);
+      setZoomInputText(String(clamped));
+    } else {
+      setZoomInputText(String(zoom));
+    }
+  };
+
+  const handleFitToScreen = () => {
+    // 640px height canvas fitting standard studio view area
+    setZoom(90);
+  };
 
   // Initial Elements State
   const [elements, setElements] = useState<CanvasElement[]>([
@@ -102,6 +126,8 @@ export default function InvitationDesigner() {
     },
   ]);
 
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
   useEffect(() => {
     if (!eventId || !invitationId) return;
     setLoading(true);
@@ -120,8 +146,24 @@ export default function InvitationDesigner() {
           }
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setHasUnsavedChanges(false);
+      });
   }, [eventId, invitationId]);
+
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedModal(true);
+    } else {
+      navigate(`/events/${eventId}/config`);
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setShowUnsavedModal(false);
+    navigate(`/events/${eventId}/config`);
+  };
 
   const handleSave = async () => {
     if (!invitationId) return;
@@ -131,6 +173,7 @@ export default function InvitationDesigner() {
         content: { elements },
       });
       setSavedSuccess(true);
+      setHasUnsavedChanges(false);
       setTimeout(() => setSavedSuccess(false), 2500);
     } catch {
       alert('Error al guardar los cambios del diseñador');
@@ -155,6 +198,7 @@ export default function InvitationDesigner() {
     };
     setElements([...elements, newEl]);
     setSelectedElementId(newEl.id);
+    setHasUnsavedChanges(true);
   };
 
   const handleAddWidget = (widgetType: string, label: string) => {
@@ -175,11 +219,13 @@ export default function InvitationDesigner() {
     };
     setElements([...elements, newEl]);
     setSelectedElementId(newEl.id);
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteElement = (id: string) => {
     setElements(elements.filter((el) => el.id !== id));
     if (selectedElementId === id) setSelectedElementId(null);
+    setHasUnsavedChanges(true);
   };
 
   const selectedElement = elements.find((el) => el.id === selectedElementId);
@@ -189,6 +235,7 @@ export default function InvitationDesigner() {
     setElements(
       elements.map((el) => (el.id === selectedElementId ? { ...el, [key]: val } : el))
     );
+    setHasUnsavedChanges(true);
   };
 
   if (loading) {
@@ -204,60 +251,72 @@ export default function InvitationDesigner() {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden select-none" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}>
-      {/* 1. Header Studio Bar (Con tokens de diseño del proyecto) */}
+      {/* 1. Header Studio Bar (Con borde inferior del color del evento) */}
       <header
-        className="flex h-14 shrink-0 items-center justify-between border-b px-4 z-40"
+        className="flex h-14 shrink-0 items-center justify-between border-b-2 px-4 z-40"
         style={{
           backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-color)',
+          borderBottomColor: 'var(--primary-accent)',
         }}
       >
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(`/events/${eventId}/config`)}
-            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors hover:opacity-80 border"
+            onClick={handleBackClick}
+            className="flex items-center justify-center rounded-lg p-2 transition-colors hover:opacity-80 border"
             style={{
               backgroundColor: 'var(--bg-app)',
               borderColor: 'var(--border-color)',
               color: 'var(--text-main)',
             }}
+            title="Volver"
           >
-            <ArrowLeft size={16} style={{ color: 'var(--primary-accent)' }} /> Volver a Configuración
+            <ArrowLeft size={18} style={{ color: 'var(--primary-accent)' }} />
           </button>
           <div className="h-4 w-[1px]" style={{ backgroundColor: 'var(--border-color)' }} />
           <div className="flex items-center gap-2">
-            <Sparkles size={18} style={{ color: 'var(--primary-accent)' }} />
-            <h1 className="text-sm font-extrabold tracking-wide" style={{ color: 'var(--text-main)' }}>
-              Diseñador 3D Studio <span className="font-normal opacity-70">| {invitation?.title || 'Invitación'}</span>
-            </h1>
-          </div>
-        </div>
+            {(() => {
+              const rawEvName = event?.name || (event as any)?.title || 'EVENTO';
+              const evNameUpper = rawEvName.toUpperCase();
+              
+              const rawInvName = invitation?.title || (invitation as any)?.name || 'Invitación';
+              const invNameCapitalized = rawInvName.charAt(0).toUpperCase() + rawInvName.slice(1).toLowerCase();
 
-        {/* Center: Zoom Controls */}
-        <div
-          className="flex items-center gap-2 rounded-lg px-2.5 py-1 border text-xs"
-          style={{
-            backgroundColor: 'var(--bg-app)',
-            borderColor: 'var(--border-color)',
-            color: 'var(--text-main)',
-          }}
-        >
-          <button onClick={() => setZoom(Math.max(50, zoom - 10))} className="p-1 hover:opacity-75">
-            <ZoomOut size={14} />
-          </button>
-          <span className="w-12 text-center font-mono font-bold">{zoom}%</span>
-          <button onClick={() => setZoom(Math.min(150, zoom + 10))} className="p-1 hover:opacity-75">
-            <ZoomIn size={14} />
-          </button>
+              return (
+                <h1 className="text-sm font-extrabold tracking-wide" style={{ color: 'var(--text-main)' }}>
+                  <span>{evNameUpper}</span>
+                  <span className="font-normal opacity-70 ml-2">
+                    | {invNameCapitalized}
+                  </span>
+                </h1>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
-          {savedSuccess && (
+          {hasUnsavedChanges ? (
+            <span
+              className="text-xs font-extrabold flex items-center gap-1.5 px-2.5 py-1 rounded-full border animate-pulse"
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(239, 68, 68, 0.3)',
+                color: '#EF4444',
+              }}
+            >
+              <span className="h-2 w-2 rounded-full bg-red-500 inline-block" />
+              Sin guardar
+            </span>
+          ) : savedSuccess ? (
             <span className="text-xs font-bold flex items-center gap-1" style={{ color: 'var(--success)' }}>
               <Check size={14} /> Cambios guardados
             </span>
+          ) : (
+            <span className="text-xs font-medium opacity-60 flex items-center gap-1">
+              <Check size={13} /> Guardado
+            </span>
           )}
+
           <button
             onClick={handleSave}
             disabled={saving}
@@ -472,6 +531,79 @@ export default function InvitationDesigner() {
 
         {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema) */}
         <main className="flex-1 flex flex-col items-center justify-center relative p-6 overflow-auto" style={{ backgroundColor: 'var(--bg-app)' }}>
+          {/* Controls Zoom flotantes (Esquina superior izquierda del área del diseñador) */}
+          <div
+            className="absolute top-4 left-4 z-30 flex items-center gap-1.5 rounded-xl p-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-main)',
+            }}
+          >
+            <button
+              onClick={() => setZoom(Math.max(25, zoom - 10))}
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:opacity-75 border"
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
+              }}
+              title="Reducir zoom (-10%)"
+            >
+              <ZoomOut size={14} />
+            </button>
+
+            {/* Input para escribir el porcentaje directamente */}
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={zoomInputText}
+                onChange={(e) => setZoomInputText(e.target.value)}
+                onBlur={(e) => handleZoomInputCommit(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleZoomInputCommit(zoomInputText);
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="w-12 rounded-md py-0.5 text-center font-mono text-xs border bg-transparent focus:outline-hidden"
+                style={{
+                  borderColor: 'var(--border-color)',
+                  color: 'var(--text-main)',
+                }}
+                title="Escribe un porcentaje (25-200%)"
+              />
+              <span className="text-[10px] font-mono opacity-60 ml-0.5">%</span>
+            </div>
+
+            <button
+              onClick={() => setZoom(Math.min(200, zoom + 10))}
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:opacity-75 border"
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
+              }}
+              title="Aumentar zoom (+10%)"
+            >
+              <ZoomIn size={14} />
+            </button>
+
+            <div className="h-4 w-[1px] mx-0.5" style={{ backgroundColor: 'var(--border-color)' }} />
+
+            {/* Botón Ajustar a Pantalla (Fit) */}
+            <button
+              onClick={handleFitToScreen}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-extrabold transition-colors hover:opacity-80 border"
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-main)',
+              }}
+              title="Ajustar diseño a la pantalla"
+            >
+              <Maximize size={13} style={{ color: 'var(--primary-accent)' }} />
+              Ajustar
+            </button>
+          </div>
           {/* Snap guides & canvas outer container */}
           <div
             className="transition-transform duration-150 relative"
@@ -710,6 +842,54 @@ export default function InvitationDesigner() {
           Lienzo Móvil <strong style={{ color: 'var(--primary-accent)' }}>360px × 640px</strong>
         </div>
       </footer>
+
+      {/* Modal de Advertencia de Cambios sin Guardar */}
+      {showUnsavedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div
+            className="w-full max-w-md rounded-2xl p-6 shadow-2xl border transition-all scale-100"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-main)',
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold" style={{ color: 'var(--text-main)' }}>
+                  ¿Deseas salir sin guardar?
+                </h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Tienes cambios sin guardar en el diseñador. Si sales ahora, perderás las modificaciones realizadas.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowUnsavedModal(false)}
+                className="rounded-xl px-4 py-2.5 text-xs font-bold transition-all border hover:opacity-80"
+                style={{
+                  backgroundColor: 'var(--bg-app)',
+                  borderColor: 'var(--border-color)',
+                  color: 'var(--text-main)',
+                }}
+              >
+                No, continuar editando
+              </button>
+              <button
+                onClick={handleConfirmExit}
+                className="rounded-xl px-4 py-2.5 text-xs font-extrabold text-white transition-all shadow-sm hover:opacity-90 bg-red-600 hover:bg-red-700"
+              >
+                Sí, salir sin guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

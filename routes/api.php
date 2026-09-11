@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Invitaciones
     Route::get('/events/{event}/invitations', [App\Http\Controllers\InvitationController::class, 'index']);
     Route::post('/events/{event}/invitations', [App\Http\Controllers\InvitationController::class, 'store']);
+    Route::get('/invitations/{invitation}', [App\Http\Controllers\InvitationController::class, 'show']);
     Route::put('/invitations/{invitation}', [App\Http\Controllers\InvitationController::class, 'update']);
     Route::delete('/invitations/{invitation}', [App\Http\Controllers\InvitationController::class, 'destroy']);
     Route::post('/invitations/{invitation}/assign-guests', [App\Http\Controllers\InvitationController::class, 'assignGuests']);

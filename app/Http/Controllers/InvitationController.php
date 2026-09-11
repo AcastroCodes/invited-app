@@ -29,6 +29,19 @@ class InvitationController extends Controller
     }
 
     /**
+     * Display the specified invitation.
+     */
+    public function show($id)
+    {
+        $invitation = Invitation::withCount('guests')->with('guests')->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $invitation,
+        ]);
+    }
+
+    /**
      * Store a newly created invitation for an event.
      */
     public function store(Request $request, $eventId)
