@@ -167,7 +167,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
     }
   }, [isOpen]);
 
-  const officialPalette = ['#E07A5F', '#F2CC8F', '#212121', '#FFFFFF', '#52B788', '#E63946', '#3B82F6', '#8B5CF6', '#757575'];
+  const officialPalette = ['transparent', '#E07A5F', '#F2CC8F', '#212121', '#FFFFFF', '#52B788', '#E63946', '#3B82F6', '#8B5CF6', '#757575'];
 
   return (
     <div className="relative">
@@ -182,7 +182,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-1.5 rounded-xl border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
+        className="w-full flex items-center justify-between p-1 rounded-lg border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
         style={{
           backgroundColor: 'var(--bg-app)',
           borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',
@@ -191,19 +191,19 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
         title="Haz clic para personalizar el color o degradado"
       >
         <div
-          className="h-7 flex-1 rounded-lg border transition-all relative overflow-hidden shadow-2xs"
+          className="h-6 flex-1 rounded-md border transition-all relative overflow-hidden shadow-2xs"
           style={{
             background: safeValue.includes('gradient') ? safeValue : (safeValue === 'transparent' ? '#FFFFFF' : safeValue),
             borderColor: 'var(--border-color)',
           }}
         >
           {safeValue === 'transparent' && (
-            <div className="absolute inset-0 flex items-center justify-center text-xs text-red-500 font-bold">/</div>
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_45%,#ef4444_45%,#ef4444_55%,transparent_55%)]" />
           )}
         </div>
 
         <span
-          className="p-1.5 rounded-lg border shrink-0 ml-2 flex items-center justify-center transition-transform hover:scale-105"
+          className="p-1 rounded-md border shrink-0 ml-1.5 flex items-center justify-center transition-transform hover:scale-105"
           style={{
             backgroundColor: 'var(--primary-accent-light)',
             borderColor: 'var(--primary-accent)',
@@ -211,7 +211,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
           }}
           title="Editar color"
         >
-          <Edit3 size={13} />
+          <Edit3 size={11} />
         </span>
       </button>
 
@@ -222,7 +222,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
           <div
             onClick={(e) => e.stopPropagation()}
-            className="fixed w-76 p-3 rounded-xl shadow-2xl border z-50 animate-in fade-in zoom-in-95 duration-150 flex flex-col justify-between"
+            className="fixed w-64 p-2.5 rounded-xl shadow-2xl border z-50 animate-in fade-in zoom-in-95 duration-150 flex flex-col justify-between"
             style={{
               top: `${popoverCoords.top}px`,
               left: `${popoverCoords.left}px`,
@@ -250,20 +250,20 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
               {/* Arriba: Preview de cómo se va a ver el color o degradado (Limpio) */}
               <div
-                className="my-2.5 h-14 rounded-lg border shadow-inner transition-all flex items-center justify-center relative overflow-hidden"
+                className="my-2 h-10 rounded-md border shadow-inner transition-all flex items-center justify-center relative overflow-hidden"
                 style={{
                   background: mode === 'gradient' ? buildGradientCss() : (solidColor === 'transparent' ? '#FFFFFF' : solidColor),
                   borderColor: 'var(--border-color)',
                 }}
               >
                 {solidColor === 'transparent' && mode === 'solid' && (
-                  <span className="text-red-500 font-bold text-xs uppercase opacity-80">Transparente</span>
+                  <span className="text-red-500 font-bold text-[10px] uppercase opacity-80">Transparente</span>
                 )}
               </div>
 
               {/* Abajo: Pestañas Sólido vs Degradado */}
               <div
-                className="grid grid-cols-2 h-7 p-0.5 rounded-lg border text-[10px] font-bold mb-2.5"
+                className="grid grid-cols-2 h-6 p-0.5 rounded-md border text-[9px] font-bold mb-2"
                 style={{
                   backgroundColor: 'var(--bg-app)',
                   borderColor: 'var(--border-color)',
@@ -275,7 +275,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                     setMode('solid');
                     updateDraft(solidColor);
                   }}
-                  className={`flex items-center justify-center gap-1 rounded-md transition-all ${
+                  className={`flex items-center justify-center gap-1 rounded transition-all ${
                     mode === 'solid' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
                   }`}
                   style={{
@@ -291,7 +291,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                     setMode('gradient');
                     updateDraft(buildGradientCss());
                   }}
-                  className={`flex items-center justify-center gap-1 rounded-md transition-all ${
+                  className={`flex items-center justify-center gap-1 rounded transition-all ${
                     mode === 'gradient' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
                   }`}
                   style={{
@@ -305,26 +305,26 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
               {/* CONTENIDO PESTAÑA SÓLIDO */}
               {mode === 'solid' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-1.5 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 p-1 rounded-md border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                     <input
                       type="color"
                       value={solidColor === 'transparent' ? '#ffffff' : solidColor}
                       onChange={(e) => handleSolidChange(e.target.value)}
-                      className="h-7 w-7 rounded cursor-pointer bg-transparent border-0"
+                      className="h-5 w-5 rounded cursor-pointer bg-transparent border-0 shrink-0 p-0"
                     />
                     <input
                       type="text"
                       value={solidColor}
                       onChange={(e) => handleSolidChange(e.target.value)}
-                      className="w-full bg-transparent outline-none font-mono text-xs uppercase font-bold"
+                      className="w-full bg-transparent outline-none font-mono text-[11px] uppercase font-bold"
                       style={{ color: 'var(--text-main)' }}
                     />
                     {allowTransparent && (
                       <button
                         type="button"
                         onClick={() => handleSolidChange('transparent')}
-                        className="text-[10px] font-extrabold px-2 py-1 rounded-md border shrink-0 transition-colors"
+                        className="text-[9px] font-extrabold px-1.5 py-0.5 rounded border shrink-0 transition-colors"
                         style={{
                           backgroundColor: solidColor === 'transparent' ? 'var(--primary-accent-light)' : 'var(--bg-card)',
                           borderColor: 'var(--border-color)',
@@ -338,20 +338,24 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
                   {/* Paleta rápida */}
                   <div>
-                    <label className="block text-[9px] font-bold mb-1.5 opacity-60">Paleta Rápida</label>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <label className="block text-[9px] font-bold mb-1 opacity-60">Paleta Rápida</label>
+                    <div className="flex items-center gap-1 flex-wrap">
                       {officialPalette.map((col) => (
                         <button
                           key={col}
                           type="button"
                           onClick={() => handleSolidChange(col)}
-                          className="h-6 w-6 rounded-full border shadow-2xs transition-transform hover:scale-115 cursor-pointer"
+                          className="h-5 w-5 rounded-full border shadow-2xs transition-transform hover:scale-115 cursor-pointer relative overflow-hidden flex items-center justify-center shrink-0"
                           style={{
-                            backgroundColor: col,
+                            backgroundColor: col === 'transparent' ? '#FFFFFF' : col,
                             borderColor: 'var(--border-color)',
                           }}
-                          title={col}
-                        />
+                          title={col === 'transparent' ? 'Transparente' : col}
+                        >
+                          {col === 'transparent' && (
+                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_45%,#ef4444_45%,#ef4444_55%,transparent_55%)]" />
+                          )}
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -360,104 +364,104 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
               {/* CONTENIDO PESTAÑA DEGRADADO */}
               {mode === 'gradient' && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {/* Tipo de Degradado (Select) y Ángulo al lado */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <div>
-                      <label className="block text-[10px] font-bold mb-1 opacity-70">Tipo de Degradado</label>
+                      <label className="block text-[9px] font-bold mb-0.5 opacity-70">Tipo de Degradado</label>
                       <select
                         value={gradType}
                         onChange={(e) => {
-                          const t = e.target.value as any;
-                          setGradType(t);
-                          updateDraft(buildGradientCss(t, gradAngle, gradStops));
+                          const newType = e.target.value as any;
+                          setGradType(newType);
+                          updateDraft(buildGradientCss(newType, gradAngle, gradStops));
                         }}
-                        className="w-full rounded-lg px-2 py-1.5 border outline-none text-xs font-bold"
+                        className="w-full text-[10px] p-1 h-6 rounded border outline-none font-bold cursor-pointer transition-colors"
                         style={{
                           backgroundColor: 'var(--bg-app)',
                           borderColor: 'var(--border-color)',
                           color: 'var(--text-main)',
                         }}
                       >
-                        <option value="linear">Lineal (Linear)</option>
-                        <option value="radial">Radial</option>
-                        <option value="angle">Ángulo (Angle / Cónico)</option>
-                        <option value="reflected">Reflejado (Reflected)</option>
-                        <option value="diamond">Diamante (Diamond)</option>
+                        <option value="linear" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Lineal</option>
+                        <option value="radial" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Radial</option>
+                        <option value="angle" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Ángulo</option>
+                        <option value="reflected" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Reflejado</option>
+                        <option value="diamond" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Diamante</option>
                       </select>
                     </div>
 
                     <div>
-                      {gradType !== 'radial' && gradType !== 'diamond' ? (
-                        <>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] font-bold opacity-70">Ángulo</label>
-                            <span className="text-[10px] font-mono font-bold">{gradAngle}°</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max="360"
-                            value={gradAngle}
-                            onChange={(e) => {
-                              const a = parseInt(e.target.value, 10);
-                              setGradAngle(a);
-                              updateDraft(buildGradientCss(gradType, a, gradStops));
-                            }}
-                            className="w-full h-2 rounded-lg appearance-none cursor-pointer mt-1"
-                            style={{ accentColor: 'var(--primary-accent)', backgroundColor: 'var(--border-color)' }}
-                          />
-                        </>
-                      ) : (
-                        <div className="flex flex-col justify-center h-full pt-3">
-                          <span className="text-[10px] italic opacity-60 text-center">Centro circular</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between text-[9px] font-bold mb-0.5 opacity-70">
+                        <span>Ángulo</span>
+                        <span>{gradAngle}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={gradAngle}
+                        onChange={(e) => {
+                          const newAng = parseInt(e.target.value, 10);
+                          setGradAngle(newAng);
+                          updateDraft(buildGradientCss(gradType, newAng, gradStops));
+                        }}
+                        className="w-full h-1.5 accent-emerald-500 cursor-pointer mt-1"
+                      />
                     </div>
                   </div>
 
-                  {/* Lista de colores de degradado */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[10px] font-bold opacity-70">Colores ({gradStops.length})</label>
+                  {/* Visual Gradient Bar Preview & Interactive Stop List */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[9px] font-bold opacity-70">Puntos de Color ({gradStops.length})</label>
                       <button
                         type="button"
                         onClick={addStop}
                         disabled={gradStops.length >= 6}
-                        className="text-[10px] font-extrabold px-2 py-0.5 rounded-md border flex items-center gap-1 transition-all hover:scale-105 disabled:opacity-40"
+                        className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border transition-opacity disabled:opacity-40"
                         style={{
                           backgroundColor: 'var(--primary-accent-light)',
                           borderColor: 'var(--primary-accent)',
                           color: 'var(--primary-accent)',
                         }}
                       >
-                        <Plus size={11} />
-                        Agregar Color
+                        <Plus size={10} /> Agregar Punto
                       </button>
                     </div>
 
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    <div
+                      className="h-4.5 w-full rounded border relative overflow-hidden shadow-inner"
+                      style={{
+                        background: buildGradientCss(),
+                        borderColor: 'var(--border-color)',
+                      }}
+                    />
+
+                    {/* Gradient Stop Items with Color, Hex, Position Slider, Delete */}
+                    <div className="space-y-1 max-h-36 overflow-y-auto pr-0.5">
                       {gradStops.map((stop) => {
                         const isSelected = stop.id === activeStopId;
                         return (
                           <div
                             key={stop.id}
                             onClick={() => setActiveStopId(stop.id)}
-                            className="flex items-center gap-2 p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs"
+                            className={`flex items-center gap-1.5 p-1 rounded border transition-all cursor-pointer ${
+                              isSelected ? 'ring-1 ring-emerald-500 shadow-2xs' : 'opacity-90'
+                            }`}
                             style={{
                               backgroundColor: 'var(--bg-app)',
                               borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
-                              boxShadow: isSelected ? '0 0 0 1px var(--primary-accent)' : undefined,
                             }}
                           >
                             <input
                               type="color"
-                              value={stop.color}
+                              value={stop.color.startsWith('#') ? stop.color : '#E07A5F'}
                               onChange={(e) => {
                                 setActiveStopId(stop.id);
                                 updateStop(stop.id, { color: e.target.value });
                               }}
-                              className="h-5 w-5 rounded cursor-pointer bg-transparent border-0 shrink-0"
+                              className="h-4.5 w-4.5 rounded cursor-pointer bg-transparent border-0 shrink-0 p-0"
                             />
                             <input
                               type="text"
@@ -466,7 +470,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                                 setActiveStopId(stop.id);
                                 updateStop(stop.id, { color: e.target.value });
                               }}
-                              className="w-14 bg-transparent outline-none font-mono text-[10px] uppercase font-bold shrink-0"
+                              className="w-12 bg-transparent outline-none font-mono text-[9px] uppercase font-bold shrink-0"
                               style={{ color: 'var(--text-main)' }}
                             />
                             <input
@@ -478,8 +482,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                                 setActiveStopId(stop.id);
                                 updateStop(stop.id, { position: parseInt(e.target.value, 10) || 0 });
                               }}
-                              className="flex-1 h-1 rounded appearance-none cursor-pointer min-w-0"
-                              style={{ accentColor: 'var(--primary-accent)', backgroundColor: 'var(--border-color)' }}
+                              className="w-full h-1.5 rounded appearance-none cursor-pointer min-w-0 accent-emerald-500"
                             />
                             <span className="text-[9px] font-mono font-bold w-6 text-right shrink-0">{stop.position}%</span>
                             {gradStops.length > 2 && (
@@ -489,10 +492,10 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                                   e.stopPropagation();
                                   removeStop(stop.id);
                                 }}
-                                className="p-1 text-red-500 hover:opacity-80 transition-colors shrink-0"
-                                title="Eliminar este color"
+                                className="text-red-500 hover:text-red-700 p-0.5 shrink-0"
+                                title="Eliminar este punto"
                               >
-                                <X size={12} />
+                                <X size={9} />
                               </button>
                             )}
                           </div>
@@ -503,8 +506,8 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
                   {/* Paleta Rápida para seleccionar color base de degradado */}
                   <div>
-                    <label className="block text-[9px] font-bold mb-1 opacity-60">Paleta Rápida</label>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <label className="block text-[9px] font-bold mb-0.5 opacity-60">Paleta Rápida</label>
+                    <div className="flex items-center gap-1 flex-wrap">
                       {officialPalette.map((col) => (
                         <button
                           key={col}
@@ -514,13 +517,17 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                             setGradStops(updated);
                             updateDraft(buildGradientCss(gradType, gradAngle, updated));
                           }}
-                          className="h-5 w-5 rounded-full border shadow-2xs transition-transform hover:scale-115 cursor-pointer"
+                          className="h-4.5 w-4.5 rounded-full border shadow-2xs transition-transform hover:scale-115 cursor-pointer relative overflow-hidden flex items-center justify-center shrink-0"
                           style={{
-                            backgroundColor: col,
+                            backgroundColor: col === 'transparent' ? '#FFFFFF' : col,
                             borderColor: 'var(--border-color)',
                           }}
-                          title={col}
-                        />
+                          title={col === 'transparent' ? 'Transparente' : col}
+                        >
+                          {col === 'transparent' && (
+                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_45%,#ef4444_45%,#ef4444_55%,transparent_55%)]" />
+                          )}
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -529,11 +536,11 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
             </div>
 
             {/* BOTONES ABAJO A LA DERECHA: CANCELAR Y AGREGAR */}
-            <div className="flex items-center justify-end gap-1.5 pt-2.5 mt-2.5 border-t" style={{ borderColor: 'var(--border-color)' }}>
+            <div className="flex items-center justify-end gap-1 pt-2 mt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+                className="px-2 py-0.5 rounded border text-[10px] font-semibold transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
                 style={{
                   backgroundColor: 'var(--bg-app)',
                   borderColor: 'var(--border-color)',
@@ -545,7 +552,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
               <button
                 type="button"
                 onClick={handleApply}
-                className="px-3 py-1 rounded-md text-[11px] font-bold text-white shadow-2xs transition-all hover:opacity-90 cursor-pointer"
+                className="px-2.5 py-0.5 rounded text-[10px] font-bold text-white shadow-2xs transition-all hover:opacity-90 cursor-pointer"
                 style={{
                   backgroundColor: 'var(--primary-accent)',
                 }}

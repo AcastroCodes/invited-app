@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Palette, X, Edit3 } from 'lucide-react';
+import { Palette, X, Edit3, Plus, Minus } from 'lucide-react';
 import { ColorPickerPopover } from './ColorPickerPopover';
 
 export interface ElementStyleConfig {
@@ -17,11 +17,74 @@ export interface ElementStyleConfig {
   textAboveBorder?: boolean;
 }
 
+interface NumberInputProps {
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+const NumberInput: React.FC<NumberInputProps> = ({
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+  step = 1,
+}) => {
+  return (
+    <div
+      className="flex items-center h-6.5 rounded-md border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)]"
+      style={{
+        backgroundColor: 'var(--bg-app)',
+        borderColor: 'var(--border-color)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - step))}
+        className="w-5 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Disminuir"
+      >
+        <Minus size={9} />
+      </button>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
+        className="w-full h-full text-center bg-transparent outline-none font-mono text-[10px] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        style={{ color: 'var(--text-main)' }}
+      />
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + step))}
+        className="w-5 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Aumentar"
+      >
+        <Plus size={9} />
+      </button>
+    </div>
+  );
+};
+
 interface StylePickerPopoverProps {
   styleConfig: ElementStyleConfig;
   onChange: (updated: Partial<ElementStyleConfig>) => void;
   label?: string;
-  elementType?: string;
+  elementType?: 'text' | 'container' | 'generic';
 }
 
 export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
@@ -58,8 +121,8 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
   useEffect(() => {
     if (isOpen && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const popoverWidth = 320;
-      let left = rect.left - popoverWidth - 12;
+      const popoverWidth = 280;
+      let left = rect.left - popoverWidth - 10;
       if (left < 10) {
         left = Math.max(10, rect.left);
       }
@@ -74,7 +137,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
     <div className="relative">
       {/* Label section */}
       {label && (
-        <span className="block font-extrabold uppercase text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+        <span className="block font-bold uppercase text-[9px] mb-1" style={{ color: 'var(--text-muted)' }}>
           {label}
         </span>
       )}
@@ -84,7 +147,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-1.5 rounded-lg border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
+        className="w-full flex items-center justify-between p-1 rounded-lg border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
         style={{
           backgroundColor: 'var(--bg-app)',
           borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',
@@ -93,30 +156,46 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
         title="Haz clic para editar estilo, fondo, borde y sombra"
       >
         {/* Recuadro Muestra del Estilo Real Aplicado */}
-        <div
-          className="h-8 flex-1 rounded-md transition-all relative overflow-hidden flex items-center justify-center p-0.5"
-          style={{
-            background: isGrad(backgroundColor)
-              ? backgroundColor
-              : (isGrad(color) && elementType === 'text' ? color : undefined),
-            backgroundColor: !isGrad(backgroundColor)
-              ? (backgroundColor === 'transparent'
-                  ? (elementType === 'text' && color && !isGrad(color) && color !== 'transparent' ? color : 'var(--bg-app)')
-                  : backgroundColor)
-              : undefined,
-            borderColor: (borderWidth > 0 && borderStyle !== 'none')
-              ? (isGrad(borderColor) ? '#E07A5F' : borderColor)
-              : 'transparent',
-            borderWidth: (borderWidth > 0 && borderStyle !== 'none') ? `${Math.min(borderWidth, 3)}px` : '0px',
-            borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
-            borderRadius: `${Math.min(borderRadius, 6)}px`,
-            boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
-          }}
-        />
+        {(() => {
+          const hasBackground = backgroundColor && backgroundColor !== 'transparent';
+          const hasBorder = borderWidth > 0 && borderStyle !== 'none';
+          const hasShadow = shadowCss !== 'none';
+          const hasTextColor = elementType === 'text' && color && color !== 'transparent';
+          const isConfigured = hasBackground || hasBorder || hasShadow || hasTextColor;
+
+          return (
+            <div
+              className="h-6 flex-1 rounded-md transition-all relative overflow-hidden flex items-center justify-center p-0.5"
+              style={{
+                background: isGrad(backgroundColor)
+                  ? backgroundColor
+                  : (isGrad(color) && elementType === 'text' ? color : undefined),
+                backgroundColor: !isGrad(backgroundColor)
+                  ? (backgroundColor === 'transparent'
+                      ? (elementType === 'text' && color && !isGrad(color) && color !== 'transparent' ? color : 'var(--bg-app)')
+                      : backgroundColor)
+                  : undefined,
+                borderColor: (borderWidth > 0 && borderStyle !== 'none')
+                  ? (isGrad(borderColor) ? '#E07A5F' : borderColor)
+                  : 'transparent',
+                borderWidth: (borderWidth > 0 && borderStyle !== 'none') ? `${Math.min(borderWidth, 3)}px` : '0px',
+                borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
+                borderRadius: `${Math.min(borderRadius, 6)}px`,
+                boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
+              }}
+            >
+              {!isConfigured && (
+                <span className="text-[10px] font-bold select-none capitalize opacity-60" style={{ color: 'var(--text-muted)' }}>
+                  Ninguno
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Solo el Icono de Editar al Lado Derecho */}
         <span
-          className="p-1.5 rounded-md border shrink-0 ml-2 flex items-center justify-center transition-transform hover:scale-105"
+          className="p-1 rounded-md border shrink-0 ml-1.5 flex items-center justify-center transition-transform hover:scale-105"
           style={{
             backgroundColor: 'var(--primary-accent-light)',
             borderColor: 'var(--primary-accent)',
@@ -124,7 +203,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
           }}
           title="Editar estilo"
         >
-          <Edit3 size={13} />
+          <Edit3 size={11} />
         </span>
       </button>
 
@@ -138,7 +217,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
 
           <div
             onClick={(e) => e.stopPropagation()}
-            className="fixed w-76 p-3 rounded-xl shadow-2xl border z-50 animate-in fade-in zoom-in-95 duration-150"
+            className="fixed w-64 p-2.5 rounded-xl shadow-2xl border z-50 animate-in fade-in zoom-in-95 duration-150"
             style={{
               top: `${popoverCoords.top}px`,
               left: `${popoverCoords.left}px`,
@@ -148,28 +227,28 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
             }}
           >
             {/* Header del Modal */}
-            <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
-              <div className="flex items-center gap-2">
-                <Palette size={14} style={{ color: 'var(--primary-accent)' }} />
-                <span className="font-extrabold text-[11px] uppercase tracking-wider">
+            <div className="flex items-center justify-between pb-1.5 border-b" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="flex items-center gap-1.5">
+                <Palette size={12} style={{ color: 'var(--primary-accent)' }} />
+                <span className="font-extrabold text-[10px] uppercase tracking-wider">
                   Configurador de Estilo
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1 rounded hover:opacity-80 transition-colors"
+                className="p-0.5 rounded hover:opacity-80 transition-colors"
                 style={{ color: 'var(--text-muted)' }}
               >
-                <X size={13} />
+                <X size={12} />
               </button>
             </div>
 
             {/* Preview Box dentro del Modal */}
-            <div className="my-2.5 p-3 rounded-lg flex items-center justify-center border border-dashed relative overflow-hidden" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+            <div className="my-2 p-2 rounded-md flex items-center justify-center border border-dashed relative overflow-hidden" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
               {elementType === 'text' || elementType === 'button' ? (
                 <div
-                  className="px-3 py-1.5 flex items-center justify-center text-base font-extrabold transition-all relative select-none"
+                  className="px-2 py-1 flex items-center justify-center text-sm font-extrabold transition-all relative select-none"
                   style={{
                     backgroundColor: backgroundColor,
                     borderRadius: `${borderRadius}px`,
@@ -217,10 +296,12 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                 </div>
               ) : (
                 <div
-                  className="h-14 w-32 flex items-center justify-center text-[10px] font-bold transition-all"
+                  className="h-14 w-32 flex items-center justify-center text-[10px] font-bold transition-all relative overflow-hidden shadow-2xs"
                   style={{
                     background: isGrad(backgroundColor) ? backgroundColor : undefined,
-                    backgroundColor: !isGrad(backgroundColor) ? backgroundColor : undefined,
+                    backgroundColor: !isGrad(backgroundColor)
+                      ? (backgroundColor === 'transparent' ? '#FFFFFF' : backgroundColor)
+                      : undefined,
                     borderColor: (borderWidth > 0 && borderColor) ? borderColor : 'transparent',
                     borderWidth: borderWidth > 0 ? `${borderWidth}px` : '0px',
                     borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
@@ -229,14 +310,18 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     color: 'var(--text-main)',
                   }}
                 >
-                  Vista Previa
+                  {backgroundColor === 'transparent' ? (
+                    <span className="text-[10px] text-red-500 font-extrabold uppercase">Transparente</span>
+                  ) : (
+                    'Vista Previa'
+                  )}
                 </div>
               )}
             </div>
 
             {/* Pestañas Principales: Fondo, Borde, Sombra */}
             <div
-              className="grid grid-cols-3 h-7 p-0.5 rounded-lg border text-[10px] font-bold mb-2.5"
+              className="grid grid-cols-3 h-6 p-0.5 rounded-md border text-[9px] font-bold mb-2"
               style={{
                 backgroundColor: 'var(--bg-app)',
                 borderColor: 'var(--border-color)',
@@ -245,7 +330,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('fondo')}
-                className={`flex items-center justify-center gap-1 rounded-md transition-all ${
+                className={`flex items-center justify-center gap-1 rounded transition-all ${
                   activeTab === 'fondo' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
                 }`}
                 style={{
@@ -258,7 +343,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('borde')}
-                className={`flex items-center justify-center gap-1 rounded-md transition-all ${
+                className={`flex items-center justify-center gap-1 rounded transition-all ${
                   activeTab === 'borde' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
                 }`}
                 style={{
@@ -271,7 +356,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('sombra')}
-                className={`flex items-center justify-center gap-1 rounded-md transition-all ${
+                className={`flex items-center justify-center gap-1 rounded transition-all ${
                   activeTab === 'sombra' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
                 }`}
                 style={{
@@ -298,7 +383,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                           className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
                           style={{ accentColor: 'var(--primary-accent)' }}
                         />
-                        <span>Texto encima del borde</span>
+                        <span>Redibujar</span>
                       </label>
                     </div>
 
@@ -354,18 +439,11 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold mb-1 opacity-70">Grosor (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="20"
+                    <NumberInput
+                      min={0}
+                      max={30}
                       value={borderWidth}
-                      onChange={(e) => onChange({ borderWidth: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-mono text-xs font-bold"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
+                      onChange={(val) => onChange({ borderWidth: val })}
                     />
                   </div>
                 </div>
@@ -377,34 +455,27 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     <select
                       value={borderStyle}
                       onChange={(e) => onChange({ borderStyle: e.target.value as any })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-bold text-xs"
+                      className="w-full h-8 rounded-lg px-2 border outline-none font-bold text-xs cursor-pointer transition-colors focus:ring-1 focus:ring-[var(--primary-accent)]"
                       style={{
                         backgroundColor: 'var(--bg-app)',
                         borderColor: 'var(--border-color)',
                         color: 'var(--text-main)',
                       }}
                     >
-                      <option value="solid">Sólida (Continua)</option>
-                      <option value="dashed">Discontinua (Dashed)</option>
-                      <option value="dotted">Punteada (Dotted)</option>
-                      <option value="double">Doble (Double)</option>
-                      <option value="none">Sin borde</option>
+                      <option value="solid" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Sólida (Continua)</option>
+                      <option value="dashed" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Discontinua (Dashed)</option>
+                      <option value="dotted" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Punteada (Dotted)</option>
+                      <option value="double" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Doble (Double)</option>
+                      <option value="none" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Sin borde</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold mb-1 opacity-70">Redondeado (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
+                    <NumberInput
+                      min={0}
+                      max={100}
                       value={borderRadius}
-                      onChange={(e) => onChange({ borderRadius: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-mono text-xs font-bold"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
+                      onChange={(val) => onChange({ borderRadius: val })}
                     />
                   </div>
                 </div>
@@ -425,18 +496,11 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold mb-1 opacity-70">Desenfoque Blur (px)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
+                    <NumberInput
+                      min={0}
+                      max={100}
                       value={shadowBlur}
-                      onChange={(e) => onChange({ shadowBlur: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-mono text-xs font-bold"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
+                      onChange={(val) => onChange({ shadowBlur: val })}
                     />
                   </div>
                 </div>
@@ -445,34 +509,20 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[10px] font-bold mb-1 opacity-70">Desplazamiento X (px)</label>
-                    <input
-                      type="number"
-                      min="-50"
-                      max="50"
+                    <NumberInput
+                      min={-50}
+                      max={50}
                       value={shadowOffsetX}
-                      onChange={(e) => onChange({ shadowOffsetX: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-mono text-xs font-bold"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
+                      onChange={(val) => onChange({ shadowOffsetX: val })}
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold mb-1 opacity-70">Desplazamiento Y (px)</label>
-                    <input
-                      type="number"
-                      min="-50"
-                      max="50"
+                    <NumberInput
+                      min={-50}
+                      max={50}
                       value={shadowOffsetY}
-                      onChange={(e) => onChange({ shadowOffsetY: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-mono text-xs font-bold"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
+                      onChange={(val) => onChange({ shadowOffsetY: val })}
                     />
                   </div>
                 </div>

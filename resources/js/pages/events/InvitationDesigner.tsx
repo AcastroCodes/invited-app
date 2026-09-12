@@ -31,6 +31,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignJustify,
   AlignStartHorizontal,
   AlignCenterHorizontal,
   AlignEndHorizontal,
@@ -49,11 +50,110 @@ import {
   FileText,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   Ratio,
+  Minus,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
+
+interface NumberInputProps {
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  prefix?: string;
+  isFloat?: boolean;
+}
+
+const InspectorNumberInput: React.FC<NumberInputProps> = ({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  prefix,
+  isFloat = false,
+}) => {
+  const handleDecrement = () => {
+    const nextVal = value - step;
+    const clamped = min !== undefined ? Math.max(min, nextVal) : nextVal;
+    onChange(isFloat ? parseFloat(clamped.toFixed(2)) : Math.round(clamped));
+  };
+
+  const handleIncrement = () => {
+    const nextVal = value + step;
+    const clamped = max !== undefined ? Math.min(max, nextVal) : nextVal;
+    onChange(isFloat ? parseFloat(clamped.toFixed(2)) : Math.round(clamped));
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === '') {
+      onChange(min !== undefined ? min : 0);
+      return;
+    }
+    let parsed = isFloat ? parseFloat(raw) : parseInt(raw, 10);
+    if (isNaN(parsed)) parsed = 0;
+    if (min !== undefined) parsed = Math.max(min, parsed);
+    if (max !== undefined) parsed = Math.min(max, parsed);
+    onChange(isFloat ? parseFloat(parsed.toFixed(2)) : Math.round(parsed));
+  };
+
+  return (
+    <div
+      className="flex items-center h-7 rounded-lg border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full"
+      style={{
+        backgroundColor: 'var(--bg-app)',
+        borderColor: 'var(--border-color)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={handleDecrement}
+        className="w-5 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Disminuir"
+      >
+        <Minus size={10} />
+      </button>
+      {prefix && (
+        <span className="text-[10px] font-bold pl-1.5 opacity-50 shrink-0 select-none">
+          {prefix}
+        </span>
+      )}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={handleChange}
+        className="w-full h-full text-center bg-transparent outline-none font-mono text-xs font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1"
+        style={{ color: 'var(--text-main)' }}
+      />
+      <button
+        type="button"
+        onClick={handleIncrement}
+        className="w-5 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Aumentar"
+      >
+        <Plus size={10} />
+      </button>
+    </div>
+  );
+};
 
 interface CanvasElement {
   id: string;
@@ -240,6 +340,25 @@ export default function InvitationDesigner() {
   // Studio UI states
   const [activeLeftTab, setActiveLeftTab] = useState<'layers' | 'text' | 'media' | 'widgets'>('layers');
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    content: true,
+    transform: true,
+    typography: true,
+    container: true,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections((prev: Record<string, boolean>) => {
+      const isAlreadyOpen = !!prev[section];
+      return {
+        content: false,
+        transform: false,
+        typography: false,
+        container: false,
+        [section]: !isAlreadyOpen,
+      };
+    });
+  };
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(30);
   const [zoomInputText, setZoomInputText] = useState('30');
@@ -655,8 +774,16 @@ export default function InvitationDesigner() {
 
   const updateSelectedElement = (key: keyof CanvasElement, val: any) => {
     if (!selectedElementId) return;
-    setElements(
-      elements.map((el) => (el.id === selectedElementId ? { ...el, [key]: val } : el))
+    setElements((prev) =>
+      prev.map((el) => (el.id === selectedElementId ? { ...el, [key]: val } : el))
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const updateSelectedElementBatch = (updates: Partial<CanvasElement>) => {
+    if (!selectedElementId) return;
+    setElements((prev) =>
+      prev.map((el) => (el.id === selectedElementId ? { ...el, ...updates } : el))
     );
     setHasUnsavedChanges(true);
   };
@@ -1386,437 +1513,485 @@ export default function InvitationDesigner() {
           </div>
 
           {/* Body del Inspector */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          <div className="flex-1 overflow-y-auto">
             {!selectedElement ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                 <Sliders size={32} className="opacity-30 mb-2" style={{ color: 'var(--text-muted)' }} />
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                   Selecciona una capa en el lienzo para ver y editar sus propiedades.
                 </p>
               </div>
             ) : inspectorTab === 'design' ? (
-              /* TAB: DISEÑO */
-              <div className="space-y-4 text-xs">
-                {/* Contenido / Texto principal */}
-                <div>
-                  <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Contenido / Etiqueta
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedElement.content}
-                    onChange={(e) => updateSelectedElement('content', e.target.value)}
-                    className="w-full rounded-lg px-3 py-2 border outline-none font-medium"
-                    style={{
-                      backgroundColor: 'var(--bg-app)',
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-
-                {/* Transformación: Posición (X, Y) y Tamaño (W, H) */}
-                <div className="space-y-2">
-                  <span className="block font-extrabold uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Posición & Tamaño
-                  </span>
-
-                  {/* 3 Grupos de Botones en la misma fila: Alineación Horizontal, Alineación Vertical, Volteo (Flip) */}
-                  <div className="flex items-center justify-between gap-0.5 p-0.5 rounded-lg border shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                    {/* Grupo 1: Alineación Horizontal (Izquierda, Centro, Derecha) */}
-                    <div className="flex items-center gap-0">
-                      <button
-                        onClick={() => updateSelectedElement('x', 0)}
-                        className="p-1 rounded-md hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-main)' }}
-                        title="Alinear a la izquierda"
-                      >
-                        <AlignStartVertical size={13} />
-                      </button>
-                      <button
-                        onClick={() => updateSelectedElement('x', Math.round((1080 - selectedElement.width) / 2))}
-                        className="p-1 rounded-md hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-main)' }}
-                        title="Alinear al centro horizontal"
-                      >
-                        <AlignCenterVertical size={13} />
-                      </button>
-                      <button
-                        onClick={() => updateSelectedElement('x', 1080 - selectedElement.width)}
-                        className="p-1 rounded-md hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-main)' }}
-                        title="Alinear a la derecha"
-                      >
-                        <AlignEndVertical size={13} />
-                      </button>
-                    </div>
-
-                    <div className="h-3.5 w-[1px] shrink-0 opacity-60" style={{ backgroundColor: 'var(--border-color)' }} />
-
-                    {/* Grupo 2: Alineación Vertical (Arriba, Centro, Abajo) */}
-                    <div className="flex items-center gap-0">
-                      <button
-                        onClick={() => updateSelectedElement('y', 0)}
-                        className="p-1 rounded-md hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-main)' }}
-                        title="Alinear arriba"
-                      >
-                        <AlignStartHorizontal size={13} />
-                      </button>
-                      <button
-                        onClick={() => updateSelectedElement('y', Math.round((1920 - selectedElement.height) / 2))}
-                        className="p-1 rounded-md hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-main)' }}
-                        title="Alinear al centro vertical"
-                      >
-                        <AlignCenterHorizontal size={13} />
-                      </button>
-                      <button
-                        onClick={() => updateSelectedElement('y', 1920 - selectedElement.height)}
-                        className="p-1 rounded-md hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-main)' }}
-                        title="Alinear abajo"
-                      >
-                        <AlignEndHorizontal size={13} />
-                      </button>
-                    </div>
-
-                    <div className="h-3.5 w-[1px] shrink-0 opacity-60" style={{ backgroundColor: 'var(--border-color)' }} />
-
-                    {/* Grupo 3: Volteo / Flip & Aspect Ratio */}
-                    <div className="flex items-center gap-0">
-                      <button
-                        onClick={() => updateSelectedElement('flipH', !selectedElement.flipH)}
-                        className={`p-1 rounded-md transition-colors ${
-                          selectedElement.flipH ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
-                        }`}
-                        style={{ color: selectedElement.flipH ? undefined : 'var(--text-main)' }}
-                        title="Voltear horizontal (Flip H)"
-                      >
-                        <FlipHorizontal size={13} />
-                      </button>
-                      <button
-                        onClick={() => updateSelectedElement('flipV', !selectedElement.flipV)}
-                        className={`p-1 rounded-md transition-colors ${
-                          selectedElement.flipV ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
-                        }`}
-                        style={{ color: selectedElement.flipV ? undefined : 'var(--text-main)' }}
-                        title="Voltear vertical (Flip V)"
-                      >
-                        <FlipVertical size={13} />
-                      </button>
-
-                      <div className="h-3.5 w-[1px] mx-0.5 shrink-0 opacity-60" style={{ backgroundColor: 'var(--border-color)' }} />
-
-                      <button
-                        onClick={() => updateSelectedElement('keepAspectRatio', !selectedElement.keepAspectRatio)}
-                        className={`p-1 rounded-md transition-colors ${
-                          selectedElement.keepAspectRatio ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
-                        }`}
-                        style={{ color: selectedElement.keepAspectRatio ? undefined : 'var(--text-main)' }}
-                        title={selectedElement.keepAspectRatio ? "Aspect Ratio Bloqueado (Proporcional)" : "Aspect Ratio Libre"}
-                      >
-                        <Ratio size={13} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 font-mono">
-                    <div className="flex items-center rounded-lg border px-2 py-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                      <span className="text-[10px] font-bold mr-2 opacity-50">X</span>
-                      <input
-                        type="number"
-                        value={selectedElement.x}
-                        onChange={(e) => updateSelectedElement('x', parseInt(e.target.value, 10) || 0)}
-                        className="w-full bg-transparent outline-none text-xs"
-                        style={{ color: 'var(--text-main)' }}
-                      />
-                    </div>
-                    <div className="flex items-center rounded-lg border px-2 py-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                      <span className="text-[10px] font-bold mr-2 opacity-50">Y</span>
-                      <input
-                        type="number"
-                        value={selectedElement.y}
-                        onChange={(e) => updateSelectedElement('y', parseInt(e.target.value, 10) || 0)}
-                        className="w-full bg-transparent outline-none text-xs"
-                        style={{ color: 'var(--text-main)' }}
-                      />
-                    </div>
-                    <div className="flex items-center rounded-lg border px-2 py-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                      <span className="text-[10px] font-bold mr-2 opacity-50">W</span>
-                      <input
-                        type="number"
-                        value={selectedElement.width}
-                        onChange={(e) => updateSelectedElement('width', parseInt(e.target.value, 10) || 10)}
-                        className="w-full bg-transparent outline-none text-xs"
-                        style={{ color: 'var(--text-main)' }}
-                      />
-                    </div>
-                    <div className="flex items-center rounded-lg border px-2 py-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                      <span className="text-[10px] font-bold mr-2 opacity-50">H</span>
-                      <input
-                        type="number"
-                        value={selectedElement.height}
-                        onChange={(e) => updateSelectedElement('height', parseInt(e.target.value, 10) || 10)}
-                        className="w-full bg-transparent outline-none text-xs"
-                        style={{ color: 'var(--text-main)' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rotación y Opacidad */}
-                <div className="grid grid-cols-2 gap-2 font-mono">
+              /* TAB: DISEÑO (ACORDEÓN EDGE-TO-EDGE SIN ESPACIOS MARGINALES) */
+              <div className="text-xs border-b" style={{ borderColor: 'var(--border-color)' }}>
+                {/* Header Informativo del Diseñador */}
+                <div className="p-3 m-3 rounded-xl border flex items-center gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
+                  <Palette size={18} style={{ color: 'var(--primary-accent)' }} />
                   <div>
-                    <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      Rotación (°)
-                    </label>
-                    <div className="flex items-center rounded-lg border px-2 py-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                      <RotateCw size={13} className="mr-1.5 opacity-50" />
-                      <input
-                        type="number"
-                        value={selectedElement.rotation || 0}
-                        onChange={(e) => updateSelectedElement('rotation', parseInt(e.target.value, 10) || 0)}
-                        className="w-full bg-transparent outline-none text-xs"
-                        style={{ color: 'var(--text-main)' }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      Opacidad (%)
-                    </label>
-                    <div className="flex items-center rounded-lg border px-2 py-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={selectedElement.opacity !== undefined ? selectedElement.opacity : 100}
-                        onChange={(e) => updateSelectedElement('opacity', parseInt(e.target.value, 10))}
-                        className="w-full bg-transparent outline-none text-xs"
-                        style={{ color: 'var(--text-main)' }}
-                      />
-                    </div>
+                    <p className="font-extrabold" style={{ color: 'var(--primary-accent)' }}>Visual Design Engine</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-main)' }}>Configura el contenido, dimensiones y estilos del elemento.</p>
                   </div>
                 </div>
 
-                {/* Tipografía (solo si aplica a Texto o Botones) */}
+                {/* 1. ACORDEÓN: CONTENIDO */}
+                <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('content')}
+                    className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
+                    style={{ color: openSections.content ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                  >
+                    <span>Contenido</span>
+                    {openSections.content ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+
+                  {openSections.content && (
+                    <div className="px-4 pb-3 pt-0 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                      <textarea
+                        rows={3}
+                        value={selectedElement.content}
+                        onChange={(e) => updateSelectedElement('content', e.target.value)}
+                        className="w-full rounded-lg px-3 py-2 border outline-none font-medium resize-y mt-2"
+                        style={{
+                          backgroundColor: 'var(--bg-card)',
+                          borderColor: 'var(--border-color)',
+                          color: 'var(--text-main)',
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. ACORDEÓN: POSICIÓN & TAMAÑO */}
+                <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('transform')}
+                    className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
+                    style={{ color: openSections.transform ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                  >
+                    <span>Posición & Tamaño</span>
+                    {openSections.transform ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+
+                  {openSections.transform && (
+                    <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                      {/* Botones de Alineación, Volteo & Aspect Ratio */}
+                      <div className="flex items-center justify-between gap-0.5 p-0.5 rounded-lg border shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        {/* Grupo 1: Alineación Horizontal */}
+                        <div className="flex items-center gap-0">
+                          <button
+                            onClick={() => updateSelectedElement('x', 0)}
+                            className="p-1 rounded-md hover:opacity-80 transition-colors"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Alinear a la izquierda"
+                          >
+                            <AlignStartVertical size={13} />
+                          </button>
+                          <button
+                            onClick={() => updateSelectedElement('x', Math.round((1080 - selectedElement.width) / 2))}
+                            className="p-1 rounded-md hover:opacity-80 transition-colors"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Alinear al centro horizontal"
+                          >
+                            <AlignCenterVertical size={13} />
+                          </button>
+                          <button
+                            onClick={() => updateSelectedElement('x', 1080 - selectedElement.width)}
+                            className="p-1 rounded-md hover:opacity-80 transition-colors"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Alinear a la derecha"
+                          >
+                            <AlignEndVertical size={13} />
+                          </button>
+                        </div>
+
+                        <div className="h-3.5 w-px shrink-0 opacity-60" style={{ backgroundColor: 'var(--border-color)' }} />
+
+                        {/* Grupo 2: Alineación Vertical */}
+                        <div className="flex items-center gap-0">
+                          <button
+                            onClick={() => updateSelectedElement('y', 0)}
+                            className="p-1 rounded-md hover:opacity-80 transition-colors"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Alinear arriba"
+                          >
+                            <AlignStartHorizontal size={13} />
+                          </button>
+                          <button
+                            onClick={() => updateSelectedElement('y', Math.round((1920 - selectedElement.height) / 2))}
+                            className="p-1 rounded-md hover:opacity-80 transition-colors"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Alinear al centro vertical"
+                          >
+                            <AlignCenterHorizontal size={13} />
+                          </button>
+                          <button
+                            onClick={() => updateSelectedElement('y', 1920 - selectedElement.height)}
+                            className="p-1 rounded-md hover:opacity-80 transition-colors"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Alinear abajo"
+                          >
+                            <AlignEndHorizontal size={13} />
+                          </button>
+                        </div>
+
+                        <div className="h-3.5 w-px shrink-0 opacity-60" style={{ backgroundColor: 'var(--border-color)' }} />
+
+                        {/* Grupo 3: Volteo / Flip & Aspect Ratio */}
+                        <div className="flex items-center gap-0">
+                          <button
+                            onClick={() => updateSelectedElement('flipH', !selectedElement.flipH)}
+                            className={`p-1 rounded-md transition-colors ${
+                              selectedElement.flipH ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
+                            }`}
+                            style={{ color: selectedElement.flipH ? undefined : 'var(--text-main)' }}
+                            title="Voltear horizontal (Flip H)"
+                          >
+                            <FlipHorizontal size={13} />
+                          </button>
+                          <button
+                            onClick={() => updateSelectedElement('flipV', !selectedElement.flipV)}
+                            className={`p-1 rounded-md transition-colors ${
+                              selectedElement.flipV ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
+                            }`}
+                            style={{ color: selectedElement.flipV ? undefined : 'var(--text-main)' }}
+                            title="Voltear vertical (Flip V)"
+                          >
+                            <FlipVertical size={13} />
+                          </button>
+
+                          <div className="h-3.5 w-px mx-0.5 shrink-0 opacity-60" style={{ backgroundColor: 'var(--border-color)' }} />
+
+                          <button
+                            onClick={() => updateSelectedElement('keepAspectRatio', !selectedElement.keepAspectRatio)}
+                            className={`p-1 rounded-md transition-colors ${
+                              selectedElement.keepAspectRatio ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
+                            }`}
+                            style={{ color: selectedElement.keepAspectRatio ? undefined : 'var(--text-main)' }}
+                            title={selectedElement.keepAspectRatio ? "Aspect Ratio Bloqueado (Proporcional)" : "Aspect Ratio Libre"}
+                          >
+                            <Ratio size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Coordenadas X, Y, W, H */}
+                      <div className="grid grid-cols-2 gap-2 font-mono">
+                        <div>
+                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            X
+                          </label>
+                          <InspectorNumberInput
+                            value={selectedElement.x}
+                            onChange={(val) => updateSelectedElement('x', val)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Y
+                          </label>
+                          <InspectorNumberInput
+                            value={selectedElement.y}
+                            onChange={(val) => updateSelectedElement('y', val)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            W
+                          </label>
+                          <InspectorNumberInput
+                            value={selectedElement.width}
+                            min={10}
+                            onChange={(val) => updateSelectedElement('width', val)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            H
+                          </label>
+                          <InspectorNumberInput
+                            value={selectedElement.height}
+                            min={10}
+                            onChange={(val) => updateSelectedElement('height', val)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Rotación y Opacidad */}
+                      <div className="grid grid-cols-2 gap-2 font-mono pt-1">
+                        <div>
+                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Rotación (°)
+                          </label>
+                          <InspectorNumberInput
+                            value={selectedElement.rotation || 0}
+                            min={-360}
+                            max={360}
+                            step={1}
+                            onChange={(val) => updateSelectedElement('rotation', val)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Opacidad (%)
+                          </label>
+                          <InspectorNumberInput
+                            value={selectedElement.opacity !== undefined ? selectedElement.opacity : 100}
+                            min={0}
+                            max={100}
+                            step={5}
+                            onChange={(val) => updateSelectedElement('opacity', val)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. ACORDEÓN: TIPOGRAFÍA & ESTILO (solo si aplica a Texto o Botones) */}
                 {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
-                  <div className="space-y-3 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
-                    <span className="block font-extrabold uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      Tipografía & Estilo
-                    </span>
+                  <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSection('typography')}
+                      className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
+                      style={{ color: openSections.typography ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                    >
+                      <span>Tipografía & Estilo</span>
+                      {openSections.typography ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
 
-                    {/* Fuente / Tipografía Select + Botón [+] */}
-                    <div>
-                      <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                        Familia de Fuente
-                      </label>
-                      <div className="flex items-center gap-1.5">
-                        <select
-                          value={selectedElement.fontFamily || 'Inter'}
-                          onChange={(e) => {
-                            const font = e.target.value;
-                            loadFontIntoDOM(font);
-                            updateSelectedElement('fontFamily', font);
-                          }}
-                          className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs cursor-pointer truncate"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                            color: 'var(--text-main)',
-                            fontFamily: selectedElement.fontFamily || 'Inter',
-                          }}
-                        >
-                          {availableFonts.map((f) => (
-                            <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>
-                              {f.name} {f.type === 'custom' ? '(Local)' : f.type === 'google' ? '(Google)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => setShowFontModal(true)}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-all hover:opacity-80 shadow-2xs cursor-pointer"
-                          style={{
-                            backgroundColor: 'var(--primary-accent)',
-                            borderColor: 'var(--primary-accent)',
-                            color: '#FFFFFF',
-                          }}
-                          title="Gestionar y explorar más fuentes en Google Fonts o subir archivo"
-                        >
-                          <Plus size={13} />
-                        </button>
-                      </div>
-                    </div>
+                    {openSections.typography && (
+                      <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                        {/* Fuente */}
+                        <div>
+                          <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Fuente
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={selectedElement.fontFamily || 'Inter'}
+                              onChange={(e) => {
+                                const font = e.target.value;
+                                loadFontIntoDOM(font);
+                                updateSelectedElement('fontFamily', font);
+                              }}
+                              className="w-full h-7 rounded-lg px-2 py-1 border outline-none font-medium text-xs cursor-pointer truncate"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                                fontFamily: selectedElement.fontFamily || 'Inter',
+                              }}
+                            >
+                              {availableFonts.map((f) => (
+                                <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>
+                                  {f.name} {f.type === 'custom' ? '(Local)' : f.type === 'google' ? '(Google)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => setShowFontModal(true)}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-all hover:opacity-80 shadow-2xs cursor-pointer"
+                              style={{
+                                backgroundColor: 'var(--primary-accent)',
+                                borderColor: 'var(--primary-accent)',
+                                color: '#FFFFFF',
+                              }}
+                              title="Gestionar y explorar más fuentes en Google Fonts o subir archivo"
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          Tamaño
-                        </label>
-                        <input
-                          type="number"
-                          value={selectedElement.fontSize || 16}
-                          onChange={(e) => updateSelectedElement('fontSize', parseInt(e.target.value, 10))}
-                          className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-mono"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                            color: 'var(--text-main)',
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          Peso
-                        </label>
-                        <select
-                          value={selectedElement.fontWeight || 'normal'}
-                          onChange={(e) => updateSelectedElement('fontWeight', e.target.value)}
-                          className="w-full rounded-lg px-2 py-1.5 border outline-none font-semibold"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                            color: 'var(--text-main)',
-                          }}
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="semibold">Semibold</option>
-                          <option value="bold">Bold</option>
-                        </select>
-                      </div>
-                    </div>
+                        {/* Estilo del Texto */}
+                        <div>
+                          <StylePickerPopover
+                            label="Texto"
+                            elementType="text"
+                            styleConfig={{
+                              color: selectedElement.color,
+                              borderColor: selectedElement.textBorderColor || '#E07A5F',
+                              borderWidth: selectedElement.textBorderWidth ?? 0,
+                              shadowColor: selectedElement.textShadowColor || '#212121',
+                              shadowBlur: selectedElement.textShadowBlur ?? 0,
+                              shadowOffsetX: selectedElement.textShadowOffsetX ?? 0,
+                              shadowOffsetY: selectedElement.textShadowOffsetY ?? 0,
+                              textAboveBorder: selectedElement.textAboveBorder,
+                            }}
+                            onChange={(updatedStyles) => {
+                              const mapped: any = {};
+                              if (updatedStyles.color !== undefined) mapped.color = updatedStyles.color;
+                              if (updatedStyles.borderColor !== undefined) mapped.textBorderColor = updatedStyles.borderColor;
+                              if (updatedStyles.borderWidth !== undefined) mapped.textBorderWidth = updatedStyles.borderWidth;
+                              if (updatedStyles.shadowColor !== undefined) mapped.textShadowColor = updatedStyles.shadowColor;
+                              if (updatedStyles.shadowBlur !== undefined) mapped.textShadowBlur = updatedStyles.shadowBlur;
+                              if (updatedStyles.shadowOffsetX !== undefined) mapped.textShadowOffsetX = updatedStyles.shadowOffsetX;
+                              if (updatedStyles.shadowOffsetY !== undefined) mapped.textShadowOffsetY = updatedStyles.shadowOffsetY;
+                              if (updatedStyles.textAboveBorder !== undefined) mapped.textAboveBorder = updatedStyles.textAboveBorder;
+                              
+                              Object.entries(mapped).forEach(([key, val]) => {
+                                updateSelectedElement(key as any, val);
+                              });
+                            }}
+                          />
+                        </div>
 
-                    {/* Alineación de Texto */}
-                    <div>
-                      <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                        Alineación
-                      </label>
-                      <div className="grid grid-cols-3 gap-1 rounded-lg p-1 border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                        <button
-                          onClick={() => updateSelectedElement('textAlign', 'left')}
-                          className={`flex items-center justify-center py-1 rounded-md transition-colors ${
-                            (selectedElement.textAlign || 'left') === 'left' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
-                          }`}
-                        >
-                          <AlignLeft size={14} />
-                        </button>
-                        <button
-                          onClick={() => updateSelectedElement('textAlign', 'center')}
-                          className={`flex items-center justify-center py-1 rounded-md transition-colors ${
-                            selectedElement.textAlign === 'center' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
-                          }`}
-                        >
-                          <AlignCenter size={14} />
-                        </button>
-                        <button
-                          onClick={() => updateSelectedElement('textAlign', 'right')}
-                          className={`flex items-center justify-center py-1 rounded-md transition-colors ${
-                            selectedElement.textAlign === 'right' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
-                          }`}
-                        >
-                          <AlignRight size={14} />
-                        </button>
+                        {/* Tamaño & Peso */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              Tamaño
+                            </label>
+                            <InspectorNumberInput
+                              value={selectedElement.fontSize || 16}
+                              min={6}
+                              max={200}
+                              step={1}
+                              onChange={(val) => updateSelectedElement('fontSize', val)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              Peso
+                            </label>
+                            <select
+                              value={selectedElement.fontWeight || 'normal'}
+                              onChange={(e) => updateSelectedElement('fontWeight', e.target.value)}
+                              className="w-full h-7 rounded-lg px-2 py-1 border outline-none font-semibold text-xs"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            >
+                              <option value="normal">Normal</option>
+                              <option value="semibold">Semibold</option>
+                              <option value="bold">Bold</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Alineación de Texto */}
+                        <div>
+                          <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Alineación
+                          </label>
+                          <div className="grid grid-cols-4 gap-1 rounded-lg p-1 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <button
+                              onClick={() => updateSelectedElement('textAlign', 'left')}
+                              title="Izquierda"
+                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                                (selectedElement.textAlign || 'left') === 'left' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignLeft size={14} />
+                            </button>
+                            <button
+                              onClick={() => updateSelectedElement('textAlign', 'center')}
+                              title="Centrado"
+                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                                selectedElement.textAlign === 'center' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignCenter size={14} />
+                            </button>
+                            <button
+                              onClick={() => updateSelectedElement('textAlign', 'right')}
+                              title="Derecha"
+                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                                selectedElement.textAlign === 'right' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignRight size={14} />
+                            </button>
+                            <button
+                              onClick={() => updateSelectedElement('textAlign', 'justify')}
+                              title="Justificado"
+                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                                selectedElement.textAlign === 'justify' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignJustify size={14} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
-                {/* 2 Componentes Estilopicker: Estilo de Texto y Estilo de Contenedor */}
-                <div className="pt-2 border-t space-y-3.5" style={{ borderColor: 'var(--border-color)' }}>
-                  {/* 1. ESTILO DE TEXTO (Configura exclusivamente el Texto) */}
-                  {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
-                    <StylePickerPopover
-                      label="Estilo de Texto"
-                      elementType="text"
-                      styleConfig={{
-                        color: selectedElement.color,
-                        borderColor: selectedElement.textBorderColor || selectedElement.color || '#212121',
-                        borderWidth: selectedElement.textBorderWidth ?? 0,
-                        shadowColor: selectedElement.textShadowColor || '#212121',
-                        shadowBlur: selectedElement.textShadowBlur ?? 0,
-                        shadowOffsetX: selectedElement.textShadowOffsetX ?? 0,
-                        shadowOffsetY: selectedElement.textShadowOffsetY ?? 0,
-                        textAboveBorder: selectedElement.textAboveBorder,
-                      }}
-                      onChange={(updatedStyles) => {
-                        const mapped: any = {};
-                        if (updatedStyles.color !== undefined) mapped.color = updatedStyles.color;
-                        if (updatedStyles.borderColor !== undefined) mapped.textBorderColor = updatedStyles.borderColor;
-                        if (updatedStyles.borderWidth !== undefined) mapped.textBorderWidth = updatedStyles.borderWidth;
-                        if (updatedStyles.shadowColor !== undefined) mapped.textShadowColor = updatedStyles.shadowColor;
-                        if (updatedStyles.shadowBlur !== undefined) mapped.textShadowBlur = updatedStyles.shadowBlur;
-                        if (updatedStyles.shadowOffsetX !== undefined) mapped.textShadowOffsetX = updatedStyles.shadowOffsetX;
-                        if (updatedStyles.shadowOffsetY !== undefined) mapped.textShadowOffsetY = updatedStyles.shadowOffsetY;
-                        if (updatedStyles.textAboveBorder !== undefined) mapped.textAboveBorder = updatedStyles.textAboveBorder;
-                        
-                        Object.entries(mapped).forEach(([key, val]) => {
-                          updateSelectedElement(key as any, val);
-                        });
-                      }}
-                    />
+                {/* 4. ACORDEÓN: CONTENEDOR & ESTILO */}
+                <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('container')}
+                    className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
+                    style={{ color: openSections.container ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                  >
+                    <span>Contenedor & Estilo</span>
+                    {openSections.container ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+
+                  {openSections.container && (
+                    <div className="px-4 pb-3 pt-2 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
+                      <StylePickerPopover
+                        label="Estilo del contenedor"
+                        elementType="container"
+                        styleConfig={{
+                          backgroundColor: selectedElement.backgroundColor,
+                          borderColor: selectedElement.containerBorderColor || '#E07A5F',
+                          borderWidth: selectedElement.containerBorderWidth ?? 0,
+                          borderStyle: selectedElement.containerBorderStyle || 'solid',
+                          borderRadius: selectedElement.containerBorderRadius ?? 0,
+                          shadowColor: selectedElement.containerShadowColor || '#212121',
+                          shadowBlur: selectedElement.containerShadowBlur ?? 0,
+                          shadowOffsetX: selectedElement.containerShadowOffsetX ?? 0,
+                          shadowOffsetY: selectedElement.containerShadowOffsetY ?? 0,
+                        }}
+                        onChange={(updatedStyles) => {
+                          const mapped: any = {};
+                          if (updatedStyles.backgroundColor !== undefined) mapped.backgroundColor = updatedStyles.backgroundColor;
+                          if (updatedStyles.borderColor !== undefined) mapped.containerBorderColor = updatedStyles.borderColor;
+                          if (updatedStyles.borderWidth !== undefined) mapped.containerBorderWidth = updatedStyles.borderWidth;
+                          if (updatedStyles.borderStyle !== undefined) mapped.containerBorderStyle = updatedStyles.borderStyle;
+                          if (updatedStyles.borderRadius !== undefined) mapped.containerBorderRadius = updatedStyles.borderRadius;
+                          if (updatedStyles.shadowColor !== undefined) mapped.containerShadowColor = updatedStyles.shadowColor;
+                          if (updatedStyles.shadowBlur !== undefined) mapped.containerShadowBlur = updatedStyles.shadowBlur;
+                          if (updatedStyles.shadowOffsetX !== undefined) mapped.containerShadowOffsetX = updatedStyles.shadowOffsetX;
+                          if (updatedStyles.shadowOffsetY !== undefined) mapped.containerShadowOffsetY = updatedStyles.shadowOffsetY;
+
+                          Object.entries(mapped).forEach(([key, val]) => {
+                            updateSelectedElement(key as any, val);
+                          });
+                        }}
+                      />
+
+                      {/* Control directo de Redondez de Bordes */}
+                      <div className="pt-1">
+                        <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                          Redondez (px)
+                        </label>
+                        <InspectorNumberInput
+                          value={selectedElement.containerBorderRadius ?? selectedElement.borderRadius ?? 0}
+                          min={0}
+                          max={200}
+                          step={1}
+                          onChange={(val) => {
+                            updateSelectedElement('containerBorderRadius', val);
+                            updateSelectedElement('borderRadius', val);
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
-
-                  {/* 2. ESTILO DE CONTENEDOR (Configura exclusivamente el Contenedor/Marco) */}
-                  <StylePickerPopover
-                    label="Estilo del Contenedor"
-                    elementType="container"
-                    styleConfig={{
-                      backgroundColor: selectedElement.backgroundColor,
-                      borderColor: selectedElement.containerBorderColor || selectedElement.borderColor,
-                      borderWidth: selectedElement.containerBorderWidth ?? selectedElement.borderWidth,
-                      borderStyle: selectedElement.containerBorderStyle || selectedElement.borderStyle,
-                      borderRadius: selectedElement.containerBorderRadius ?? selectedElement.borderRadius,
-                      shadowColor: selectedElement.containerShadowColor || selectedElement.shadowColor,
-                      shadowBlur: selectedElement.containerShadowBlur ?? selectedElement.shadowBlur,
-                      shadowOffsetX: selectedElement.containerShadowOffsetX ?? selectedElement.shadowOffsetX,
-                      shadowOffsetY: selectedElement.containerShadowOffsetY ?? selectedElement.shadowOffsetY,
-                    }}
-                    onChange={(updatedStyles) => {
-                      const mapped: any = {};
-                      if (updatedStyles.backgroundColor !== undefined) mapped.backgroundColor = updatedStyles.backgroundColor;
-                      if (updatedStyles.borderColor !== undefined) {
-                        mapped.containerBorderColor = updatedStyles.borderColor;
-                        mapped.borderColor = updatedStyles.borderColor;
-                      }
-                      if (updatedStyles.borderWidth !== undefined) {
-                        mapped.containerBorderWidth = updatedStyles.borderWidth;
-                        mapped.borderWidth = updatedStyles.borderWidth;
-                      }
-                      if (updatedStyles.borderStyle !== undefined) {
-                        mapped.containerBorderStyle = updatedStyles.borderStyle;
-                        mapped.borderStyle = updatedStyles.borderStyle;
-                      }
-                      if (updatedStyles.borderRadius !== undefined) {
-                        mapped.containerBorderRadius = updatedStyles.borderRadius;
-                        mapped.borderRadius = updatedStyles.borderRadius;
-                      }
-                      if (updatedStyles.shadowColor !== undefined) {
-                        mapped.containerShadowColor = updatedStyles.shadowColor;
-                        mapped.shadowColor = updatedStyles.shadowColor;
-                      }
-                      if (updatedStyles.shadowBlur !== undefined) {
-                        mapped.containerShadowBlur = updatedStyles.shadowBlur;
-                        mapped.shadowBlur = updatedStyles.shadowBlur;
-                      }
-                      if (updatedStyles.shadowOffsetX !== undefined) {
-                        mapped.containerShadowOffsetX = updatedStyles.shadowOffsetX;
-                        mapped.shadowOffsetX = updatedStyles.shadowOffsetX;
-                      }
-                      if (updatedStyles.shadowOffsetY !== undefined) {
-                        mapped.containerShadowOffsetY = updatedStyles.shadowOffsetY;
-                        mapped.shadowOffsetY = updatedStyles.shadowOffsetY;
-                      }
-
-                      Object.entries(mapped).forEach(([key, val]) => {
-                        updateSelectedElement(key as any, val);
-                      });
-                    }}
-                  />
                 </div>
               </div>
             ) : (
               /* TAB: ANIMACIÓN ESTILO JITTER */
-              <div className="space-y-4 text-xs">
+              <div className="p-3 space-y-4 text-xs">
                 <div className="p-3 rounded-xl border flex items-center gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
                   <Zap size={18} style={{ color: 'var(--primary-accent)' }} />
                   <div>
