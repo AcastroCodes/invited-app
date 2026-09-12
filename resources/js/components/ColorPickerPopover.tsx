@@ -63,11 +63,33 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
     setDraftValue(curVal);
     if (curVal.includes('gradient')) {
       setMode('gradient');
-      if (curVal.includes('/*reflected*/') || curVal.includes('repeating-linear-gradient')) setGradType('reflected');
-      else if (curVal.includes('/*diamond*/') || curVal.includes('polygon(')) setGradType('diamond');
-      else if (curVal.includes('conic-gradient')) setGradType('angle');
-      else if (curVal.includes('radial-gradient')) setGradType('radial');
-      else setGradType('linear');
+      let type: PhotoshopGradientType = 'linear';
+      if (curVal.includes('/*reflected*/') || curVal.includes('repeating-linear-gradient')) type = 'reflected';
+      else if (curVal.includes('/*diamond*/')) type = 'diamond';
+      else if (curVal.includes('conic-gradient')) type = 'angle';
+      else if (curVal.includes('radial-gradient')) type = 'radial';
+      else type = 'linear';
+      setGradType(type);
+
+      // Parse angle if linear, reflected or conic
+      const angleMatch = curVal.match(/(\d+)deg/);
+      if (angleMatch) {
+        setGradAngle(parseInt(angleMatch[1], 10));
+      }
+
+      // Parse color stops (#HEX or rgb/rgba or name + position %)
+      const colorStopMatches = Array.from(
+        curVal.matchAll(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\)|[a-zA-Z]+)\s+(\d+)%/g)
+      );
+
+      if (colorStopMatches.length >= 2) {
+        const parsedStops: GradientStop[] = colorStopMatches.map((m, idx) => ({
+          id: String(idx + 1),
+          color: m[1],
+          position: parseInt(m[2], 10),
+        }));
+        setGradStops(parsedStops);
+      }
     } else {
       setMode('solid');
       setSolidColor(curVal);

@@ -128,6 +128,15 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
       }
       let top = Math.min(window.innerHeight - 440, Math.max(10, rect.top - 20));
       setPopoverCoords({ top, left });
+
+      // Seleccionar automáticamente la pestaña relevante si hay borde o sombra activos
+      if (borderWidth > 0 && borderStyle !== 'none') {
+        setActiveTab('borde');
+      } else if (shadowBlur > 0 || shadowOffsetX !== 0 || shadowOffsetY !== 0) {
+        setActiveTab('sombra');
+      } else {
+        setActiveTab('fondo');
+      }
     }
   }, [isOpen]);
 

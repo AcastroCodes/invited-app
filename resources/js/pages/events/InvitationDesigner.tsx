@@ -1336,56 +1336,63 @@ export default function InvitationDesigner() {
                     }}
                   >
                     {el.type === 'text' ? (
-                      el.textAboveBorder ? (
-                        <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left' }}>
-                          {/* Capa inferior: Trazo de borde externo del texto */}
+                      (() => {
+                        const tBorderW = el.textBorderWidth ?? el.containerBorderWidth ?? el.borderWidth ?? 0;
+                        const tBorderC = el.textBorderColor || el.containerBorderColor || el.borderColor || '#000000';
+                        const tColor = el.color || 'var(--text-main)';
+                        const isGradColor = typeof tColor === 'string' && tColor.includes('gradient');
+                        const isGradBorder = typeof tBorderC === 'string' && tBorderC.includes('gradient');
+                        const hasShadow = !!(el.textShadowBlur || el.textShadowOffsetX || el.textShadowOffsetY);
+                        const shadowStr = hasShadow
+                          ? `${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'}`
+                          : undefined;
+
+                        return el.textAboveBorder ? (
+                          <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left' }}>
+                            {/* Capa inferior: Trazo de borde del texto */}
+                            <span
+                              className="w-full block truncate"
+                              style={{
+                                color: isGradBorder ? 'transparent' : (tBorderW > 0 ? tBorderC : 'transparent'),
+                                backgroundImage: isGradBorder ? tBorderC : undefined,
+                                WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
+                                WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
+                                WebkitTextStroke: tBorderW > 0 ? `${tBorderW * 2}px ${isGradBorder ? 'transparent' : tBorderC}` : undefined,
+                                textShadow: shadowStr,
+                              }}
+                            >
+                              {el.content}
+                            </span>
+                            {/* Capa superior: Texto limpio redibujado por encima (Soporta degradado o color plano) */}
+                            <span
+                              className="w-full absolute inset-0 block truncate pointer-events-none"
+                              style={{
+                                color: isGradColor ? 'transparent' : tColor,
+                                backgroundImage: isGradColor ? tColor : undefined,
+                                WebkitBackgroundClip: isGradColor ? 'text' : undefined,
+                                WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
+                                WebkitTextStroke: '0 transparent',
+                              }}
+                            >
+                              {el.content}
+                            </span>
+                          </div>
+                        ) : (
                           <span
-                            className="w-full block truncate"
+                            className="w-full truncate"
                             style={{
-                              color: el.textBorderColor || el.borderColor || '#000000',
-                              WebkitTextStroke: (el.textBorderWidth ?? el.borderWidth)
-                                ? `${(el.textBorderWidth ?? el.borderWidth!) * 2}px ${el.textBorderColor || el.borderColor || '#000000'}`
-                                : undefined,
-                              textShadow: (el.textShadowBlur || el.textShadowOffsetX || el.textShadowOffsetY)
-                                ? `${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'}`
-                                : undefined,
+                              color: isGradColor ? 'transparent' : tColor,
+                              backgroundImage: isGradColor ? tColor : undefined,
+                              WebkitBackgroundClip: isGradColor ? 'text' : undefined,
+                              WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
+                              textShadow: shadowStr,
+                              WebkitTextStroke: tBorderW > 0 ? `${tBorderW}px ${isGradBorder ? '#000' : tBorderC}` : undefined,
                             }}
                           >
                             {el.content}
                           </span>
-                          {/* Capa superior: Color o degradado de texto limpio por encima */}
-                          <span
-                            className="w-full absolute inset-0 block truncate pointer-events-none"
-                            style={{
-                              color: el.color && el.color.includes('gradient') ? 'transparent' : (el.color || 'var(--text-main)'),
-                              backgroundImage: el.color && el.color.includes('gradient') ? el.color : undefined,
-                              WebkitBackgroundClip: el.color && el.color.includes('gradient') ? 'text' : undefined,
-                              WebkitTextFillColor: el.color && el.color.includes('gradient') ? 'transparent' : undefined,
-                              WebkitTextStroke: '0 transparent',
-                            }}
-                          >
-                            {el.content}
-                          </span>
-                        </div>
-                      ) : (
-                        <span
-                          className="w-full truncate"
-                          style={{
-                            color: el.color && el.color.includes('gradient') ? 'transparent' : (el.color || 'var(--text-main)'),
-                            backgroundImage: el.color && el.color.includes('gradient') ? el.color : undefined,
-                            WebkitBackgroundClip: el.color && el.color.includes('gradient') ? 'text' : undefined,
-                            WebkitTextFillColor: el.color && el.color.includes('gradient') ? 'transparent' : undefined,
-                            textShadow: (el.textShadowBlur || el.textShadowOffsetX || el.textShadowOffsetY)
-                              ? `${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'}`
-                              : undefined,
-                            WebkitTextStroke: (el.textBorderWidth ?? el.borderWidth)
-                              ? `${el.textBorderWidth ?? el.borderWidth}px ${el.textBorderColor || el.borderColor || '#000000'}`
-                              : undefined,
-                          }}
-                        >
-                          {el.content}
-                        </span>
-                      )
+                        );
+                      })()
                     ) : el.type === 'video' ? (
                       <div className="flex items-center justify-center w-full h-full bg-purple-950/20 border-2 border-purple-500/40 rounded-xl text-purple-400 gap-3 text-2xl font-bold">
                         <Video size={36} /> {el.content}
