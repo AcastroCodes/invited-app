@@ -53,6 +53,12 @@ import {
   ChevronRight,
   Ratio,
   Minus,
+  Moon,
+  Sun,
+  Circle,
+  Waves,
+  Spline,
+  Mountain,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
@@ -171,7 +177,7 @@ interface CanvasElement {
   fontSize?: number;
   fontWeight?: string;
   fontFamily?: string;
-  // Estilo de Texto
+  // Estilo de Texto & WordArt
   color?: string;
   textBorderWidth?: number;
   textBorderColor?: string;
@@ -180,6 +186,11 @@ interface CanvasElement {
   textShadowOffsetX?: number;
   textShadowOffsetY?: number;
   textAboveBorder?: boolean;
+  wordArtShape?: 'none' | 'arcUp' | 'arcDown' | 'circle' | 'wave' | 'bulge' | 'skew' | 'mountain';
+  wordArtCurve?: number;
+  letterSpacing?: number;
+  skewX?: number;
+  skewY?: number;
 
   // Estilo del Contenedor (Marco / Fondo)
   backgroundColor?: string;
@@ -344,6 +355,7 @@ export default function InvitationDesigner() {
     content: true,
     transform: true,
     typography: true,
+    wordart: false,
     container: true,
   });
 
@@ -354,6 +366,7 @@ export default function InvitationDesigner() {
         content: false,
         transform: false,
         typography: false,
+        wordart: false,
         container: false,
         [section]: !isAlreadyOpen,
       };
@@ -1347,8 +1360,110 @@ export default function InvitationDesigner() {
                           ? `${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'}`
                           : undefined;
 
+                        const lSpacing = el.letterSpacing ? `${el.letterSpacing}px` : undefined;
+                        const hasSkew = (el.skewX || 0) !== 0 || (el.skewY || 0) !== 0;
+                        const skewTransform = hasSkew ? `skew(${el.skewX || 0}deg, ${el.skewY || 0}deg)` : undefined;
+
+                        // Soporte para formas SVG WordArt (arcUp, arcDown, circle, wave, bulge)
+                        const wShape = el.wordArtShape || 'none';
+                        const curveVal = el.wordArtCurve ?? 50;
+
+                        if (wShape === 'arcUp' || wShape === 'arcDown' || wShape === 'wave' || wShape === 'circle' || wShape === 'mountain') {
+                          const pathId = `wordart-path-${el.id}`;
+                          const gradId = `wordart-grad-${el.id}`;
+                          const w = Math.max(100, el.width);
+                          const h = Math.max(40, el.height);
+                          const curveOffset = Math.round((curveVal / 100) * (h * 0.8));
+                          const centerY = h / 2;
+                          let dPath = `M 0 ${centerY} Q ${w / 2} ${centerY - curveOffset} ${w} ${centerY}`;
+
+                          if (wShape === 'arcDown') {
+                            dPath = `M 0 ${centerY} Q ${w / 2} ${centerY + curveOffset} ${w} ${centerY}`;
+                          } else if (wShape === 'wave') {
+                            dPath = `M 0 ${centerY} Q ${w / 4} ${centerY - curveOffset} ${w / 2} ${centerY} T ${w} ${centerY}`;
+                          } else if (wShape === 'circle') {
+                            const r = Math.min(w, h) / 2.2;
+                            dPath = `M ${w / 2} ${centerY - r} A ${r} ${r} 0 1 1 ${w / 2 - 0.1} ${centerY - r}`;
+                          } else if (wShape === 'mountain') {
+                            // Pico tipo montaña: asciende desde la izquierda al pico central y desciende a la derecha
+                            const peakY = Math.max(5, centerY - curveOffset - 10);
+                            const bottomY = Math.min(h - 5, centerY + (curveOffset * 0.5));
+                            dPath = `M 0 ${bottomY} Q ${w * 0.25} ${centerY} ${w / 2} ${peakY} Q ${w * 0.75} ${centerY} ${w} ${bottomY}`;
+                          }
+
+                          return (
+                            <div className="w-full h-full flex items-center justify-center relative overflow-visible" style={{ transform: skewTransform }}>
+                              <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${w} ${h}`}>
+                                <defs>
+                                  {isGradColor && (
+                                    <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                                      {(() => {
+                                        const stopsMatches = Array.from(
+                                          tColor.matchAll(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\)|[a-zA-Z]+)\s+(\d+)%/g)
+                                        );
+                                        if (stopsMatches.length >= 2) {
+                                          return stopsMatches.map((m, idx) => (
+                                            <stop key={idx} offset={`${m[2]}%`} stopColor={m[1]} />
+                                          ));
+                                        }
+                                        return (
+                                          <>
+                                            <stop offset="0%" stopColor="#E07A5F" />
+                                            <stop offset="100%" stopColor="#F2CC8F" />
+                                          </>
+                                        );
+                                      })()}
+                                    </linearGradient>
+                                  )}
+                                </defs>
+                                <path id={pathId} d={dPath} fill="none" stroke="none" />
+
+                                {/* Si el borde debe estar abajo o redibujado por encima */}
+                                {tBorderW > 0 && (
+                                  <text
+                                    fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
+                                    fontWeight={el.fontWeight || 'bold'}
+                                    fontFamily={el.fontFamily || 'Inter'}
+                                    letterSpacing={el.letterSpacing ?? 0}
+                                    textAnchor="middle"
+                                    style={{
+                                      stroke: isGradBorder ? '#E07A5F' : tBorderC,
+                                      strokeWidth: `${tBorderW * 2}px`,
+                                      fill: 'none',
+                                      filter: shadowStr ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : undefined,
+                                    }}
+                                  >
+                                    <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
+                                      {el.content}
+                                    </textPath>
+                                  </text>
+                                )}
+
+                                {/* Capa de Relleno principal de texto */}
+                                <text
+                                  fill={isGradColor ? `url(#${gradId})` : tColor}
+                                  fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
+                                  fontWeight={el.fontWeight || 'bold'}
+                                  fontFamily={el.fontFamily || 'Inter'}
+                                  letterSpacing={el.letterSpacing ?? 0}
+                                  textAnchor="middle"
+                                  style={{
+                                    stroke: (!el.textAboveBorder && tBorderW > 0) ? (isGradBorder ? '#E07A5F' : tBorderC) : undefined,
+                                    strokeWidth: (!el.textAboveBorder && tBorderW > 0) ? `${tBorderW}px` : undefined,
+                                    filter: (!tBorderW && shadowStr) ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : undefined,
+                                  }}
+                                >
+                                  <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
+                                    {el.content}
+                                  </textPath>
+                                </text>
+                              </svg>
+                            </div>
+                          );
+                        }
+
                         return el.textAboveBorder ? (
-                          <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left' }}>
+                          <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left', transform: skewTransform }}>
                             {/* Capa inferior: Trazo de borde del texto */}
                             <span
                               className="w-full block truncate"
@@ -1359,11 +1474,12 @@ export default function InvitationDesigner() {
                                 WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
                                 WebkitTextStroke: tBorderW > 0 ? `${tBorderW * 2}px ${isGradBorder ? 'transparent' : tBorderC}` : undefined,
                                 textShadow: shadowStr,
+                                letterSpacing: lSpacing,
                               }}
                             >
                               {el.content}
                             </span>
-                            {/* Capa superior: Texto limpio redibujado por encima (Soporta degradado o color plano) */}
+                            {/* Capa superior: Texto limpio redibujado por encima */}
                             <span
                               className="w-full absolute inset-0 block truncate pointer-events-none"
                               style={{
@@ -1372,6 +1488,7 @@ export default function InvitationDesigner() {
                                 WebkitBackgroundClip: isGradColor ? 'text' : undefined,
                                 WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
                                 WebkitTextStroke: '0 transparent',
+                                letterSpacing: lSpacing,
                               }}
                             >
                               {el.content}
@@ -1387,6 +1504,9 @@ export default function InvitationDesigner() {
                               WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
                               textShadow: shadowStr,
                               WebkitTextStroke: tBorderW > 0 ? `${tBorderW}px ${isGradBorder ? '#000' : tBorderC}` : undefined,
+                              letterSpacing: lSpacing,
+                              transform: skewTransform,
+                              display: hasSkew ? 'inline-block' : undefined,
                             }}
                           >
                             {el.content}
@@ -1930,7 +2050,128 @@ export default function InvitationDesigner() {
                   </div>
                 )}
 
-                {/* 4. ACORDEÓN: CONTENEDOR & ESTILO */}
+                {/* 4. ACORDEÓN: WORDART (solo si aplica a Texto o Botones) */}
+                {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
+                  <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSection('wordart')}
+                      className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
+                      style={{ color: openSections.wordart ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                    >
+                      <span>WordArt</span>
+                      {openSections.wordart ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+
+                    {openSections.wordart && (
+                      <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                        {/* Selector de Forma / Efecto WordArt con Botones e Iconos Unicolor */}
+                        <div>
+                          <label className="block font-bold mb-1.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Forma de Texto
+                          </label>
+                          <div className="grid grid-cols-4 gap-1 rounded-lg p-1 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            {[
+                              { id: 'none', label: 'Normal', icon: Minus },
+                              { id: 'arcUp', label: 'Arco Arriba', icon: Moon },
+                              { id: 'arcDown', label: 'Arco Abajo', icon: Sun },
+                              { id: 'circle', label: 'Círculo', icon: Circle },
+                              { id: 'wave', label: 'Onda', icon: Waves },
+                              { id: 'mountain', label: 'Montaña', icon: Mountain },
+                              { id: 'bulge', label: 'Abombado', icon: Sparkles },
+                              { id: 'skew', label: 'Inclinado', icon: Spline },
+                            ].map((item) => {
+                              const IconComp = item.icon;
+                              const isSelected = (selectedElement.wordArtShape || 'none') === item.id;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => updateSelectedElement('wordArtShape', item.id as any)}
+                                  title={item.label}
+                                  className={`flex flex-col items-center justify-center p-1.5 rounded-md transition-all cursor-pointer ${
+                                    isSelected ? 'font-extrabold shadow-2xs' : 'hover:opacity-80'
+                                  }`}
+                                  style={{
+                                    backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'transparent',
+                                    color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                                    borderColor: isSelected ? 'var(--primary-accent)' : 'transparent',
+                                  }}
+                                >
+                                  <IconComp size={15} />
+                                  <span className="text-[9px] mt-0.5 font-semibold truncate w-full text-center">{item.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Controles en la misma fila: Curvatura (si aplica) y Espaciado de Letras */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {selectedElement.wordArtShape && selectedElement.wordArtShape !== 'none' ? (
+                            <div>
+                              <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                Curvatura (%)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.wordArtCurve ?? 50}
+                                min={-100}
+                                max={100}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('wordArtCurve', val)}
+                              />
+                            </div>
+                          ) : (
+                            <div />
+                          )}
+
+                          <div>
+                            <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              Espaciado (px)
+                            </label>
+                            <InspectorNumberInput
+                              value={selectedElement.letterSpacing ?? 0}
+                              min={-5}
+                              max={50}
+                              step={1}
+                              onChange={(val) => updateSelectedElement('letterSpacing', val)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Inclinación 3D Skew X / Skew Y si se selecciona Inclinado o estilo personalizado */}
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div>
+                            <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              Inclinación X (°)
+                            </label>
+                            <InspectorNumberInput
+                              value={selectedElement.skewX ?? 0}
+                              min={-45}
+                              max={45}
+                              step={1}
+                              onChange={(val) => updateSelectedElement('skewX', val)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              Inclinación Y (°)
+                            </label>
+                            <InspectorNumberInput
+                              value={selectedElement.skewY ?? 0}
+                              min={-45}
+                              max={45}
+                              step={1}
+                              onChange={(val) => updateSelectedElement('skewY', val)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 5. ACORDEÓN: CONTENEDOR & ESTILO */}
                 <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                   <button
                     type="button"
