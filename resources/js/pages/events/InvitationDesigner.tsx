@@ -186,7 +186,7 @@ interface CanvasElement {
   textShadowOffsetX?: number;
   textShadowOffsetY?: number;
   textAboveBorder?: boolean;
-  wordArtShape?: 'none' | 'arcUp' | 'arcDown' | 'circle' | 'wave' | 'bulge' | 'skew' | 'mountain';
+  wordArtShape?: 'none' | 'arcUp' | 'arcDown' | 'circle' | 'wave' | 'bulge' | 'skew' | 'semicircle';
   wordArtCurve?: number;
   letterSpacing?: number;
   skewX?: number;
@@ -1368,7 +1368,7 @@ export default function InvitationDesigner() {
                         const wShape = el.wordArtShape || 'none';
                         const curveVal = el.wordArtCurve ?? 50;
 
-                        if (wShape === 'arcUp' || wShape === 'arcDown' || wShape === 'wave' || wShape === 'circle' || wShape === 'mountain') {
+                        if (wShape === 'arcUp' || wShape === 'arcDown' || wShape === 'wave' || wShape === 'circle' || wShape === 'semicircle') {
                           const pathId = `wordart-path-${el.id}`;
                           const gradId = `wordart-grad-${el.id}`;
                           const w = Math.max(100, el.width);
@@ -1384,11 +1384,12 @@ export default function InvitationDesigner() {
                           } else if (wShape === 'circle') {
                             const r = Math.min(w, h) / 2.2;
                             dPath = `M ${w / 2} ${centerY - r} A ${r} ${r} 0 1 1 ${w / 2 - 0.1} ${centerY - r}`;
-                          } else if (wShape === 'mountain') {
-                            // Pico tipo montaña: asciende desde la izquierda al pico central y desciende a la derecha
-                            const peakY = Math.max(5, centerY - curveOffset - 10);
-                            const bottomY = Math.min(h - 5, centerY + (curveOffset * 0.5));
-                            dPath = `M 0 ${bottomY} Q ${w * 0.25} ${centerY} ${w / 2} ${peakY} Q ${w * 0.75} ${centerY} ${w} ${bottomY}`;
+                          } else if (wShape === 'semicircle') {
+                            // Semicírculo: Empieza abajo a la izquierda, sube en arco de 180° y cae a la derecha
+                            const rx = w / 2;
+                            const ry = Math.max(10, Math.min(h * 0.85, (curveVal / 100) * h));
+                            const baseScaleY = Math.min(h - 5, centerY + (ry / 2));
+                            dPath = `M 0 ${baseScaleY} A ${rx} ${ry} 0 0 1 ${w} ${baseScaleY}`;
                           }
 
                           return (
@@ -2075,9 +2076,8 @@ export default function InvitationDesigner() {
                               { id: 'none', label: 'Normal', icon: Minus },
                               { id: 'arcUp', label: 'Arco Arriba', icon: Moon },
                               { id: 'arcDown', label: 'Arco Abajo', icon: Sun },
-                              { id: 'circle', label: 'Círculo', icon: Circle },
                               { id: 'wave', label: 'Onda', icon: Waves },
-                              { id: 'mountain', label: 'Montaña', icon: Mountain },
+                              { id: 'semicircle', label: 'Semicírculo', icon: Moon },
                               { id: 'bulge', label: 'Abombado', icon: Sparkles },
                               { id: 'skew', label: 'Inclinado', icon: Spline },
                             ].map((item) => {

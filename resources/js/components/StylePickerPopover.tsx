@@ -171,24 +171,78 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
           const hasShadow = shadowCss !== 'none';
           const hasTextColor = elementType === 'text' && color && color !== 'transparent';
           const isConfigured = hasBackground || hasBorder || hasShadow || hasTextColor;
+          const isGradBorder = isGrad(borderColor);
+          const isGradColor = isGrad(color);
+
+          if (elementType === 'text') {
+            return (
+              <div
+                className="h-6 flex-1 rounded-md transition-all relative overflow-hidden flex items-center justify-center px-1"
+                style={{
+                  background: isGrad(backgroundColor) ? backgroundColor : undefined,
+                  backgroundColor: !isGrad(backgroundColor)
+                    ? (backgroundColor === 'transparent' ? 'var(--bg-app)' : backgroundColor)
+                    : undefined,
+                  borderRadius: `${Math.min(borderRadius, 6)}px`,
+                  boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
+                }}
+              >
+                {textAboveBorder ? (
+                  <div className="relative inline-block leading-none">
+                    <span
+                      className="block text-[11px] font-black"
+                      style={{
+                        color: isGradBorder ? 'transparent' : (hasBorder ? borderColor : 'transparent'),
+                        backgroundImage: isGradBorder ? borderColor : undefined,
+                        WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
+                        WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
+                        WebkitTextStroke: hasBorder ? `${Math.min(borderWidth * 1.5, 4)}px ${isGradBorder ? 'transparent' : borderColor}` : undefined,
+                      }}
+                    >
+                      Texto
+                    </span>
+                    <span
+                      className="absolute inset-0 block text-[11px] font-black"
+                      style={{
+                        color: isGradColor ? 'transparent' : (color || 'var(--text-main)'),
+                        backgroundImage: isGradColor ? color : undefined,
+                        WebkitBackgroundClip: isGradColor ? 'text' : undefined,
+                        WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
+                        WebkitTextStroke: '0 transparent',
+                      }}
+                    >
+                      Texto
+                    </span>
+                  </div>
+                ) : (
+                  <span
+                    className="text-[11px] font-black leading-none"
+                    style={{
+                      color: isGradColor ? 'transparent' : (color || 'var(--text-main)'),
+                      backgroundImage: isGradColor ? color : undefined,
+                      WebkitBackgroundClip: isGradColor ? 'text' : undefined,
+                      WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
+                      WebkitTextStroke: hasBorder ? `${Math.min(borderWidth, 3)}px ${isGradBorder ? '#000' : borderColor}` : undefined,
+                    }}
+                  >
+                    Texto
+                  </span>
+                )}
+              </div>
+            );
+          }
 
           return (
             <div
               className="h-6 flex-1 rounded-md transition-all relative overflow-hidden flex items-center justify-center p-0.5"
               style={{
-                background: isGrad(backgroundColor)
-                  ? backgroundColor
-                  : (isGrad(color) && elementType === 'text' ? color : undefined),
+                background: isGrad(backgroundColor) ? backgroundColor : undefined,
                 backgroundColor: !isGrad(backgroundColor)
-                  ? (backgroundColor === 'transparent'
-                      ? (elementType === 'text' && color && !isGrad(color) && color !== 'transparent' ? color : 'var(--bg-app)')
-                      : backgroundColor)
+                  ? (backgroundColor === 'transparent' ? 'var(--bg-app)' : backgroundColor)
                   : undefined,
-                borderColor: (borderWidth > 0 && borderStyle !== 'none')
-                  ? (isGrad(borderColor) ? '#E07A5F' : borderColor)
-                  : 'transparent',
-                borderWidth: (borderWidth > 0 && borderStyle !== 'none') ? `${Math.min(borderWidth, 3)}px` : '0px',
-                borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
+                borderColor: hasBorder ? (isGradBorder ? '#E07A5F' : borderColor) : 'transparent',
+                borderWidth: hasBorder ? `${Math.min(borderWidth, 3)}px` : '0px',
+                borderStyle: hasBorder ? borderStyle : 'none',
                 borderRadius: `${Math.min(borderRadius, 6)}px`,
                 boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
               }}
@@ -268,8 +322,11 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                       <span
                         className="block"
                         style={{
-                          color: (borderWidth > 0 && borderColor) ? borderColor : 'transparent',
-                          WebkitTextStroke: borderWidth > 0 ? `${borderWidth * 2}px ${borderColor}` : undefined,
+                          color: isGrad(borderColor) ? 'transparent' : (borderWidth > 0 ? borderColor : 'transparent'),
+                          backgroundImage: isGrad(borderColor) ? borderColor : undefined,
+                          WebkitBackgroundClip: isGrad(borderColor) ? 'text' : undefined,
+                          WebkitTextFillColor: isGrad(borderColor) ? 'transparent' : undefined,
+                          WebkitTextStroke: borderWidth > 0 ? `${borderWidth * 2}px ${isGrad(borderColor) ? 'transparent' : borderColor}` : undefined,
                           textShadow: shadowCss !== 'none' ? shadowCss : undefined,
                         }}
                       >
@@ -296,7 +353,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                         WebkitBackgroundClip: isGrad(color) ? 'text' : undefined,
                         WebkitTextFillColor: isGrad(color) ? 'transparent' : undefined,
                         textShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                        WebkitTextStroke: (borderWidth > 0 && borderColor) ? `${borderWidth}px ${borderColor}` : undefined,
+                        WebkitTextStroke: (borderWidth > 0 && borderColor) ? `${borderWidth}px ${isGrad(borderColor) ? '#000' : borderColor}` : undefined,
                       }}
                     >
                       Texto Previo
