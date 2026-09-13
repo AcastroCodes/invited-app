@@ -807,7 +807,7 @@ const GuestGroupCard: React.FC<{
           </div>
 
           {/* Member breakdown */}
-          <div className="space-y-0.5 border-t pt-1 max-h-[84px] overflow-y-auto pr-1 custom-scrollbar" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="mt-1.5 space-y-0.5 border-t pt-1.5 max-h-[84px] overflow-y-auto pr-1 custom-scrollbar" style={{ borderColor: 'var(--border-color)' }}>
             {group.guests?.map((guest, idx) => {
               let IconComponent = UserMinus;
               let iconColorClass = 'text-slate-400';
