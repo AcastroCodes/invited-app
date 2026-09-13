@@ -804,6 +804,38 @@ export default function InvitationDesigner() {
     setHasUnsavedChanges(true);
   };
 
+  const handleImageContentChange = (newVal: string) => {
+    if (!newVal) {
+      updateSelectedElement('content', '');
+      return;
+    }
+
+    const img = new window.Image();
+    img.onload = () => {
+      let newW = img.naturalWidth || 300;
+      let newH = img.naturalHeight || 200;
+
+      // Escalar si excede un tamaño máximo inicial para encajar en el canvas manteniendo aspect ratio
+      const maxCanvasW = 550;
+      if (newW > maxCanvasW) {
+        const ratio = maxCanvasW / newW;
+        newW = Math.round(maxCanvasW);
+        newH = Math.round(newH * ratio);
+      }
+
+      updateSelectedElementBatch({
+        content: newVal,
+        width: newW,
+        height: newH,
+        keepAspectRatio: true,
+      });
+    };
+    img.onerror = () => {
+      updateSelectedElement('content', newVal);
+    };
+    img.src = newVal;
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center" style={{ backgroundColor: 'var(--bg-app)' }}>
@@ -1774,7 +1806,7 @@ export default function InvitationDesigner() {
                           <AssetPickerPopover
                             partnerId={event?.partner_id}
                             value={selectedElement.content}
-                            onChange={(newVal: string) => updateSelectedElement('content', newVal)}
+                            onChange={handleImageContentChange}
                           />
                         </div>
                       ) : (
