@@ -1,97 +1,124 @@
-import React, { useState, useRef } from 'react';
-import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle } from 'lucide-react';
+import api from '../lib/api';
+
+export interface AssetItem {
+  id: number;
+  partner_id: number;
+  name: string;
+  type: string;
+  file_path: string;
+  url: string;
+}
 
 interface AssetPickerPopoverProps {
+  partnerId?: number | string;
   value?: string;
   onChange: (val: string) => void;
   label?: string;
   accept?: string;
+  type?: string;
 }
 
-const STORAGE_KEY = 'invited_partner_assets';
-
-// Galería de imágenes inicial por defecto (placeholders atractivos de prueba si el banco está vacío)
-const DEFAULT_ASSETS = [
-  'https://images.unsplash.com/photo-1519741497674-611481863552?w=500&auto=format&fit=crop&q=60',
-  'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500&auto=format&fit=crop&q=60',
-  'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=500&auto=format&fit=crop&q=60',
-];
-
 export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
+  partnerId,
   value = '',
   onChange,
   label = 'Imagen del Elemento',
   accept = 'image/*',
+  type = 'image',
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [uploading, setUploading] = useState<boolean>(false);
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
   const [justAdded, setJustAdded] = useState(false);
 
-  // Cargar recursos guardados de localStorage
-  const [savedAssets, setSavedAssets] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      return DEFAULT_ASSETS;
-    } catch (e) {
-      return DEFAULT_ASSETS;
+  // Cargar recursos del partner desde la API backend (Base de Datos MySQL)
+  const fetchAssets = async () => {
+    if (!partnerId) {
+      setAssets([]);
+      return;
     }
-  });
-
-  const saveAssetsToStorage = (assets: string[]) => {
-    setSavedAssets(assets);
+    setLoading(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
+      const res = await api.get(`/partners/${partnerId}/assets?type=${type}`);
+      const data = res.data?.data || res.data || [];
+      setAssets(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error('Error saving assets to localStorage:', e);
+      console.error('Error al cargar assets de la base de datos:', e);
+      setAssets([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Manejar carga de archivo desde el equipo
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    fetchAssets();
+  }, [partnerId, type]);
+
+  // Manejar carga de archivo al servidor / base de datos
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        // Agregar al banco de recursos si no existe ya
-        if (!savedAssets.includes(result)) {
-          const updated = [result, ...savedAssets];
-          saveAssetsToStorage(updated);
-        }
-        // Aplicar inmediatamente al elemento
-        onChange(result);
+    // Si no hay partnerId disponible aún en la prop, leer en vista previa DataURL
+    if (!partnerId) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const resUrl = ev.target?.result as string;
+        if (resUrl) onChange(resUrl);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+
+    try {
+      const res = await api.post(`/partners/${partnerId}/assets`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const newAsset: AssetItem = res.data;
+      if (newAsset && newAsset.url) {
+        setAssets((prev) => [newAsset, ...prev]);
+        onChange(newAsset.url);
         setJustAdded(true);
         setTimeout(() => setJustAdded(false), 1500);
       }
-    };
-    reader.readAsDataURL(file);
-
-    // Resetear input para permitir subir el mismo archivo nuevamente si se desea
-    e.target.value = '';
-  };
-
-  // Confirmar borrado definitivo del Banco de Recursos
-  const confirmDeleteAsset = () => {
-    if (deleteConfirmIndex !== null) {
-      const assetToDelete = savedAssets[deleteConfirmIndex];
-      const updated = savedAssets.filter((_, i) => i !== deleteConfirmIndex);
-      saveAssetsToStorage(updated);
-      setDeleteConfirmIndex(null);
-
-      // Si la imagen eliminada era la que estaba seleccionada activamente, vaciar el campo
-      if (value === assetToDelete) {
-        onChange('');
-      }
+    } catch (err) {
+      console.error('Error guardando el asset en la base de datos:', err);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
     }
   };
 
-  // Quitar la imagen del elemento (limpiar selección sin borrar de la biblioteca)
+  // Confirmar borrado definitivo del servidor y la Base de Datos
+  const confirmDeleteAsset = async () => {
+    if (deleteConfirmIndex !== null) {
+      const assetToDelete = assets[deleteConfirmIndex];
+      if (assetToDelete) {
+        try {
+          await api.delete(`/assets/${assetToDelete.id}`);
+          setAssets((prev) => prev.filter((_, i) => i !== deleteConfirmIndex));
+          if (value === assetToDelete.url) {
+            onChange('');
+          }
+        } catch (err) {
+          console.error('Error eliminando el asset de la base de datos:', err);
+        }
+      }
+      setDeleteConfirmIndex(null);
+    }
+  };
+
+  // Quitar la imagen del elemento (limpiar selección sin borrar de la base de datos)
   const handleRemoveFromElement = () => {
     onChange('');
   };
@@ -146,7 +173,8 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs group"
+            disabled={uploading}
+            className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs group disabled:opacity-50"
             style={{
               backgroundColor: justAdded ? 'var(--primary-accent)' : 'var(--bg-app)',
               borderColor: 'var(--border-color)',
@@ -154,7 +182,9 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             }}
             title="Subir o reemplazar imagen desde tu dispositivo"
           >
-            {justAdded ? (
+            {uploading ? (
+              <LoaderCircle size={15} className="animate-spin" />
+            ) : justAdded ? (
               <Check size={16} className="animate-in zoom-in-50 duration-150" />
             ) : (
               <Plus size={16} className="transition-transform group-hover:scale-110" />
@@ -181,31 +211,36 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
         </div>
       </div>
 
-      {/* SECCIÓN INFERIOR: LISTADO HORIZONTAL DEL BANCO DE RECURSOS DEL PARTNER */}
+      {/* SECCIÓN INFERIOR: LISTADO HORIZONTAL DEL BANCO DE RECURSOS DE LA BASE DE DATOS */}
       <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-extrabold uppercase opacity-70 tracking-wider flex items-center gap-1">
             <UploadCloud size={11} style={{ color: 'var(--primary-accent)' }} />
-            Banco de Imágenes ({savedAssets.length})
+            Banco del Partner ({assets.length})
           </span>
           <span className="text-[8px] opacity-50 font-medium">1 Clic: Elegir | 2 Clics: Borrar</span>
         </div>
 
         {/* Galería Horizontal Desplazable */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 min-h-[64px] max-w-full no-scrollbar scroll-smooth">
-          {savedAssets.length === 0 ? (
+          {loading ? (
+            <div className="w-full text-center py-3 flex items-center justify-center gap-2 opacity-50">
+              <LoaderCircle size={14} className="animate-spin" />
+              <span className="text-[9px] font-bold">Cargando base de datos...</span>
+            </div>
+          ) : assets.length === 0 ? (
             <div className="w-full text-center py-3 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-color)' }}>
               <span className="text-[9px] italic opacity-40 font-medium">
-                No hay imágenes en el banco. Haz clic en "Cargar" para subir una.
+                Sin recursos guardados en la base de datos. Haz clic en "Cargar" para subir uno.
               </span>
             </div>
           ) : (
-            savedAssets.map((assetUrl, idx) => {
-              const isSelected = value === assetUrl;
+            assets.map((asset, idx) => {
+              const isSelected = value === asset.url;
               return (
                 <div
-                  key={idx}
-                  onClick={() => onChange(assetUrl)}
+                  key={asset.id}
+                  onClick={() => onChange(asset.url)}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     setDeleteConfirmIndex(idx);
@@ -213,15 +248,15 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                   className={`group/item relative shrink-0 h-14 min-w-[50px] max-w-[90px] rounded-lg border flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-2xs overflow-hidden p-1 ${
                     isSelected ? 'ring-2 ring-emerald-500 shadow-md' : 'opacity-90 hover:opacity-100'
                   }`}
-                  title="Un clic para aplicar | Doble clic para eliminar de la biblioteca"
+                  title={`${asset.name} | Un clic para aplicar | Doble clic para eliminar de la BD`}
                   style={{
                     backgroundColor: 'var(--bg-app)',
                     borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
                   }}
                 >
                   <img
-                    src={assetUrl}
-                    alt={`Asset ${idx}`}
+                    src={asset.url}
+                    alt={asset.name || `Asset ${asset.id}`}
                     className="max-h-full max-w-full object-contain rounded"
                   />
 
@@ -238,8 +273,8 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
         </div>
       </div>
 
-      {/* MODAL PERSONALIZADO DEL PROYECTO PARA ELIMINACIÓN DEFINITIVA */}
-      {deleteConfirmIndex !== null && (
+      {/* MODAL PERSONALIZADO DEL PROYECTO PARA ELIMINACIÓN DEFINITIVA EN LA BD */}
+      {deleteConfirmIndex !== null && assets[deleteConfirmIndex] && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
           <div
             onClick={(e) => e.stopPropagation()}
@@ -253,7 +288,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             {/* Vista previa de la imagen a eliminar */}
             <div className="h-20 w-full rounded-lg border overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5 p-1">
               <img
-                src={savedAssets[deleteConfirmIndex]}
+                src={assets[deleteConfirmIndex].url}
                 alt="Imagen a borrar"
                 className="max-h-full max-w-full object-contain"
               />
@@ -261,10 +296,10 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
 
             <div>
               <p className="text-[12px] font-bold">
-                ¿Eliminar de tu Banco de Imágenes?
+                ¿Eliminar permanentemente de la Base de Datos?
               </p>
               <p className="text-[10px] opacity-70 mt-0.5">
-                Esta acción quitará la imagen de tu biblioteca permanente.
+                Esta acción eliminará el archivo del servidor y del banco del partner.
               </p>
             </div>
 

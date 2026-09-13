@@ -1772,8 +1772,9 @@ export default function InvitationDesigner() {
                       {selectedElement.type === 'image' ? (
                         <div className="pt-2">
                           <AssetPickerPopover
+                            partnerId={event?.partner_id}
                             value={selectedElement.content}
-                            onChange={(newVal) => updateSelectedElement('content', newVal)}
+                            onChange={(newVal: string) => updateSelectedElement('content', newVal)}
                           />
                         </div>
                       ) : (
