@@ -123,6 +123,20 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
     onChange('');
   };
 
+  const [hasImgError, setHasImgError] = useState(false);
+
+  useEffect(() => {
+    setHasImgError(false);
+  }, [value]);
+
+  const isImgValid = value && !hasImgError && (
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('data:') ||
+    value.startsWith('blob:') ||
+    value.startsWith('/storage/')
+  );
+
   return (
     <div className="space-y-3">
       {/* Input de archivo oculto */}
@@ -148,22 +162,37 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
           className="flex-1 h-24 rounded-xl border border-dashed flex items-center justify-center relative overflow-hidden transition-all shadow-inner"
           style={{
             backgroundColor: 'var(--bg-app)',
-            borderColor: value ? 'var(--primary-accent)' : 'var(--border-color)',
+            borderColor: isImgValid ? 'var(--primary-accent)' : 'var(--border-color)',
           }}
         >
-          {value ? (
+          {isImgValid ? (
             <img
               src={value}
               alt="Vista previa de imagen"
+              onError={() => setHasImgError(true)}
               className="max-h-full max-w-full object-contain p-1 rounded-lg"
             />
           ) : (
-            <div className="flex flex-col items-center gap-1 opacity-50 p-2 text-center">
-              <ImageIcon size={22} style={{ color: 'var(--text-muted)' }} />
-              <span className="text-[10px] font-bold" style={{ color: 'var(--text-muted)' }}>
-                Sin imagen seleccionada
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-2 text-center transition-all hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer group select-none"
+              title="Haz clic para agregar una imagen"
+            >
+              <div
+                className="p-2 rounded-full border transition-transform group-hover:scale-110 flex items-center justify-center"
+                style={{
+                  backgroundColor: 'var(--primary-accent-light)',
+                  borderColor: 'var(--primary-accent)',
+                  color: 'var(--primary-accent)',
+                }}
+              >
+                <Plus size={16} />
+              </div>
+              <span className="text-[10px] font-extrabold" style={{ color: 'var(--primary-accent)' }}>
+                Agregar Imagen
               </span>
-            </div>
+            </button>
           )}
         </div>
 

@@ -559,7 +559,7 @@ export default function InvitationDesigner() {
   const handleAddElementType = (elementType: 'text' | 'image' | 'video' | 'shape' | '3d' | 'button' | 'audio') => {
     const defaultLabels: Record<string, string> = {
       text: 'Nuevo Texto',
-      image: 'Imagen Decorativa',
+      image: '',
       video: 'Video Interactivo',
       shape: 'Figura geométrica',
       '3d': 'Modelo 3D Interactivo',
