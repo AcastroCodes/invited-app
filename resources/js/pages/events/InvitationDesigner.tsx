@@ -523,31 +523,41 @@ export default function InvitationDesigner() {
     }
   };
 
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroupCollapse = (groupId: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
+
   // Función para Agrupar capas seleccionadas
   const handleGroupSelected = () => {
     if (selectedElementIds.length < 2) return;
     const newGroupId = `group-${Date.now()}`;
-    setElements((prev) =>
-      prev.map((el) =>
+    const groupName = `Grupo (${selectedElementIds.length} capas)`;
+    pushHistorySnapshot(
+      elements.map((el) =>
         selectedElementIds.includes(el.id)
-          ? { ...el, groupId: newGroupId, groupName: `Grupo (${selectedElementIds.length})` }
+          ? { ...el, groupId: newGroupId, groupName }
           : el
       )
     );
-    setHasUnsavedChanges(true);
   };
 
   // Función para Desagrupar
-  const handleUngroupSelected = () => {
-    if (!selectedElementId) return;
-    const targetEl = elements.find((el) => el.id === selectedElementId);
-    if (!targetEl || !targetEl.groupId) return;
+  const handleUngroupSelected = (groupIdToUngroup?: string) => {
+    const targetGroupId =
+      groupIdToUngroup ||
+      (selectedElementId
+        ? elements.find((el) => el.id === selectedElementId)?.groupId
+        : undefined);
 
-    const gId = targetEl.groupId;
-    setElements((prev) =>
-      prev.map((el) => (el.groupId === gId ? { ...el, groupId: undefined, groupName: undefined } : el))
+    if (!targetGroupId) return;
+
+    pushHistorySnapshot(
+      elements.map((el) =>
+        el.groupId === targetGroupId ? { ...el, groupId: undefined, groupName: undefined } : el
+      )
     );
-    setHasUnsavedChanges(true);
   };
   const [zoom, setZoom] = useState(30);
   const [zoomInputText, setZoomInputText] = useState('30');
@@ -1354,157 +1364,319 @@ export default function InvitationDesigner() {
                   </p>
                 </div>
               ) : (
-                elements.map((el, idx) => {
-                  const isSelected = selectedElementIds.includes(el.id) || selectedElementId === el.id;
-                  const isGrouped = !!el.groupId;
+                (() => {
+                  const renderedGroupIds = new Set<string>();
+                  return elements.map((el, idx) => {
+                    const isSelected = selectedElementIds.includes(el.id) || selectedElementId === el.id;
+                    const isGrouped = !!el.groupId;
 
-                  return (
-                    <div
-                      key={el.id}
-                      onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
-                      className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ${
-                        isSelected ? 'shadow-xs' : 'hover:opacity-90'
-                      }`}
-                      style={{
-                        backgroundColor: isSelected
-                          ? 'var(--primary-accent-light)'
-                          : isGrouped
-                          ? 'rgba(245, 158, 11, 0.08)'
-                          : 'var(--bg-app)',
-                        borderColor: isSelected
-                          ? 'var(--primary-accent)'
-                          : isGrouped
-                          ? '#F59E0B'
-                          : 'var(--border-color)',
-                        color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
-                      }}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {isGrouped && <Folder size={13} className="shrink-0 text-amber-500" title={`Forma parte de ${el.groupName || 'un grupo'}`} />}
-                        {/* Icono por tipo de elemento */}
-                        {el.type === 'text' && <Type size={15} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                        {el.type === 'image' && <ImageIcon size={15} className="shrink-0 text-blue-500" />}
-                        {el.type === 'video' && <Video size={15} className="shrink-0 text-purple-500" />}
-                        {el.type === 'shape' && <Square size={15} className="shrink-0 text-emerald-500" />}
-                        {el.type === '3d' && <Box size={15} className="shrink-0 text-amber-500" />}
-                        {el.type === 'audio' && <Music size={15} className="shrink-0 text-rose-500" />}
-                        {el.type === 'button' && <Smartphone size={15} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                    // Renderizado de Grupo Padre si es el primer elemento encontrado de ese groupId
+                    if (isGrouped && el.groupId) {
+                      const gId = el.groupId;
+                      if (renderedGroupIds.has(gId)) {
+                        return null; // Ya se renderizó dentro de la carpeta del grupo
+                      }
+                      renderedGroupIds.add(gId);
 
-                        <span className={`truncate text-xs ${isSelected ? 'font-black' : 'font-semibold'}`}>
-                          {el.content}
-                        </span>
-                      </div>
+                      const groupChildren = elements.filter((item) => item.groupId === gId);
+                      const isCollapsed = collapsedGroups[gId];
+                      const isAnyChildSelected = groupChildren.some(
+                        (item) => selectedElementIds.includes(item.id) || selectedElementId === item.id
+                      );
 
-                      {/* Controles de Capa Agrupados (Grupo 1: Subir/Bajar | Grupo 2: Ojo, Cadena, Candado | Grupo 3: Borrar) */}
-                      <div className="flex items-center gap-1 shrink-0 ml-1">
-                        {/* GRUPO 1: Reordenar (Subir / Bajar) */}
-                        <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveLayerUp(idx);
+                      return (
+                        <div
+                          key={gId}
+                          className="rounded-lg border overflow-hidden transition-all shadow-2xs"
+                          style={{
+                            backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                            borderColor: isAnyChildSelected ? '#F59E0B' : 'rgba(245, 158, 11, 0.4)',
+                          }}
+                        >
+                          {/* Cabecera del Grupo (Capa Padre 'Grupo') */}
+                          <div
+                            onClick={() => {
+                              // Seleccionar todos los hijos del grupo
+                              const childIds = groupChildren.map((c) => c.id);
+                              setSelectedElementIds(childIds);
+                              setSelectedElementId(childIds[childIds.length - 1]);
                             }}
-                            disabled={idx === 0}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-                            style={{ color: 'var(--text-main)' }}
-                            title="Subir capa (Al frente)"
+                            className="flex items-center justify-between p-2 cursor-pointer bg-amber-500/10 hover:bg-amber-500/15 transition-colors border-b select-none"
+                            style={{ borderColor: 'rgba(245, 158, 11, 0.2)' }}
                           >
-                            <ChevronUp size={11} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveLayerDown(idx);
-                            }}
-                            disabled={idx === elements.length - 1}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-                            style={{ color: 'var(--text-main)' }}
-                            title="Bajar capa (Atrás)"
-                          >
-                            <ChevronDown size={11} />
-                          </button>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleGroupCollapse(gId);
+                                }}
+                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
+                              >
+                                {isCollapsed ? (
+                                  <ChevronRight size={14} className="text-amber-500" />
+                                ) : (
+                                  <ChevronDown size={14} className="text-amber-500" />
+                                )}
+                              </button>
+                              <Folder size={15} className="shrink-0 text-amber-500" />
+                              <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400 truncate">
+                                {el.groupName || `Grupo (${groupChildren.length} capas)`}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUngroupSelected(gId);
+                                }}
+                                className="px-2 py-0.5 rounded border text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-white/50 dark:bg-black/30 hover:bg-amber-500 hover:text-white transition-all cursor-pointer flex items-center gap-1"
+                                title="Desagrupar capas"
+                              >
+                                <Unlink size={10} /> Desagrupar
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Capas Hijos dentro del Grupo */}
+                          {!isCollapsed && (
+                            <div className="p-1.5 space-y-1.5 bg-black/5 dark:bg-white/5">
+                              {groupChildren.map((childEl) => {
+                                const childIdx = elements.findIndex((item) => item.id === childEl.id);
+                                const isChildSelected =
+                                  selectedElementIds.includes(childEl.id) || selectedElementId === childEl.id;
+
+                                return (
+                                  <div
+                                    key={childEl.id}
+                                    onClick={(e) =>
+                                      handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey)
+                                    }
+                                    className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ml-2 ${
+                                      isChildSelected ? 'shadow-xs' : 'hover:opacity-90'
+                                    }`}
+                                    style={{
+                                      backgroundColor: isChildSelected
+                                        ? 'var(--primary-accent-light)'
+                                        : 'var(--bg-card)',
+                                      borderColor: isChildSelected
+                                        ? 'var(--primary-accent)'
+                                        : 'var(--border-color)',
+                                      color: isChildSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {childEl.type === 'text' && <Type size={14} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                                      {childEl.type === 'image' && <ImageIcon size={14} className="shrink-0 text-blue-500" />}
+                                      {childEl.type === 'video' && <Video size={14} className="shrink-0 text-purple-500" />}
+                                      {childEl.type === 'shape' && <Square size={14} className="shrink-0 text-emerald-500" />}
+                                      {childEl.type === '3d' && <Box size={14} className="shrink-0 text-amber-500" />}
+                                      {childEl.type === 'audio' && <Music size={14} className="shrink-0 text-rose-500" />}
+                                      {childEl.type === 'button' && <Smartphone size={14} className="shrink-0" style={{ color: 'var(--success)' }} />}
+
+                                      <span className={`truncate text-xs ${isChildSelected ? 'font-black' : 'font-medium'}`}>
+                                        {childEl.content}
+                                      </span>
+                                    </div>
+
+                                    {/* Controles de Capa Hijo */}
+                                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                                      <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleMoveLayerUp(childIdx);
+                                          }}
+                                          disabled={childIdx === 0}
+                                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                        >
+                                          <ChevronUp size={11} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleMoveLayerDown(childIdx);
+                                          }}
+                                          disabled={childIdx === elements.length - 1}
+                                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                        >
+                                          <ChevronDown size={11} />
+                                        </button>
+                                      </div>
+
+                                      <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleElementVisibility(childEl.id);
+                                          }}
+                                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                        >
+                                          {childEl.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleElementLock(childEl.id);
+                                          }}
+                                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                        >
+                                          {childEl.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                                        </button>
+                                      </div>
+
+                                      <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteElement(childEl.id);
+                                          }}
+                                          className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Renderizado de Elemento Independiente (Sin Grupo)
+                    return (
+                      <div
+                        key={el.id}
+                        onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                        className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ${
+                          isSelected ? 'shadow-xs' : 'hover:opacity-90'
+                        }`}
+                        style={{
+                          backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                          borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                          color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                        }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {el.type === 'text' && <Type size={15} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                          {el.type === 'image' && <ImageIcon size={15} className="shrink-0 text-blue-500" />}
+                          {el.type === 'video' && <Video size={15} className="shrink-0 text-purple-500" />}
+                          {el.type === 'shape' && <Square size={15} className="shrink-0 text-emerald-500" />}
+                          {el.type === '3d' && <Box size={15} className="shrink-0 text-amber-500" />}
+                          {el.type === 'audio' && <Music size={15} className="shrink-0 text-rose-500" />}
+                          {el.type === 'button' && <Smartphone size={15} className="shrink-0" style={{ color: 'var(--success)' }} />}
+
+                          <span className={`truncate text-xs ${isSelected ? 'font-black' : 'font-semibold'}`}>
+                            {el.content}
+                          </span>
                         </div>
 
-                        {/* GRUPO 2: Estado (Visibilidad / Ojo, Agrupar / Cadena, Candado) */}
-                        <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                          {/* Ojo / Visibilidad */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleElementVisibility(el.id);
-                            }}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                            style={{ color: el.visible === false ? 'var(--text-muted)' : 'var(--text-main)' }}
-                            title={el.visible === false ? 'Mostrar capa' : 'Ocultar capa'}
-                          >
-                            {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
-                          </button>
+                        {/* Controles de Capa Suelta */}
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                          <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveLayerUp(idx);
+                              }}
+                              disabled={idx === 0}
+                              className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                              style={{ color: 'var(--text-main)' }}
+                            >
+                              <ChevronUp size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveLayerDown(idx);
+                              }}
+                              disabled={idx === elements.length - 1}
+                              className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                              style={{ color: 'var(--text-main)' }}
+                            >
+                              <ChevronDown size={11} />
+                            </button>
+                          </div>
 
-                          {/* Cadena / Eslabón (Agrupar/Desagrupar) */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isGrouped) {
-                                handleUngroupSelected();
-                              } else if (selectedElementIds.length >= 2) {
-                                handleGroupSelected();
-                              } else {
-                                handleSelectElement(el.id, true);
+                          <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleElementVisibility(el.id);
+                              }}
+                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                              style={{ color: el.visible === false ? 'var(--text-muted)' : 'var(--text-main)' }}
+                            >
+                              {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedElementIds.length >= 2) {
+                                  handleGroupSelected();
+                                } else {
+                                  handleSelectElement(el.id, true);
+                                }
+                              }}
+                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                              style={{
+                                color: selectedElementIds.length >= 2 ? 'var(--primary-accent)' : 'var(--text-muted)',
+                              }}
+                              title={
+                                selectedElementIds.length >= 2
+                                  ? `Agrupar ${selectedElementIds.length} capas seleccionadas`
+                                  : 'Selecciona más capas para agrupar con la cadena'
                               }
-                            }}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                            style={{
-                              color: isGrouped ? 'var(--primary-accent)' : selectedElementIds.length >= 2 ? 'var(--primary-accent)' : 'var(--text-muted)',
-                            }}
-                            title={
-                              isGrouped
-                                ? 'Capa vinculada/agrupada (Haz clic para desagrupar)'
-                                : selectedElementIds.length >= 2
-                                ? `Vincular ${selectedElementIds.length} capas seleccionadas`
-                                : 'Selecciona más capas (Ctrl/Shift + Clic) para vincular con la cadena'
-                            }
-                          >
-                            {isGrouped ? <Link size={11} className="font-bold shrink-0" /> : <Unlink size={11} className="opacity-60 shrink-0" />}
-                          </button>
+                            >
+                              <Unlink size={11} className="opacity-60 shrink-0" />
+                            </button>
 
-                          {/* Candado / Bloqueo */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleElementLock(el.id);
-                            }}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                            style={{ color: el.locked ? 'var(--warning)' : 'var(--text-muted)' }}
-                            title={el.locked ? 'Desbloquear capa' : 'Bloquear capa'}
-                          >
-                            {el.locked ? <Lock size={11} /> : <Unlock size={11} />}
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleElementLock(el.id);
+                              }}
+                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                              style={{ color: el.locked ? 'var(--warning)' : 'var(--text-muted)' }}
+                            >
+                              {el.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                            </button>
+                          </div>
 
-                        {/* GRUPO 3: Eliminar */}
-                        <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteElement(el.id);
-                            }}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                            style={{ color: 'var(--danger)' }}
-                            title="Eliminar capa"
-                          >
-                            <Trash2 size={11} />
-                          </button>
+                          <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteElement(el.id);
+                              }}
+                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                              style={{ color: 'var(--danger)' }}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  });
+                })()
               )}
             </div>
           </div>
