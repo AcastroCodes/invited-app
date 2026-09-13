@@ -65,6 +65,7 @@ import {
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
+import { AssetPickerPopover } from '../../components/AssetPickerPopover';
 
 interface NumberInputProps {
   value: number;
@@ -1594,6 +1595,19 @@ export default function InvitationDesigner() {
                           </span>
                         );
                       })()
+                    ) : el.type === 'image' ? (
+                      el.content ? (
+                        <img
+                          src={el.content}
+                          alt="Imagen del elemento"
+                          className="w-full h-full object-contain pointer-events-none select-none"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center w-full h-full bg-blue-950/20 border-2 border-dashed border-blue-500/40 rounded-xl text-blue-400 gap-2 text-sm font-bold p-2 text-center select-none">
+                          <ImageIcon size={32} />
+                          <span>Sin Imagen</span>
+                        </div>
+                      )
                     ) : el.type === 'video' ? (
                       <div className="flex items-center justify-center w-full h-full bg-purple-950/20 border-2 border-purple-500/40 rounded-xl text-purple-400 gap-3 text-2xl font-bold">
                         <Video size={36} /> {el.content}
@@ -1755,17 +1769,26 @@ export default function InvitationDesigner() {
 
                   {openSections.content && (
                     <div className="px-4 pb-3 pt-0 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
-                      <textarea
-                        rows={3}
-                        value={selectedElement.content}
-                        onChange={(e) => updateSelectedElement('content', e.target.value)}
-                        className="w-full rounded-lg px-3 py-2 border outline-none font-medium resize-y mt-2"
-                        style={{
-                          backgroundColor: 'var(--bg-card)',
-                          borderColor: 'var(--border-color)',
-                          color: 'var(--text-main)',
-                        }}
-                      />
+                      {selectedElement.type === 'image' ? (
+                        <div className="pt-2">
+                          <AssetPickerPopover
+                            value={selectedElement.content}
+                            onChange={(newVal) => updateSelectedElement('content', newVal)}
+                          />
+                        </div>
+                      ) : (
+                        <textarea
+                          rows={3}
+                          value={selectedElement.content}
+                          onChange={(e) => updateSelectedElement('content', e.target.value)}
+                          className="w-full rounded-lg px-3 py-2 border outline-none font-medium resize-y mt-2"
+                          style={{
+                            backgroundColor: 'var(--bg-card)',
+                            borderColor: 'var(--border-color)',
+                            color: 'var(--text-main)',
+                          }}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
