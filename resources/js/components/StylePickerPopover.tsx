@@ -169,75 +169,16 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
           const hasBackground = backgroundColor && backgroundColor !== 'transparent';
           const hasBorder = borderWidth > 0 && borderStyle !== 'none';
           const hasShadow = shadowCss !== 'none';
-          const hasTextColor = elementType === 'text' && color && color !== 'transparent';
-          const isConfigured = hasBackground || hasBorder || hasShadow || hasTextColor;
+          const isConfigured = hasBackground || hasBorder || hasShadow;
           const isGradBorder = isGrad(borderColor);
-          const isGradColor = isGrad(color);
-
-          if (elementType === 'text') {
-            return (
-              <div
-                className="h-6 flex-1 rounded-md transition-all relative overflow-hidden flex items-center justify-center px-1"
-                style={{
-                  background: isGrad(backgroundColor) ? backgroundColor : undefined,
-                  backgroundColor: !isGrad(backgroundColor)
-                    ? (backgroundColor === 'transparent' ? 'var(--bg-app)' : backgroundColor)
-                    : undefined,
-                  borderRadius: `${Math.min(borderRadius, 6)}px`,
-                  boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                }}
-              >
-                {textAboveBorder ? (
-                  <div className="relative inline-block leading-none">
-                    <span
-                      className="block text-[11px] font-black"
-                      style={{
-                        color: isGradBorder ? 'transparent' : (hasBorder ? borderColor : 'transparent'),
-                        backgroundImage: isGradBorder ? borderColor : undefined,
-                        WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
-                        WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
-                        WebkitTextStroke: hasBorder ? `${Math.min(borderWidth * 1.5, 4)}px ${isGradBorder ? 'transparent' : borderColor}` : undefined,
-                      }}
-                    >
-                      Texto
-                    </span>
-                    <span
-                      className="absolute inset-0 block text-[11px] font-black"
-                      style={{
-                        color: isGradColor ? 'transparent' : (color || 'var(--text-main)'),
-                        backgroundImage: isGradColor ? color : undefined,
-                        WebkitBackgroundClip: isGradColor ? 'text' : undefined,
-                        WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
-                        WebkitTextStroke: '0 transparent',
-                      }}
-                    >
-                      Texto
-                    </span>
-                  </div>
-                ) : (
-                  <span
-                    className="text-[11px] font-black leading-none"
-                    style={{
-                      color: isGradColor ? 'transparent' : (color || 'var(--text-main)'),
-                      backgroundImage: isGradColor ? color : undefined,
-                      WebkitBackgroundClip: isGradColor ? 'text' : undefined,
-                      WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
-                      WebkitTextStroke: hasBorder ? `${Math.min(borderWidth, 3)}px ${isGradBorder ? '#000' : borderColor}` : undefined,
-                    }}
-                  >
-                    Texto
-                  </span>
-                )}
-              </div>
-            );
-          }
+          const isGradBg = isGrad(backgroundColor);
 
           return (
             <div
               className="h-6 flex-1 rounded-md transition-all relative overflow-hidden flex items-center justify-center p-0.5"
               style={{
-                background: isGrad(backgroundColor) ? backgroundColor : undefined,
-                backgroundColor: !isGrad(backgroundColor)
+                background: isGradBg ? backgroundColor : undefined,
+                backgroundColor: !isGradBg
                   ? (backgroundColor === 'transparent' ? 'var(--bg-app)' : backgroundColor)
                   : undefined,
                 borderColor: hasBorder ? (isGradBorder ? '#E07A5F' : borderColor) : 'transparent',
@@ -309,80 +250,20 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
 
             {/* Preview Box dentro del Modal */}
             <div className="my-2 p-2 rounded-md flex items-center justify-center border border-dashed relative overflow-hidden" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-              {elementType === 'text' || elementType === 'button' ? (
-                <div
-                  className="px-2 py-1 flex items-center justify-center text-sm font-extrabold transition-all relative select-none"
-                  style={{
-                    backgroundColor: backgroundColor,
-                    borderRadius: `${borderRadius}px`,
-                  }}
-                >
-                  {textAboveBorder ? (
-                    <div className="relative inline-block">
-                      <span
-                        className="block"
-                        style={{
-                          color: isGrad(borderColor) ? 'transparent' : (borderWidth > 0 ? borderColor : 'transparent'),
-                          backgroundImage: isGrad(borderColor) ? borderColor : undefined,
-                          WebkitBackgroundClip: isGrad(borderColor) ? 'text' : undefined,
-                          WebkitTextFillColor: isGrad(borderColor) ? 'transparent' : undefined,
-                          WebkitTextStroke: borderWidth > 0 ? `${borderWidth * 2}px ${isGrad(borderColor) ? 'transparent' : borderColor}` : undefined,
-                          textShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                        }}
-                      >
-                        Texto Previo
-                      </span>
-                      <span
-                        className="absolute inset-0 block"
-                        style={{
-                          color: isGrad(color) ? 'transparent' : color || '#212121',
-                          backgroundImage: isGrad(color) ? color : undefined,
-                          WebkitBackgroundClip: isGrad(color) ? 'text' : undefined,
-                          WebkitTextFillColor: isGrad(color) ? 'transparent' : undefined,
-                          WebkitTextStroke: '0 transparent',
-                        }}
-                      >
-                        Texto Previo
-                      </span>
-                    </div>
-                  ) : (
-                    <span
-                      style={{
-                        color: isGrad(color) ? 'transparent' : (color || 'var(--text-main)'),
-                        backgroundImage: isGrad(color) ? color : undefined,
-                        WebkitBackgroundClip: isGrad(color) ? 'text' : undefined,
-                        WebkitTextFillColor: isGrad(color) ? 'transparent' : undefined,
-                        textShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                        WebkitTextStroke: (borderWidth > 0 && borderColor) ? `${borderWidth}px ${isGrad(borderColor) ? '#000' : borderColor}` : undefined,
-                      }}
-                    >
-                      Texto Previo
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className="h-14 w-32 flex items-center justify-center text-[10px] font-bold transition-all relative overflow-hidden shadow-2xs"
-                  style={{
-                    background: isGrad(backgroundColor) ? backgroundColor : undefined,
-                    backgroundColor: !isGrad(backgroundColor)
-                      ? (backgroundColor === 'transparent' ? '#FFFFFF' : backgroundColor)
-                      : undefined,
-                    borderColor: (borderWidth > 0 && borderColor) ? borderColor : 'transparent',
-                    borderWidth: borderWidth > 0 ? `${borderWidth}px` : '0px',
-                    borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
-                    borderRadius: `${borderRadius}px`,
-                    boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                    color: 'var(--text-main)',
-                  }}
-                >
-                  {backgroundColor === 'transparent' ? (
-                    <span className="text-[10px] text-red-500 font-extrabold uppercase">Transparente</span>
-                  ) : (
-                    'Vista Previa'
-                  )}
-                </div>
-              )}
+              <div
+                className="h-14 w-32 flex items-center justify-center text-[10px] font-bold transition-all relative overflow-hidden shadow-2xs"
+                style={{
+                  background: isGrad(backgroundColor) ? backgroundColor : undefined,
+                  backgroundColor: !isGrad(backgroundColor)
+                    ? (backgroundColor === 'transparent' ? '#FFFFFF' : backgroundColor)
+                    : undefined,
+                  borderColor: (borderWidth > 0 && borderColor) ? (isGrad(borderColor) ? '#E07A5F' : borderColor) : 'transparent',
+                  borderWidth: borderWidth > 0 ? `${borderWidth}px` : '0px',
+                  borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
+                  borderRadius: `${borderRadius}px`,
+                  boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
+                }}
+              />
             </div>
 
             {/* Pestañas Principales: Fondo, Borde, Sombra */}
