@@ -60,6 +60,7 @@ import {
   Spline,
   Mountain,
   Undo,
+  Redo,
   LoaderCircle,
   Folder,
   Group,
@@ -664,33 +665,52 @@ export default function InvitationDesigner() {
     },
   ]);
 
-  // Historial de cambios para función Deshacer (Undo / Ctrl+Z)
+  // Historial de cambios para función Deshacer (Undo) y Rehacer (Redo) - Máximo 15 acciones
   const [historyStack, setHistoryStack] = useState<CanvasElement[][]>([]);
+  const [redoStack, setRedoStack] = useState<CanvasElement[][]>([]);
 
   // Función para guardar snapshot en el historial antes de modificar
   const pushHistorySnapshot = (newElements: CanvasElement[]) => {
     setHistoryStack((prev) => {
       const updated = [...prev, elements];
-      // Limitar historial a los últimos 40 pasos para optimizar memoria
-      if (updated.length > 40) return updated.slice(updated.length - 40);
+      // Limitar historial a los últimos 15 pasos
+      if (updated.length > 15) return updated.slice(updated.length - 15);
       return updated;
     });
+    setRedoStack([]); // Al realizar una nueva acción se limpia la pila de rehacer
     setElements(newElements);
     setHasUnsavedChanges(true);
   };
 
   // Función Deshacer (Undo)
   const handleUndo = () => {
-    setHistoryStack((prev) => {
-      if (prev.length === 0) return prev;
-      const lastSnapshot = prev[prev.length - 1];
-      setElements(lastSnapshot);
-      setHasUnsavedChanges(true);
-      return prev.slice(0, prev.length - 1);
+    if (historyStack.length === 0) return;
+    const lastSnapshot = historyStack[historyStack.length - 1];
+    setRedoStack((prev) => {
+      const updated = [...prev, elements];
+      if (updated.length > 15) return updated.slice(updated.length - 15);
+      return updated;
     });
+    setElements(lastSnapshot);
+    setHistoryStack((prev) => prev.slice(0, prev.length - 1));
+    setHasUnsavedChanges(true);
   };
 
-  // Listener para atajos de teclado globales (Ctrl+Z: Deshacer, Ctrl+G: Agrupar, Ctrl+Shift+G: Desagrupar)
+  // Función Rehacer (Redo)
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    const nextSnapshot = redoStack[redoStack.length - 1];
+    setHistoryStack((prev) => {
+      const updated = [...prev, elements];
+      if (updated.length > 15) return updated.slice(updated.length - 15);
+      return updated;
+    });
+    setElements(nextSnapshot);
+    setRedoStack((prev) => prev.slice(0, prev.length - 1));
+    setHasUnsavedChanges(true);
+  };
+
+  // Listener para atajos de teclado globales (Ctrl+Z: Deshacer, Ctrl+Y / Ctrl+Shift+Z: Rehacer, Ctrl+G: Agrupar, Ctrl+Shift+G: Desagrupar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignorar si se está escribiendo dentro de un input o textarea editable
@@ -702,8 +722,13 @@ export default function InvitationDesigner() {
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
       const keyLower = e.key.toLowerCase();
 
+      // Ctrl + Shift + Z / Cmd + Shift + Z o Ctrl + Y (Rehacer)
+      if ((isCmdOrCtrl && e.shiftKey && keyLower === 'z') || (isCmdOrCtrl && keyLower === 'y')) {
+        e.preventDefault();
+        handleRedo();
+      }
       // Ctrl + Z / Cmd + Z (Deshacer)
-      if (isCmdOrCtrl && keyLower === 'z' && !e.shiftKey) {
+      else if (isCmdOrCtrl && keyLower === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
       }
@@ -722,7 +747,7 @@ export default function InvitationDesigner() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [elements, historyStack, selectedElementIds, selectedElementId]);
+  }, [elements, historyStack, redoStack, selectedElementIds, selectedElementId]);
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -794,7 +819,7 @@ export default function InvitationDesigner() {
       color: 'var(--text-main)',
       textAlign: 'center',
     };
-    pushHistorySnapshot([...elements, newEl]);
+    pushHistorySnapshot([newEl, ...elements]);
     setSelectedElementId(newEl.id);
     setSelectedElementIds([newEl.id]);
   };
@@ -827,7 +852,7 @@ export default function InvitationDesigner() {
       locked: false,
     };
 
-    pushHistorySnapshot([...elements, newEl]);
+    pushHistorySnapshot([newEl, ...elements]);
     setSelectedElementId(newEl.id);
     setSelectedElementIds([newEl.id]);
   };
@@ -864,7 +889,7 @@ export default function InvitationDesigner() {
       visible: true,
       locked: false,
     };
-    pushHistorySnapshot([...elements, newEl]);
+    pushHistorySnapshot([newEl, ...elements]);
     setSelectedElementId(newEl.id);
     setSelectedElementIds([newEl.id]);
   };
@@ -1023,52 +1048,82 @@ export default function InvitationDesigner() {
     } else if (dragState.mode === 'resize' && dragState.handle) {
       const currentEl = elements.find((item) => item.id === selectedElementId);
       const keepRatio = currentEl?.keepAspectRatio;
+      const h = dragState.handle;
 
-      let newX = x;
-      let newY = y;
+      // Ángulo de rotación en radianes
+      const rad = ((rotation || 0) * Math.PI) / 180;
+      const cosRot = Math.cos(rad);
+      const sinRot = Math.sin(rad);
+
+      // Convertir el movimiento delta del ratón (pantalla) al espacio local desrotado (Eje X local horizontal, Eje Y local vertical)
+      // Matriz inversa de rotación:
+      // localDx = deltaX * cos(rad) + deltaY * sin(rad)
+      // localDy = -deltaX * sin(rad) + deltaY * cos(rad)
+      const localDx = deltaX * cosRot + deltaY * sinRot;
+      const localDy = -deltaX * sinRot + deltaY * cosRot;
+
       let newWidth = width;
       let newHeight = height;
 
-      const h = dragState.handle;
-      const initialAspect = width / height;
+      if (h.includes('e')) newWidth = width + localDx;
+      if (h.includes('w')) newWidth = width - localDx;
+      if (h.includes('s')) newHeight = height + localDy;
+      if (h.includes('n')) newHeight = height - localDy;
 
-      if (h.includes('e')) newWidth = Math.max(30, width + deltaX);
-      if (h.includes('s')) newHeight = Math.max(20, height + deltaY);
+      newWidth = Math.max(30, newWidth);
+      newHeight = Math.max(20, newHeight);
 
-      if (h.includes('w')) {
-        const potentialWidth = width - deltaX;
-        if (potentialWidth >= 30) {
-          newWidth = potentialWidth;
-          newX = x + deltaX;
-        }
-      }
-
-      if (h.includes('n')) {
-        const potentialHeight = height - deltaY;
-        if (potentialHeight >= 20) {
-          newHeight = potentialHeight;
-          newY = y + deltaY;
-        }
-      }
-
-      if (keepRatio && initialAspect > 0) {
-        if (h.includes('e') || h.includes('w')) {
-          newHeight = Math.round(newWidth / initialAspect);
-          if (h.includes('n')) {
-            newY = y + (height - newHeight);
-          }
+      if (keepRatio && width > 0 && height > 0) {
+        const aspect = width / height;
+        if (h === 'se' || h === 'nw') {
+          const deltaSize = h === 'se' ? Math.max(localDx, localDy * aspect) : Math.max(-localDx, -localDy * aspect);
+          newWidth = Math.max(30, Math.round(width + deltaSize));
+          newHeight = Math.round(newWidth / aspect);
+        } else if (h === 'ne' || h === 'sw') {
+          const deltaSize = h === 'ne' ? Math.max(localDx, -localDy * aspect) : Math.max(-localDx, localDy * aspect);
+          newWidth = Math.max(30, Math.round(width + deltaSize));
+          newHeight = Math.round(newWidth / aspect);
+        } else if (h.includes('e') || h.includes('w')) {
+          newHeight = Math.round(newWidth / aspect);
         } else if (h.includes('n') || h.includes('s')) {
-          newWidth = Math.round(newHeight * initialAspect);
-          if (h.includes('w')) {
-            newX = x + (width - newWidth);
-          }
+          newWidth = Math.round(newHeight * aspect);
         }
       }
+
+      // Ancla fija en espacio de escena (Centro inicial del elemento sin cambiar)
+      // El centro del elemento rotado con (x, y, width, height, rot):
+      // centerX = x + (width/2)*cosRot - (height/2)*sinRot
+      // centerY = y + (width/2)*sinRot + (height/2)*cosRot
+      // Queremos que el punto ancla opuesto permanezca INMÓVIL en la escena.
+      
+      // Vector del centro al ancla opuesto en coordenadas locales (0.5, 0.5 es centro)
+      let anchorLocalX = 0; // -0.5 (izquierda), 0 (centro), 0.5 (derecha)
+      let anchorLocalY = 0; // -0.5 (arriba), 0 (centro), 0.5 (abajo)
+
+      if (h.includes('w')) anchorLocalX = 0.5; // Ancla a la derecha (+0.5)
+      else if (h.includes('e')) anchorLocalX = -0.5; // Ancla a la izquierda (-0.5)
+
+      if (h.includes('n')) anchorLocalY = 0.5; // Ancla abajo (+0.5)
+      else if (h.includes('s')) anchorLocalY = -0.5; // Ancla arriba (-0.5)
+
+      // Coordenadas fijas del ancla en la escena basadas en el estado inicial antes de este tick
+      const initAnchorX = x + (width / 2 + anchorLocalX * width) * cosRot - (height / 2 + anchorLocalY * height) * sinRot;
+      const initAnchorY = y + (width / 2 + anchorLocalX * width) * sinRot + (height / 2 + anchorLocalY * height) * cosRot;
+
+      // Nueva esquina superior izquierda (newX, newY) para que el ancla rotado de la nueva caja siga coincidiendo exactamente con initAnchorX, initAnchorY
+      const newX = initAnchorX - (newWidth / 2 + anchorLocalX * newWidth) * cosRot + (newHeight / 2 + anchorLocalY * newHeight) * sinRot;
+      const newY = initAnchorY - (newWidth / 2 + anchorLocalX * newWidth) * sinRot - (newHeight / 2 + anchorLocalY * newHeight) * cosRot;
 
       setElements((prev) =>
         prev.map((el) =>
           el.id === selectedElementId
-            ? { ...el, x: Math.round(newX), y: Math.round(newY), width: Math.round(newWidth), height: Math.round(newHeight) }
+            ? {
+                ...el,
+                x: Math.round(newX),
+                y: Math.round(newY),
+                width: Math.round(newWidth),
+                height: Math.round(newHeight),
+              }
             : el
         )
       );
@@ -1213,6 +1268,31 @@ export default function InvitationDesigner() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
+          {/* Botones de Deshacer (Undo) y Rehacer (Redo) con Historial de 15 acciones */}
+          <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={historyStack.length === 0}
+              className="p-1.5 rounded-md transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
+              style={{ color: 'var(--text-main)' }}
+              title={historyStack.length > 0 ? `Deshacer (${historyStack.length}) - Ctrl+Z` : 'Nada que deshacer'}
+            >
+              <Undo size={15} />
+            </button>
+            <div className="h-4 w-[1px] my-auto opacity-40" style={{ backgroundColor: 'var(--border-color)' }} />
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              className="p-1.5 rounded-md transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
+              style={{ color: 'var(--text-main)' }}
+              title={redoStack.length > 0 ? `Rehacer (${redoStack.length}) - Ctrl+Y` : 'Nada que rehacer'}
+            >
+              <Redo size={15} />
+            </button>
+          </div>
+
           {hasUnsavedChanges ? (
             <span
               className="text-xs font-extrabold flex items-center gap-1.5 px-2.5 py-1 rounded-full border animate-pulse"
@@ -2255,7 +2335,7 @@ export default function InvitationDesigner() {
                       ) : (
                         <div className="flex flex-col items-center justify-center w-full h-full bg-blue-950/20 border-2 border-dashed border-blue-500/40 rounded-xl text-blue-400 gap-2 text-sm font-bold p-2 text-center select-none">
                           <ImageIcon size={32} />
-                          <span>Sin Imagen</span>
+                          <span>Imagen</span>
                         </div>
                       )
                     ) : el.type === 'video' ? (
@@ -2279,61 +2359,95 @@ export default function InvitationDesigner() {
                     )}
 
                     {/* Transform Handles (Transformar, Escalar, Rotar) */}
-                    {isSelected && !el.locked && (
-                      <>
-                        {/* Control de Rotación Superior */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'rotate')}
-                          className="absolute -top-12 left-1/2 -translate-x-1/2 h-8 w-8 rounded-full bg-pink-500 border-2 border-white text-white flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 z-40"
-                          title="Girar / Rotar elemento"
-                        >
-                          <RotateCw size={16} />
-                        </div>
-                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-[2px] h-4 bg-pink-500 z-30" />
+                    {isSelected && !el.locked && (() => {
+                      const rot = (el.rotation || 0) % 360;
+                      const getRotatedCursor = (handle: string) => {
+                        const baseAngles: Record<string, number> = {
+                          n: 0,
+                          ne: 45,
+                          e: 90,
+                          se: 135,
+                          s: 180,
+                          sw: 225,
+                          w: 270,
+                          nw: 315,
+                        };
+                        const baseAngle = baseAngles[handle] ?? 0;
+                        const totalAngle = (baseAngle + rot + 360) % 360;
+                        if (totalAngle >= 337.5 || totalAngle < 22.5) return 'ns-resize';
+                        if (totalAngle >= 22.5 && totalAngle < 67.5) return 'nesw-resize';
+                        if (totalAngle >= 67.5 && totalAngle < 112.5) return 'ew-resize';
+                        if (totalAngle >= 112.5 && totalAngle < 157.5) return 'nwse-resize';
+                        if (totalAngle >= 157.5 && totalAngle < 202.5) return 'ns-resize';
+                        if (totalAngle >= 202.5 && totalAngle < 247.5) return 'nesw-resize';
+                        if (totalAngle >= 247.5 && totalAngle < 292.5) return 'ew-resize';
+                        return 'nwse-resize';
+                      };
 
-                        {/* 8 Tiradores de Escala (Esquinas y Lados) */}
-                        {/* Noroeste NW */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'nw')}
-                          className="absolute -top-3 -left-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-nwse-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Norte N */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'n')}
-                          className="absolute -top-3 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-ns-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Noreste NE */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'ne')}
-                          className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-nesw-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Este E */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'e')}
-                          className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-ew-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Sureste SE */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'se')}
-                          className="absolute -bottom-3 -right-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-nwse-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Sur S */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 's')}
-                          className="absolute -bottom-3 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-ns-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Suroeste SW */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'sw')}
-                          className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-nesw-resize shadow-md hover:scale-125 z-40"
-                        />
-                        {/* Oeste W */}
-                        <div
-                          onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'w')}
-                          className="absolute top-1/2 -left-3 -translate-y-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 cursor-ew-resize shadow-md hover:scale-125 z-40"
-                        />
-                      </>
-                    )}
+                      return (
+                        <>
+                          {/* Control de Rotación Superior */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'rotate')}
+                            className="absolute -top-12 left-1/2 -translate-x-1/2 h-8 w-8 rounded-full bg-pink-500 border-2 border-white text-white flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 z-40"
+                            title="Girar / Rotar elemento"
+                          >
+                            <RotateCw size={16} />
+                          </div>
+                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-[2px] h-4 bg-pink-500 z-30" />
+
+                          {/* 8 Tiradores de Escala (Esquinas y Lados) */}
+                          {/* Noroeste NW */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'nw')}
+                            className="absolute -top-3 -left-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('nw') }}
+                          />
+                          {/* Norte N */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'n')}
+                            className="absolute -top-3 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('n') }}
+                          />
+                          {/* Noreste NE */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'ne')}
+                            className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('ne') }}
+                          />
+                          {/* Este E */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'e')}
+                            className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('e') }}
+                          />
+                          {/* Sureste SE */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'se')}
+                            className="absolute -bottom-3 -right-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('se') }}
+                          />
+                          {/* Sur S */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 's')}
+                            className="absolute -bottom-3 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('s') }}
+                          />
+                          {/* Suroeste SW */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'sw')}
+                            className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('sw') }}
+                          />
+                          {/* Oeste W */}
+                          <div
+                            onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'w')}
+                            className="absolute top-1/2 -left-3 -translate-y-1/2 h-6 w-6 rounded-full bg-white border-3 border-pink-500 shadow-md hover:scale-125 z-40"
+                            style={{ cursor: getRotatedCursor('w') }}
+                          />
+                        </>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -2469,7 +2583,14 @@ export default function InvitationDesigner() {
                         {/* Grupo 1: Alineación Horizontal */}
                         <div className="flex items-center gap-0">
                           <button
-                            onClick={() => updateSelectedElement('x', 0)}
+                            onClick={() => {
+                              const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
+                              const cos = Math.abs(Math.cos(rad));
+                              const sin = Math.abs(Math.sin(rad));
+                              const bboxW = selectedElement.width * cos + selectedElement.height * sin;
+                              const targetX = (bboxW - selectedElement.width) / 2;
+                              updateSelectedElement('x', Math.round(targetX));
+                            }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
                             title="Alinear a la izquierda"
@@ -2485,7 +2606,14 @@ export default function InvitationDesigner() {
                             <AlignCenterVertical size={13} />
                           </button>
                           <button
-                            onClick={() => updateSelectedElement('x', 1080 - selectedElement.width)}
+                            onClick={() => {
+                              const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
+                              const cos = Math.abs(Math.cos(rad));
+                              const sin = Math.abs(Math.sin(rad));
+                              const bboxW = selectedElement.width * cos + selectedElement.height * sin;
+                              const targetX = 1080 - bboxW + (bboxW - selectedElement.width) / 2;
+                              updateSelectedElement('x', Math.round(targetX));
+                            }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
                             title="Alinear a la derecha"
@@ -2499,7 +2627,14 @@ export default function InvitationDesigner() {
                         {/* Grupo 2: Alineación Vertical */}
                         <div className="flex items-center gap-0">
                           <button
-                            onClick={() => updateSelectedElement('y', 0)}
+                            onClick={() => {
+                              const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
+                              const cos = Math.abs(Math.cos(rad));
+                              const sin = Math.abs(Math.sin(rad));
+                              const bboxH = selectedElement.width * sin + selectedElement.height * cos;
+                              const targetY = (bboxH - selectedElement.height) / 2;
+                              updateSelectedElement('y', Math.round(targetY));
+                            }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
                             title="Alinear arriba"
@@ -2515,7 +2650,14 @@ export default function InvitationDesigner() {
                             <AlignCenterHorizontal size={13} />
                           </button>
                           <button
-                            onClick={() => updateSelectedElement('y', 1920 - selectedElement.height)}
+                            onClick={() => {
+                              const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
+                              const cos = Math.abs(Math.cos(rad));
+                              const sin = Math.abs(Math.sin(rad));
+                              const bboxH = selectedElement.width * sin + selectedElement.height * cos;
+                              const targetY = 1920 - bboxH + (bboxH - selectedElement.height) / 2;
+                              updateSelectedElement('y', Math.round(targetY));
+                            }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
                             title="Alinear abajo"
