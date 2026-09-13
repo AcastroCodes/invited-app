@@ -1451,10 +1451,10 @@ export default function InvitationDesigner() {
                           {/* Cabecera del Grupo (Capa Padre 'Grupo') */}
                           <div
                             onClick={() => {
-                              // Seleccionar todos los hijos del grupo
+                              // Al hacer clic en la carpeta de grupo, seleccionar el grupo y focalizar sus hijos
                               const childIds = groupChildren.map((c) => c.id);
                               setSelectedElementIds(childIds);
-                              setSelectedElementId(childIds[childIds.length - 1]);
+                              setSelectedElementId(childIds[0] || null);
                             }}
                             className="flex items-center justify-between p-2 cursor-pointer bg-amber-500/10 hover:bg-amber-500/15 transition-colors border-b select-none"
                             style={{ borderColor: 'rgba(245, 158, 11, 0.2)' }}
@@ -1564,13 +1564,11 @@ export default function InvitationDesigner() {
                             </div>
                           </div>
 
-                          {/* Capas Hijos dentro del Grupo */}
+                          {/* Capas Hijos dentro del Grupo (Visualmente normales) */}
                           {!isCollapsed && (
                             <div className="p-1.5 space-y-1.5 bg-black/5 dark:bg-white/5">
                               {groupChildren.map((childEl) => {
                                 const childIdx = elements.findIndex((item) => item.id === childEl.id);
-                                const isChildSelected =
-                                  selectedElementIds.includes(childEl.id) || selectedElementId === childEl.id;
 
                                 return (
                                   <div
@@ -1578,17 +1576,11 @@ export default function InvitationDesigner() {
                                     onClick={(e) =>
                                       handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey)
                                     }
-                                    className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ml-2 ${
-                                      isChildSelected ? 'shadow-xs' : 'hover:opacity-90'
-                                    }`}
+                                    className="flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ml-2 hover:opacity-90 shadow-2xs"
                                     style={{
-                                      backgroundColor: isChildSelected
-                                        ? 'var(--primary-accent-light)'
-                                        : 'var(--bg-card)',
-                                      borderColor: isChildSelected
-                                        ? 'var(--primary-accent)'
-                                        : 'var(--border-color)',
-                                      color: isChildSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--text-main)',
                                     }}
                                   >
                                     <div className="flex items-center gap-2 min-w-0">
@@ -1600,7 +1592,7 @@ export default function InvitationDesigner() {
                                       {childEl.type === 'audio' && <Music size={14} className="shrink-0 text-rose-500" />}
                                       {childEl.type === 'button' && <Smartphone size={14} className="shrink-0" style={{ color: 'var(--success)' }} />}
 
-                                      <span className={`truncate text-xs ${isChildSelected ? 'font-black' : 'font-medium'}`}>
+                                      <span className="truncate text-xs font-medium">
                                         {childEl.content}
                                       </span>
                                     </div>
