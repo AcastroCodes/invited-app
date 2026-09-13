@@ -58,6 +58,10 @@ import {
   Circle,
   Waves,
   Spline,
+  Grid,
+  Heart,
+  Star,
+  Flower2,
   Mountain,
   Undo,
   Redo,
@@ -72,6 +76,8 @@ import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
+import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem } from '../../components/designer/DesignerMediaElements';
+import { TextElementItem } from '../../components/designer/TextElementItem';
 
 interface NumberInputProps {
   value: number;
@@ -828,7 +834,7 @@ export default function InvitationDesigner() {
     const defaultLabels: Record<string, string> = {
       text: 'Nuevo Texto',
       image: '',
-      video: 'Video Interactivo',
+      video: '',
       shape: 'Figura geométrica',
       '3d': 'Modelo 3D Interactivo',
       button: 'Botón Interactivo',
@@ -957,6 +963,25 @@ export default function InvitationDesigner() {
 
   const handleMoveLayerUp = (index: number) => {
     if (index <= 0) return;
+    const targetEl = elements[index];
+    if (targetEl && targetEl.groupId) {
+      handleMoveGroupUp(targetEl.groupId);
+      return;
+    }
+    // Si el elemento inmediatamente superior pertenece a un grupo, saltar todo el grupo
+    const prevEl = elements[index - 1];
+    if (prevEl && prevEl.groupId) {
+      const prevGroupId = prevEl.groupId;
+      const groupFirstIdx = elements.findIndex((el) => el.groupId === prevGroupId);
+      const targetPos = Math.max(0, groupFirstIdx);
+      
+      const newElements = elements.filter((_, i) => i !== index);
+      newElements.splice(targetPos, 0, targetEl);
+      setElements(newElements);
+      setHasUnsavedChanges(true);
+      return;
+    }
+
     const newElements = [...elements];
     const temp = newElements[index];
     newElements[index] = newElements[index - 1];
@@ -967,6 +992,28 @@ export default function InvitationDesigner() {
 
   const handleMoveLayerDown = (index: number) => {
     if (index >= elements.length - 1) return;
+    const targetEl = elements[index];
+    if (targetEl && targetEl.groupId) {
+      handleMoveGroupDown(targetEl.groupId);
+      return;
+    }
+    // Si el elemento inmediatamente inferior pertenece a un grupo, saltar todo el grupo
+    const nextEl = elements[index + 1];
+    if (nextEl && nextEl.groupId) {
+      const nextGroupId = nextEl.groupId;
+      const groupIndices = elements
+        .map((el, i) => (el.groupId === nextGroupId ? i : -1))
+        .filter((i) => i !== -1);
+      const groupLastIdx = groupIndices[groupIndices.length - 1];
+      const targetPos = Math.min(elements.length - 1, groupLastIdx);
+
+      const newElements = elements.filter((_, i) => i !== index);
+      newElements.splice(targetPos, 0, targetEl);
+      setElements(newElements);
+      setHasUnsavedChanges(true);
+      return;
+    }
+
     const newElements = [...elements];
     const temp = newElements[index];
     newElements[index] = newElements[index + 1];
@@ -2065,295 +2112,21 @@ export default function InvitationDesigner() {
                     }}
                   >
                     {el.type === 'text' ? (
-                      (() => {
-                        const tBorderW = el.textBorderWidth ?? el.containerBorderWidth ?? el.borderWidth ?? 0;
-                        const tBorderC = el.textBorderColor || el.containerBorderColor || el.borderColor || '#000000';
-                        const tColor = el.color || 'var(--text-main)';
-                        const isGradColor = typeof tColor === 'string' && tColor.includes('gradient');
-                        const isGradBorder = typeof tBorderC === 'string' && tBorderC.includes('gradient');
-                        const hasShadow = !!(el.textShadowBlur || el.textShadowOffsetX || el.textShadowOffsetY);
-                        const shadowStr = hasShadow
-                          ? `${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'}`
-                          : undefined;
-
-                        const lSpacing = el.letterSpacing ? `${el.letterSpacing}px` : undefined;
-                        const hasSkew = (el.skewX || 0) !== 0 || (el.skewY || 0) !== 0;
-                        const skewTransform = hasSkew ? `skew(${el.skewX || 0}deg, ${el.skewY || 0}deg)` : undefined;
-
-                        // Soporte para formas SVG WordArt (arcUp, arcDown, circle, wave, bulge)
-                        const wShape = el.wordArtShape || 'none';
-                        const curveVal = el.wordArtCurve ?? 50;
-
-                        if (wShape === 'arc' || wShape === 'arcUp' || wShape === 'arcDown' || wShape === 'wave' || wShape === 'circle' || wShape === 'semicircle' || wShape === 'bulge') {
-                          const pathId = `wordart-path-${el.id}`;
-                          const gradId = `wordart-grad-${el.id}`;
-                          const gradBorderId = `wordart-grad-border-${el.id}`;
-                          const w = Math.max(100, el.width);
-                          const h = Math.max(40, el.height);
-                          const curveOffset = Math.round((curveVal / 100) * (h * 0.8));
-                          const centerY = h / 2;
-                          let dPath = `M 0 ${centerY} Q ${w / 2} ${centerY - curveOffset} ${w} ${centerY}`;
-
-                          if (wShape === 'arcDown') {
-                            dPath = `M 0 ${centerY} Q ${w / 2} ${centerY + curveOffset} ${w} ${centerY}`;
-                          } else if (wShape === 'wave') {
-                            dPath = `M 0 ${centerY} Q ${w / 4} ${centerY - curveOffset} ${w / 2} ${centerY} T ${w} ${centerY}`;
-                          } else if (wShape === 'circle') {
-                            // Círculo completo 360° con ángulo de inicio controlado por la curvatura
-                            const r = Math.min(w, h) / 2.3;
-                            const isPositive = curveVal >= 0;
-                            // El valor de curvatura (-100 a +100) rota el punto de inicio de la circunferencia
-                            const angleDeg = curveVal * 3.6; // Convertir porcentaje a grados (-360° a +360°)
-                            const angleRad = (angleDeg - 90) * (Math.PI / 180);
-                            
-                            // Punto de inicio calculado en la circunferencia
-                            const startX = w / 2 + r * Math.cos(angleRad);
-                            const startY = centerY + r * Math.sin(angleRad);
-                            
-                            // Si es positivo: de arriba hacia abajo (sweep 1). Si es negativo: de abajo hacia arriba (sweep 0)
-                            const sweep = isPositive ? 1 : 0;
-                            
-                            // Usamos dos arcos de 180° continuos para evitar problemas de renderizado al revés
-                            const midX = w / 2 - (startX - w / 2);
-                            const midY = centerY - (startY - centerY);
-
-                            dPath = `M ${startX} ${startY} A ${r} ${r} 0 1 ${sweep} ${midX} ${midY} A ${r} ${r} 0 1 ${sweep} ${startX - 0.01} ${startY - 0.01}`;
-                          } else if (wShape === 'semicircle') {
-                            // Semicírculo: Empieza abajo a la izquierda, sube en arco de 180° y cae a la derecha
-                            const rx = w / 2;
-                            const ry = Math.max(10, Math.min(h * 0.85, (curveVal / 100) * h));
-                            const baseScaleY = Math.min(h - 5, centerY + (ry / 2));
-                            dPath = `M 0 ${baseScaleY} A ${rx} ${ry} 0 0 1 ${w} ${baseScaleY}`;
-                          } else if (wShape === 'bulge') {
-                            // Inflado (Bulge): Línea base horizontal recta, la escala vertical abomba hacia arriba y abajo en el centro
-                            dPath = `M 0 ${centerY} L ${w} ${centerY}`;
-                          }
-
-                          const strokeVal = isGradBorder ? `url(#${gradBorderId})` : tBorderC;
-
-                          return (
-                            <div className="w-full h-full flex items-center justify-center relative overflow-visible" style={{ transform: skewTransform }}>
-                              <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${w} ${h}`}>
-                                <defs>
-                                  {isGradColor && (
-                                    <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-                                      {(() => {
-                                        const stopsMatches = Array.from(
-                                          tColor.matchAll(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\)|[a-zA-Z]+)\s+(\d+)%/g)
-                                        );
-                                        if (stopsMatches.length >= 2) {
-                                          return stopsMatches.map((m, idx) => (
-                                            <stop key={idx} offset={`${m[2]}%`} stopColor={m[1]} />
-                                          ));
-                                        }
-                                        return (
-                                          <>
-                                            <stop offset="0%" stopColor="#E07A5F" />
-                                            <stop offset="100%" stopColor="#F2CC8F" />
-                                          </>
-                                        );
-                                      })()}
-                                    </linearGradient>
-                                  )}
-                                  {isGradBorder && (
-                                    <linearGradient id={gradBorderId} x1="0%" y1="0%" x2="100%" y2="100%">
-                                      {(() => {
-                                        const stopsMatches = Array.from(
-                                          tBorderC.matchAll(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\)|[a-zA-Z]+)\s+(\d+)%/g)
-                                        );
-                                        if (stopsMatches.length >= 2) {
-                                          return stopsMatches.map((m, idx) => (
-                                            <stop key={idx} offset={`${m[2]}%`} stopColor={m[1]} />
-                                          ));
-                                        }
-                                        return (
-                                          <>
-                                            <stop offset="0%" stopColor="#E07A5F" />
-                                            <stop offset="100%" stopColor="#F2CC8F" />
-                                          </>
-                                        );
-                                      })()}
-                                    </linearGradient>
-                                  )}
-                                  {hasShadow && (
-                                    <filter id={`shadow-filter-${el.id}`} x="-20%" y="-20%" width="140%" height="140%">
-                                      <feDropShadow
-                                        dx={el.textShadowOffsetX || 0}
-                                        dy={el.textShadowOffsetY || 0}
-                                        stdDeviation={(el.textShadowBlur || 0) / 2}
-                                        floodColor={el.textShadowColor || 'rgba(0,0,0,0.5)'}
-                                      />
-                                    </filter>
-                                  )}
-                                </defs>
-                                <path id={pathId} d={dPath} fill="none" stroke="none" />
-
-                                {/* Si hay sombra, dibujamos la sombra por debajo de todo */}
-                                {hasShadow && (
-                                  <text
-                                    fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
-                                    fontWeight={el.fontWeight || 'bold'}
-                                    fontFamily={el.fontFamily || 'Inter'}
-                                    letterSpacing={el.letterSpacing ?? 0}
-                                    textAnchor="middle"
-                                    filter={`url(#shadow-filter-${el.id})`}
-                                    style={{
-                                      stroke: tBorderW > 0 ? strokeVal : undefined,
-                                      strokeWidth: tBorderW > 0 ? `${tBorderW * 2}px` : undefined,
-                                      fill: isGradColor ? `url(#${gradId})` : tColor,
-                                    }}
-                                  >
-                                    <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
-                                      {el.content}
-                                    </textPath>
-                                  </text>
-                                )}
-
-                                {/* Capa de Trazo / Borde de Texto */}
-                                {tBorderW > 0 && (
-                                  <text
-                                    fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
-                                    fontWeight={el.fontWeight || 'bold'}
-                                    fontFamily={el.fontFamily || 'Inter'}
-                                    letterSpacing={el.letterSpacing ?? 0}
-                                    textAnchor="middle"
-                                    style={{
-                                      stroke: strokeVal,
-                                      strokeWidth: `${tBorderW * 2}px`,
-                                      fill: 'none',
-                                    }}
-                                  >
-                                    <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
-                                      {el.content}
-                                    </textPath>
-                                  </text>
-                                )}
-
-                                {/* Capa de Relleno principal de texto */}
-                                <text
-                                  fill={isGradColor ? `url(#${gradId})` : tColor}
-                                  fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
-                                  fontWeight={el.fontWeight || 'bold'}
-                                  fontFamily={el.fontFamily || 'Inter'}
-                                  letterSpacing={el.letterSpacing ?? 0}
-                                  textAnchor="middle"
-                                  style={{
-                                    stroke: (!el.textAboveBorder && tBorderW > 0) ? strokeVal : undefined,
-                                    strokeWidth: (!el.textAboveBorder && tBorderW > 0) ? `${tBorderW}px` : undefined,
-                                  }}
-                                >
-                                  <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
-                                    {el.content}
-                                  </textPath>
-                                </text>
-                              </svg>
-                            </div>
-                          );
-                        }
-
-                        const tShadowC = el.textShadowColor || 'rgba(0,0,0,0.5)';
-                        const isGradShadow = typeof tShadowC === 'string' && tShadowC.includes('gradient');
-
-                        const shadowCssVal = hasShadow
-                          ? `drop-shadow(${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${tShadowC})`
-                          : undefined;
-
-                        return el.textAboveBorder ? (
-                          <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left', transform: skewTransform, filter: shadowCssVal }}>
-                            {/* Trazo de borde */}
-                            <span
-                              className="w-full block truncate relative"
-                              style={{
-                                color: isGradBorder ? 'transparent' : (tBorderW > 0 ? tBorderC : 'transparent'),
-                                backgroundImage: isGradBorder ? tBorderC : undefined,
-                                WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
-                                WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
-                                WebkitTextStroke: tBorderW > 0 ? `${tBorderW * 2}px ${isGradBorder ? 'transparent' : tBorderC}` : undefined,
-                                letterSpacing: lSpacing,
-                              }}
-                            >
-                              {el.content}
-                            </span>
-                            {/* Relleno principal */}
-                            <span
-                              className="w-full absolute inset-0 block truncate pointer-events-none"
-                              style={{
-                                color: isGradColor ? 'transparent' : tColor,
-                                backgroundImage: isGradColor ? tColor : undefined,
-                                WebkitBackgroundClip: isGradColor ? 'text' : undefined,
-                                WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
-                                WebkitTextStroke: '0 transparent',
-                                letterSpacing: lSpacing,
-                              }}
-                            >
-                              {el.content}
-                            </span>
-                          </div>
-                        ) : (
-                          <span
-                            className="w-full truncate"
-                            style={{
-                              color: isGradColor ? 'transparent' : tColor,
-                              backgroundImage: isGradColor ? tColor : undefined,
-                              WebkitBackgroundClip: isGradColor ? 'text' : undefined,
-                              WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
-                              filter: shadowCssVal,
-                              WebkitTextStroke: tBorderW > 0 ? `${tBorderW}px ${isGradBorder ? '#000' : tBorderC}` : undefined,
-                              letterSpacing: lSpacing,
-                              transform: skewTransform,
-                              display: hasSkew ? 'inline-block' : undefined,
-                            }}
-                          >
-                            {el.content}
-                          </span>
-                        );
-                      })()
+                      <TextElementItem element={el} />
                     ) : el.type === 'image' ? (
-                      el.content ? (
-                        el.objectFit === 'repeat' || el.objectFit === 'repeat-x' || el.objectFit === 'repeat-y' ? (
-                          <div
-                            className="w-full h-full pointer-events-none select-none transition-all"
-                            style={{
-                              backgroundImage: `url(${el.content})`,
-                              backgroundRepeat: el.objectFit,
-                              backgroundSize: el.repeatTileSize ? `${el.repeatTileSize}px auto` : 'auto',
-                              backgroundPosition: 'top left',
-                              filter: `brightness(${el.imgBrightness !== undefined ? el.imgBrightness : 100}%) contrast(${el.imgContrast !== undefined ? el.imgContrast : 100}%) saturate(${el.imgSaturate !== undefined ? el.imgSaturate : 100}%) blur(${el.imgBlur || 0}px) ${el.imgGrayscale ? 'grayscale(100%)' : ''} ${el.imgSepia ? 'sepia(100%)' : ''}`.trim(),
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={el.content}
-                            alt="Imagen del elemento"
-                            className="w-full h-full pointer-events-none select-none transition-all"
-                            style={{
-                              objectFit: (el.objectFit as any) || 'contain',
-                              filter: `brightness(${el.imgBrightness !== undefined ? el.imgBrightness : 100}%) contrast(${el.imgContrast !== undefined ? el.imgContrast : 100}%) saturate(${el.imgSaturate !== undefined ? el.imgSaturate : 100}%) blur(${el.imgBlur || 0}px) ${el.imgGrayscale ? 'grayscale(100%)' : ''} ${el.imgSepia ? 'sepia(100%)' : ''}`.trim(),
-                            }}
-                          />
-                        )
-                      ) : (
-                        <div className="flex flex-col items-center justify-center w-full h-full bg-blue-950/20 border-2 border-dashed border-blue-500/40 rounded-xl text-blue-400 gap-2 text-sm font-bold p-2 text-center select-none">
-                          <ImageIcon size={32} />
-                          <span>Imagen</span>
-                        </div>
-                      )
+                      <ImageElementItem element={el} />
                     ) : el.type === 'video' ? (
-                      <div className="flex items-center justify-center w-full h-full bg-purple-950/20 border-2 border-purple-500/40 rounded-xl text-purple-400 gap-3 text-2xl font-bold">
-                        <Video size={36} /> {el.content}
-                      </div>
+                      <VideoElementItem element={el} />
+                    ) : el.type === 'button' ? (
+                      <ButtonElementItem element={el} />
+                    ) : el.type === 'audio' ? (
+                      <AudioElementItem element={el} />
                     ) : el.type === '3d' ? (
                       <div className="flex flex-col items-center justify-center w-full h-full bg-amber-950/20 border-2 border-amber-500/40 rounded-2xl text-amber-400 gap-2 text-2xl font-extrabold shadow-inner">
                         <Box size={48} className="animate-bounce" /> {el.content}
                       </div>
-                    ) : el.type === 'audio' ? (
-                      <div className="flex items-center justify-center w-full h-full bg-rose-950/20 border-2 border-rose-500/40 rounded-xl text-rose-400 gap-3 text-2xl font-bold">
-                        <Music size={32} /> {el.content}
-                      </div>
                     ) : el.type === 'shape' ? (
-                      <div className="w-full h-full flex items-center justify-center border-2 border-emerald-500/40 font-bold text-2xl" style={{ backgroundColor: el.backgroundColor || 'var(--primary-accent-light)' }}>
-                        {el.content}
-                      </div>
+                      <ShapeElementItem element={el} />
                     ) : (
                       el.content
                     )}
@@ -2546,6 +2319,255 @@ export default function InvitationDesigner() {
                             value={selectedElement.content}
                             onChange={handleImageContentChange}
                           />
+                        </div>
+                      ) : selectedElement.type === 'video' ? (
+                        <div className="pt-2">
+                          <AssetPickerPopover
+                            partnerId={event?.partner_id}
+                            partnerName={
+                              event?.partner?.business_name ||
+                              event?.partner?.contact_name ||
+                              event?.partner?.user?.name ||
+                              'ConceptoDigital'
+                            }
+                            type="video"
+                            accept="video/*"
+                            label="Video del Elemento"
+                            value={selectedElement.content}
+                            onChange={(val) => updateSelectedElement('content', val)}
+                          />
+                        </div>
+                      ) : selectedElement.type === 'shape' ? (
+                        <div className="pt-2 space-y-2">
+                          <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                            Patrón de Imagen / SVG
+                          </label>
+                          <AssetPickerPopover
+                            partnerId={event?.partner_id}
+                            partnerName={
+                              event?.partner?.business_name ||
+                              event?.partner?.contact_name ||
+                              event?.partner?.user?.name ||
+                              'ConceptoDigital'
+                            }
+                            type="image"
+                            accept="image/*,.svg"
+                            label="Seleccionar Patrón de Imagen / SVG"
+                            value={selectedElement.patternUrl || ''}
+                            onChange={(val) => {
+                              updateSelectedElementBatch({
+                                patternType: 'custom',
+                                patternUrl: val,
+                              });
+                            }}
+                          />
+
+                          <div className="pt-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                Escala del Patrón (Tamaño)
+                              </label>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={5000}
+                                  value={selectedElement.patternScale || 24}
+                                  onChange={(e) => updateSelectedElement('patternScale', Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                  className="w-16 h-6 text-right px-1 text-[11px] font-mono font-bold rounded border outline-none"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--primary-accent)',
+                                  }}
+                                />
+                                <span className="text-[10px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>px</span>
+                              </div>
+                            </div>
+                            <input
+                              type="range"
+                              min={4}
+                              max={2000}
+                              step={2}
+                              value={selectedElement.patternScale || 24}
+                              onChange={(e) => updateSelectedElement('patternScale', parseInt(e.target.value, 10))}
+                              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                              style={{ backgroundColor: 'var(--border-color)', accentColor: 'var(--primary-accent)' }}
+                            />
+                          </div>
+                        </div>
+                      ) : selectedElement.type === 'button' ? (
+                        <div className="pt-2 space-y-3">
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Texto del Botón
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedElement.content || ''}
+                              onChange={(e) => updateSelectedElement('content', e.target.value)}
+                              placeholder="Ej: Confirmar Asistencia"
+                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Ícono del Botón
+                            </label>
+                            <select
+                              value={selectedElement.buttonIcon || 'none'}
+                              onChange={(e) => updateSelectedElement('buttonIcon', e.target.value)}
+                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            >
+                              <option value="none">Sin ícono</option>
+                              <option value="map">Ubicación (Mapa)</option>
+                              <option value="calendar">Calendario</option>
+                              <option value="gift">Mesa de Regalos</option>
+                              <option value="check">Check / Confirmar</option>
+                              <option value="phone">Teléfono / WhatsApp</option>
+                              <option value="heart">Corazón</option>
+                              <option value="send">Enviar</option>
+                              <option value="external">Enlace Externo</option>
+                            </select>
+                          </div>
+
+                          {selectedElement.buttonIcon && selectedElement.buttonIcon !== 'none' && (
+                            <div>
+                              <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                Posición del Ícono
+                              </label>
+                              <div className="grid grid-cols-3 gap-1">
+                                {[
+                                  { id: 'left', label: 'Izquierda' },
+                                  { id: 'right', label: 'Derecha' },
+                                  { id: 'only', label: 'Solo Ícono' },
+                                ].map((pos) => (
+                                  <button
+                                    key={pos.id}
+                                    type="button"
+                                    onClick={() => updateSelectedElement('buttonIconPosition', pos.id)}
+                                    className="px-2 py-1 text-[10px] font-bold rounded border transition-colors"
+                                    style={{
+                                      backgroundColor: selectedElement.buttonIconPosition === pos.id ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                      color: selectedElement.buttonIconPosition === pos.id ? '#ffffff' : 'var(--text-main)',
+                                      borderColor: 'var(--border-color)',
+                                    }}
+                                  >
+                                    {pos.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Enlace Destino (URL)
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedElement.buttonUrl || ''}
+                              onChange={(e) => updateSelectedElement('buttonUrl', e.target.value)}
+                              placeholder="https://maps.google.com/..."
+                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Efecto de Animación
+                            </label>
+                            <select
+                              value={selectedElement.buttonAnimation || 'none'}
+                              onChange={(e) => updateSelectedElement('buttonAnimation', e.target.value)}
+                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            >
+                              <option value="none">Sin animación</option>
+                              <option value="pulse">Latido (Pulse)</option>
+                              <option value="bounce">Rebote (Bounce)</option>
+                              <option value="shimmer">Brillo (Shimmer)</option>
+                            </select>
+                          </div>
+                        </div>
+                      ) : selectedElement.type === 'audio' ? (
+                        <div className="pt-2 space-y-3">
+                          <AssetPickerPopover
+                            partnerId={event?.partner_id}
+                            partnerName={
+                              event?.partner?.business_name ||
+                              event?.partner?.contact_name ||
+                              event?.partner?.user?.name ||
+                              'ConceptoDigital'
+                            }
+                            type="audio"
+                            accept="audio/*,.mp3,.wav,.ogg,.m4a"
+                            label="Archivo de Audio (MP3/WAV)"
+                            value={selectedElement.content}
+                            onChange={(val) => updateSelectedElement('content', val)}
+                          />
+
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Nombre de la Canción / Título
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedElement.audioTitle || ''}
+                              onChange={(e) => updateSelectedElement('audioTitle', e.target.value)}
+                              placeholder="Ej: Canción Principal de los Novios"
+                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-2 pt-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.audioAutoplay || false}
+                                onChange={(e) => updateSelectedElement('audioAutoplay', e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              Reproducir automáticamente (Autoplay)
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.audioLoop !== false}
+                                onChange={(e) => updateSelectedElement('audioLoop', e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              Repetir en bucle (Loop)
+                            </label>
+                          </div>
                         </div>
                       ) : (
                         <textarea
@@ -2785,8 +2807,8 @@ export default function InvitationDesigner() {
                   )}
                 </div>
 
-                {/* 2.5 ACORDEÓN: AJUSTE & FILTROS DE IMAGEN (solo para tipo image) */}
-                {selectedElement.type === 'image' && (
+                {/* 2.5 ACORDEÓN: AJUSTE & FILTROS (Imagen y Video) */}
+                {(selectedElement.type === 'image' || selectedElement.type === 'video') && (
                   <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                     <button
                       type="button"
@@ -2794,7 +2816,7 @@ export default function InvitationDesigner() {
                       className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
                       style={{ color: openSections.imageFit ? 'var(--primary-accent)' : 'var(--text-muted)' }}
                     >
-                      <span>Ajuste & Filtros de Imagen</span>
+                      <span>Ajuste & Filtros de {selectedElement.type === 'video' ? 'Video' : 'Imagen'}</span>
                       {openSections.imageFit ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
 
@@ -2892,8 +2914,8 @@ export default function InvitationDesigner() {
                             })}
                           </div>
 
-                          {/* FILA CONJUNTA: ESCALA A LA IZQUIERDA Y SELECT DE REPETICIÓN A LA DERECHA */}
-                          <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
+                          {/* FILA CONJUNTA: ESCALA A LA IZQUIERDA Y SELECT DE REPETICIÓN A LA DERECHA (solo para Imagen) */}
+                          <div className={`grid ${selectedElement.type === 'image' ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-1 font-mono`}>
                             {/* Control Escala de Imagen tomando en cuenta su tamaño original */}
                             <div>
                               <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
@@ -2928,34 +2950,36 @@ export default function InvitationDesigner() {
                               />
                             </div>
 
-                            {/* Select de Repetición / Patrón */}
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Repetición
-                              </label>
-                              <InspectorSelect
-                                value={
-                                  selectedElement.objectFit === 'repeat' ||
-                                  selectedElement.objectFit === 'repeat-x' ||
-                                  selectedElement.objectFit === 'repeat-y'
-                                    ? selectedElement.objectFit
-                                    : 'no-repeat'
-                                }
-                                onChange={(val) => {
-                                  if (val === 'no-repeat') {
-                                    updateSelectedElement('objectFit', 'contain');
-                                  } else {
-                                    updateSelectedElement('objectFit', val);
+                            {/* Select de Repetición / Patrón (solo si es tipo imagen) */}
+                            {selectedElement.type === 'image' && (
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Repetición
+                                </label>
+                                <InspectorSelect
+                                  value={
+                                    selectedElement.objectFit === 'repeat' ||
+                                    selectedElement.objectFit === 'repeat-x' ||
+                                    selectedElement.objectFit === 'repeat-y'
+                                      ? selectedElement.objectFit
+                                      : 'no-repeat'
                                   }
-                                }}
-                                options={[
-                                  { value: 'no-repeat', label: 'Sin repetición' },
-                                  { value: 'repeat', label: 'Repetir (Mosaico XY)' },
-                                  { value: 'repeat-x', label: 'Repetir X (Horizontal)' },
-                                  { value: 'repeat-y', label: 'Repetir Y (Vertical)' },
-                                ]}
-                              />
-                            </div>
+                                  onChange={(val) => {
+                                    if (val === 'no-repeat') {
+                                      updateSelectedElement('objectFit', 'contain');
+                                    } else {
+                                      updateSelectedElement('objectFit', val);
+                                    }
+                                  }}
+                                  options={[
+                                    { value: 'no-repeat', label: 'Sin repetición' },
+                                    { value: 'repeat', label: 'Repetir (Mosaico XY)' },
+                                    { value: 'repeat-x', label: 'Repetir X (Horizontal)' },
+                                    { value: 'repeat-y', label: 'Repetir Y (Vertical)' },
+                                  ]}
+                                />
+                              </div>
+                            )}
                           </div>
 
                           {/* Si está activa la repetición en mosaico, permitir ajustar tamaño del azulejo */}
@@ -3067,6 +3091,309 @@ export default function InvitationDesigner() {
                               Tono Sepia
                             </button>
                           </div>
+
+                          {/* 3. SECCIÓN PATRÓN DE DISEÑO REPETITIVO (SVG / TEXTURAS PARA FIGURAS/SHAPES) */}
+                          {selectedElement.type === 'shape' && (
+                            <div className="space-y-2 pt-2 border-t font-mono text-[10px]" style={{ borderColor: 'var(--border-color)' }}>
+                              <div className="flex items-center justify-between">
+                                <span className="font-extrabold uppercase text-[9px] tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
+                                  <Grid size={11} /> Patrón de Diseño (SVG)
+                                </span>
+                              </div>
+
+                              {/* Selector de tipo de patrón vectorial */}
+                              <div className="grid grid-cols-5 gap-1">
+                                {[
+                                  { id: 'none', label: 'Ninguno', icon: Circle },
+                                  { id: 'dots', label: 'Puntos', icon: Circle },
+                                  { id: 'lines', label: 'Líneas', icon: Spline },
+                                  { id: 'grid', label: 'Malla', icon: Grid },
+                                  { id: 'waves', label: 'Ondas', icon: Waves },
+                                  { id: 'hearts', label: 'Corazones', icon: Heart },
+                                  { id: 'stars', label: 'Estrellas', icon: Star },
+                                  { id: 'diamonds', label: 'Rombos', icon: Square },
+                                  { id: 'floral', label: 'Floral', icon: Flower2 },
+                                  { id: 'checkers', label: 'Cuadros', icon: Grid },
+                                ].map((pattern) => {
+                                  const IconComp = pattern.icon;
+                                  const active = (selectedElement.patternType || 'none') === pattern.id;
+                                  return (
+                                    <button
+                                      key={pattern.id}
+                                      type="button"
+                                      onClick={() => updateSelectedElement('patternType', pattern.id as any)}
+                                      className="flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all cursor-pointer text-center gap-1"
+                                      style={{
+                                        backgroundColor: active ? 'var(--primary-accent-light)' : 'var(--bg-card)',
+                                        borderColor: active ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        color: active ? 'var(--primary-accent)' : 'var(--text-main)',
+                                      }}
+                                      title={pattern.label}
+                                    >
+                                      <IconComp size={12} />
+                                      <span className="text-[8px] font-bold uppercase truncate w-full">{pattern.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Opciones adicionales si el patrón está activo */}
+                              {(selectedElement.patternType || 'none') !== 'none' && (
+                                <div className="p-2 rounded-lg border space-y-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                  {/* Color del patrón y escala */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                        Color Patrón
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="color"
+                                          value={selectedElement.patternColor || '#ffffff'}
+                                          onChange={(e) => updateSelectedElement('patternColor', e.target.value)}
+                                          className="w-6 h-6 rounded border cursor-pointer"
+                                        />
+                                        <span className="text-[9px] uppercase">{selectedElement.patternColor || '#ffffff'}</span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                        Escala (px)
+                                      </label>
+                                      <InspectorNumberInput
+                                        value={selectedElement.patternScale || 24}
+                                        min={8}
+                                        max={120}
+                                        step={2}
+                                        onChange={(val) => updateSelectedElement('patternScale', val)}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Opacidad del patrón */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="font-extrabold uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                        Opacidad ({Math.round((selectedElement.patternOpacity ?? 0.5) * 100)}%)
+                                      </label>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min={0.05}
+                                      max={1}
+                                      step={0.05}
+                                      value={selectedElement.patternOpacity ?? 0.5}
+                                      onChange={(e) => updateSelectedElement('patternOpacity', Number(e.target.value))}
+                                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* 4. SECCIÓN CHROMA KEY (EFECTO PANTALLA VERDE / ELIMINAR FONDO DE VIDEO) */}
+                          {selectedElement.type === 'video' && (
+                            <div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                              <div className="flex items-center justify-between">
+                                <span className="font-extrabold uppercase text-[9px] tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
+                                  <Sparkles size={11} /> Chroma Key (Fondo Transparente)
+                                </span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!selectedElement.chromaKeyEnabled}
+                                    onChange={(e) => updateSelectedElement('chromaKeyEnabled', e.target.checked)}
+                                    className="sr-only peer"
+                                  />
+                                  <div className="w-7 h-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all transition-colors" style={{ backgroundColor: selectedElement.chromaKeyEnabled ? 'var(--primary-accent)' : 'var(--border-color)' }}></div>
+                                </label>
+                              </div>
+
+                              {selectedElement.chromaKeyEnabled && (
+                                <div className="p-2 rounded-lg border space-y-2 font-mono text-[10px]" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                  {/* Fila: Selección y Gestión de Múltiples Colores Clave */}
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-extrabold uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                        Colores a Remover ({((selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0) ? selectedElement.chromaKeyColors : [selectedElement.chromaKeyColor || '#00FF00']).length})
+                                      </span>
+
+                                      {/* Cuentagotas si el navegador lo soporta */}
+                                      {typeof window !== 'undefined' && 'EyeDropper' in window && (
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              const eyeDropper = new (window as any).EyeDropper();
+                                              const result = await eyeDropper.open();
+                                              if (result?.sRGBHex) {
+                                                const newColor = result.sRGBHex.toUpperCase();
+                                                const currentList = selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0
+                                                  ? selectedElement.chromaKeyColors
+                                                  : [selectedElement.chromaKeyColor || '#00FF00'];
+                                                if (!currentList.includes(newColor)) {
+                                                  const newList = [...currentList, newColor];
+                                                  updateSelectedElementBatch({
+                                                    chromaKeyColor: newColor,
+                                                    chromaKeyColors: newList,
+                                                  });
+                                                }
+                                              }
+                                            } catch (err) {
+                                              // Cancelado
+                                            }
+                                          }}
+                                          className="p-1 rounded-md border flex items-center justify-center transition-all hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                          title="Cuentagotas: Tomar muestra de color y agregarlo al ChromaKey"
+                                        >
+                                          <Palette size={12} />
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Chips de colores activos */}
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {((selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0)
+                                        ? selectedElement.chromaKeyColors
+                                        : [selectedElement.chromaKeyColor || '#00FF00']
+                                      ).map((hex, index) => (
+                                        <div
+                                          key={`${hex}-${index}`}
+                                          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-bold shadow-2xs"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                        >
+                                          {/* Círculo de color interactivo (Cuentagotas o Selector para cambiar el color) */}
+                                          {typeof window !== 'undefined' && 'EyeDropper' in window ? (
+                                            <button
+                                              type="button"
+                                              onClick={async () => {
+                                                try {
+                                                  const eyeDropper = new (window as any).EyeDropper();
+                                                  const result = await eyeDropper.open();
+                                                  if (result?.sRGBHex) {
+                                                    const updatedHex = result.sRGBHex.toUpperCase();
+                                                    const currentList = selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0
+                                                      ? selectedElement.chromaKeyColors
+                                                      : [selectedElement.chromaKeyColor || '#00FF00'];
+                                                    const newList = [...currentList];
+                                                    newList[index] = updatedHex;
+                                                    updateSelectedElementBatch({
+                                                      chromaKeyColor: newList[0] || '#00FF00',
+                                                      chromaKeyColors: newList,
+                                                    });
+                                                  }
+                                                } catch (err) {
+                                                  // Cancelado
+                                                }
+                                              }}
+                                              className="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0 cursor-pointer transition-transform hover:scale-110"
+                                              style={{ backgroundColor: hex }}
+                                              title="Usar cuentagotas para cambiar este color"
+                                            />
+                                          ) : (
+                                            <label
+                                              className="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0 cursor-pointer transition-transform hover:scale-110 relative"
+                                              style={{ backgroundColor: hex }}
+                                              title="Cambiar este color"
+                                            >
+                                              <input
+                                                type="color"
+                                                value={hex}
+                                                onChange={(e) => {
+                                                  const updatedHex = e.target.value.toUpperCase();
+                                                  const currentList = selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0
+                                                    ? selectedElement.chromaKeyColors
+                                                    : [selectedElement.chromaKeyColor || '#00FF00'];
+                                                  const newList = [...currentList];
+                                                  newList[index] = updatedHex;
+                                                  updateSelectedElementBatch({
+                                                    chromaKeyColor: newList[0] || '#00FF00',
+                                                    chromaKeyColors: newList,
+                                                  });
+                                                }}
+                                                className="sr-only"
+                                              />
+                                            </label>
+                                          )}
+                                          <span className="uppercase font-mono">{hex}</span>
+                                          {((selectedElement.chromaKeyColors || []).length > 1 || (selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length === 1)) && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const currentList = selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0
+                                                  ? selectedElement.chromaKeyColors
+                                                  : [selectedElement.chromaKeyColor || '#00FF00'];
+                                                const newList = currentList.filter((_, i) => i !== index);
+                                                updateSelectedElementBatch({
+                                                  chromaKeyColor: newList[0] || '#00FF00',
+                                                  chromaKeyColors: newList,
+                                                });
+                                              }}
+                                              className="ml-0.5 p-0.5 rounded hover:bg-red-500/20 text-red-500 cursor-pointer"
+                                              title="Eliminar este color de la lista ChromaKey"
+                                            >
+                                              <X size={10} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+
+                                      {/* Agregar nuevo color picker estilizado */}
+                                      <div className="relative flex items-center">
+                                        <label
+                                          className="p-1 rounded-md border flex items-center justify-center transition-all hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                          title="Agregar otro color a remover en ChromaKey"
+                                        >
+                                          <Plus size={12} />
+                                          <input
+                                            type="color"
+                                            value="#00FF00"
+                                            onChange={(e) => {
+                                              const newColor = e.target.value.toUpperCase();
+                                              const currentList = selectedElement.chromaKeyColors && selectedElement.chromaKeyColors.length > 0
+                                                ? selectedElement.chromaKeyColors
+                                                : [selectedElement.chromaKeyColor || '#00FF00'];
+                                              if (!currentList.includes(newColor)) {
+                                                const newList = [...currentList, newColor];
+                                                updateSelectedElementBatch({
+                                                  chromaKeyColor: newColor,
+                                                  chromaKeyColors: newList,
+                                                });
+                                              }
+                                            }}
+                                            className="sr-only"
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Tolerancia de color */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="font-extrabold uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                        Tolerancia ({selectedElement.chromaKeyTolerance ?? 40}%)
+                                      </label>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min={5}
+                                      max={80}
+                                      step={1}
+                                      value={selectedElement.chromaKeyTolerance ?? 40}
+                                      onChange={(e) => updateSelectedElement('chromaKeyTolerance', Number(e.target.value))}
+                                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

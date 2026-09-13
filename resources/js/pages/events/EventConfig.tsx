@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import InvitationManager from '../../components/events/InvitationManager';
+import GuestManager from '../../components/events/GuestManager';
 import api from '../../lib/api';
 import type { Event } from '../../types';
 
@@ -42,6 +43,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const ALL_SERVICES = [
+  {
+    id: 'INVITADOS',
+    name: 'Invitados',
+    fullName: 'Lista de Invitados & Asignación',
+    description: 'Gestión completa de la lista de invitados, acompañantes, pases y confirmación RSVP.',
+    icon: Users,
+  },
   {
     id: 'INVITACION',
     name: 'Invitación',
@@ -72,7 +80,7 @@ export default function EventConfig() {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('INVITACION');
+  const [activeTab, setActiveTab] = useState<string>('INVITADOS');
 
   const fetchEvent = () => {
     if (!id) return;
@@ -312,54 +320,7 @@ export default function EventConfig() {
               </div>
             </div>
 
-            {/* Columna Central: Bloque de Contadores de Invitados (Total, Aceptados, Rechazados) */}
-            {(() => {
-              const totalGuests = event.guest_count ?? (event.guests ? event.guests.length : 0);
-              const acceptedGuests = event.confirmed_count ?? (event.guests ? event.guests.filter(g => g.rsvp_status === 'confirmed' || g.rsvp_status === 'accepted' || g.rsvp_status === 'attending').length : 0);
-              const rejectedGuests = event.guests ? event.guests.filter(g => g.rsvp_status === 'declined' || g.rsvp_status === 'rejected' || g.rsvp_status === 'not_attending').length : 0;
-
-              return (
-                <div
-                  className="flex items-center gap-3 px-4 py-1.5 rounded-lg shrink-0 my-auto shadow-sm"
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--border-color)',
-                  }}
-                >
-                  <div className="flex items-center gap-2 pr-3 border-r" style={{ borderColor: 'var(--border-color)' }}>
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
-                      <Users size={14} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>Total</p>
-                      <p className="text-sm font-extrabold leading-none" style={{ color: 'var(--text-main)' }}>{totalGuests}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pr-3 border-r" style={{ borderColor: 'var(--border-color)' }}>
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(82,183,136,0.15)', color: 'var(--success)' }}>
-                      <UserCheck size={14} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--success)' }}>Aceptados</p>
-                      <p className="text-sm font-extrabold leading-none" style={{ color: 'var(--text-main)' }}>{acceptedGuests}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(230,57,70,0.15)', color: 'var(--danger)' }}>
-                      <UserX size={14} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--danger)' }}>Rechazados</p>
-                      <p className="text-sm font-extrabold leading-none" style={{ color: 'var(--text-main)' }}>{rejectedGuests}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Logo grande por encima de la franja (superpuesto con z-index 30, espacio simétrico respecto al status y contadores) */}
+            {/* Logo grande por encima de la franja */}
             {event.logo && (
               <div className="shrink-0 self-center relative z-30 -my-10 mx-6 md:mx-10">
                 <img
@@ -373,59 +334,109 @@ export default function EventConfig() {
         </div>
       </div>
 
-      {/* Franja de servicios (Delgada de alto con items que sobresalen al estar seleccionados) */}
+      {/* Franja de servicios */}
       <div
-        className="-mx-4 mt-12 md:-mx-6 lg:-mx-8 px-6 flex items-center gap-4 text-white shadow-md relative h-8 z-20 overflow-visible"
+        className="-mx-4 mt-12 md:-mx-6 lg:-mx-8 px-6 flex items-center justify-between gap-4 text-white shadow-md relative h-8 z-20 overflow-visible"
         style={{
           backgroundColor: 'var(--primary-accent)',
         }}
       >
-        <div className="border-r border-white/30 pr-4 py-0.5 shrink-0">
-          <span className="font-black text-sm uppercase tracking-wider">SERVICIOS</span>
+        <div className="flex items-center gap-4 flex-1 overflow-visible">
+          <div className="border-r border-white/30 pr-4 py-0.5 shrink-0">
+            <span className="font-black text-sm uppercase tracking-wider">SERVICIOS</span>
+          </div>
+
+          <div className="flex items-center gap-3 overflow-visible">
+            {ALL_SERVICES.map((srv) => {
+              const Icon = srv.icon;
+              const isIncluded = srv.id === 'INVITADOS' || event.services?.includes(srv.id);
+              if (!isIncluded) return null;
+
+              const isActiveService = activeTab === srv.id;
+
+              return (
+                <button
+                  key={srv.id}
+                  onClick={() => setActiveTab(srv.id as any)}
+                  className={`flex items-center gap-2 rounded-lg font-extrabold transition-all ${
+                    isActiveService
+                      ? 'bg-white text-[var(--primary-accent)] shadow-2xl text-base px-6 py-2.5 -my-3.5 z-30 scale-110 border-[3.5px]'
+                      : 'bg-white/20 text-white hover:bg-white/35 text-sm px-5 py-1'
+                  }`}
+                  style={
+                    isActiveService
+                      ? { borderColor: 'var(--primary-accent)' }
+                      : undefined
+                  }
+                >
+                  <Icon size={isActiveService ? 19 : 16} />
+                  <span>{srv.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-1 overflow-visible">
-          {ALL_SERVICES.map((srv) => {
-            const Icon = srv.icon;
-            const isIncluded = event.services?.includes(srv.id);
-            if (!isIncluded) return null;
+        {/* Contador de Invitados (Estilo Recuadro Blanco 3/4 del alto del item seleccionado) */}
+        {activeTab === 'INVITADOS' && (() => {
+          const totalGuests = event.guest_count ?? (event.guests ? event.guests.length : 0);
+          const acceptedGuests = event.confirmed_count ?? (event.guests ? event.guests.filter(g => g.rsvp_status === 'confirmed' || g.rsvp_status === 'accepted' || g.rsvp_status === 'attending').length : 0);
+          const rejectedGuests = event.guests ? event.guests.filter(g => g.rsvp_status === 'declined' || g.rsvp_status === 'rejected' || g.rsvp_status === 'not_attending').length : 0;
 
-            const isActiveService = activeTab === srv.id;
+          return (
+            <div
+              className="flex items-center gap-3.5 px-3.5 py-1 rounded-lg shrink-0 self-center z-30 shadow-xl bg-white border-[3.5px]"
+              style={{
+                borderColor: 'var(--primary-accent)',
+                color: 'var(--text-main)',
+              }}
+            >
+              {/* TOTAL */}
+              <div className="flex flex-col items-center px-1.5 pr-3 border-r leading-tight" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="flex items-center gap-1">
+                  <Users size={12} className="text-slate-800" />
+                  <span className="font-black text-sm text-slate-800">{totalGuests}</span>
+                </div>
+                <span className="text-[8px] uppercase font-black tracking-wider mt-0.5 text-slate-800">
+                  Total
+                </span>
+              </div>
 
-            return (
-              <button
-                key={srv.id}
-                onClick={() => setActiveTab(srv.id as any)}
-                className={`flex items-center gap-2 rounded-lg font-extrabold transition-all ${
-                  isActiveService
-                    ? 'bg-white text-[var(--primary-accent)] shadow-2xl text-base px-6 py-2.5 -my-3.5 z-30 scale-110 border-[3.5px]'
-                    : 'bg-white/20 text-white hover:bg-white/35 text-sm px-5 py-1'
-                }`}
-                style={
-                  isActiveService
-                    ? { borderColor: 'var(--primary-accent)' }
-                    : undefined
-                }
-              >
-                <Icon size={isActiveService ? 19 : 16} />
-                <span>{srv.name}</span>
-              </button>
-            );
-          })}
+              {/* ACEPTADOS */}
+              <div className="flex flex-col items-center px-1.5 pr-3 border-r leading-tight" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="flex items-center gap-1">
+                  <UserCheck size={12} style={{ color: 'var(--success)' }} />
+                  <span className="font-black text-sm" style={{ color: 'var(--success)' }}>{acceptedGuests}</span>
+                </div>
+                <span className="text-[8px] uppercase font-black tracking-wider mt-0.5" style={{ color: 'var(--success)' }}>
+                  Aceptados
+                </span>
+              </div>
 
-          {(!event.services || event.services.length === 0) && (
-            <span className="text-sm text-white/80 italic">No hay servicios contratados aún</span>
-          )}
-        </div>
+              {/* RECHAZADOS */}
+              <div className="flex flex-col items-center px-1.5 leading-tight">
+                <div className="flex items-center gap-1">
+                  <UserX size={12} style={{ color: 'var(--danger)' }} />
+                  <span className="font-black text-sm" style={{ color: 'var(--danger)' }}>{rejectedGuests}</span>
+                </div>
+                <span className="text-[8px] uppercase font-black tracking-wider mt-0.5" style={{ color: 'var(--danger)' }}>
+                  Rechazados
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Contenido del Servicio Seleccionado */}
       <div className="pt-4">
-        {activeTab === 'INVITACION' && event.services?.includes('INVITACION') ? (
+        {activeTab === 'INVITADOS' ? (
+          <GuestManager eventId={event.id} />
+        ) : activeTab === 'INVITACION' && event.services?.includes('INVITACION') ? (
           <InvitationManager eventId={event.id} />
         ) : (
           ALL_SERVICES.map((srv) => {
-            if (activeTab !== srv.id || !event.services?.includes(srv.id)) return null;
+            if (activeTab !== srv.id || (!event.services?.includes(srv.id) && srv.id !== 'INVITADOS')) return null;
             const Icon = srv.icon;
 
             return (

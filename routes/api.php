@@ -18,6 +18,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::apiResource('events.tables', App\Http\Controllers\TableController::class)->shallow();
     Route::apiResource('events.guests', App\Http\Controllers\GuestController::class)->shallow();
+    Route::apiResource('guest-groups', App\Http\Controllers\GuestController::class)->only(['update', 'destroy']);
 
     // Invitaciones
     Route::get('/events/{event}/invitations', [App\Http\Controllers\InvitationController::class, 'index']);

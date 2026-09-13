@@ -139,6 +139,8 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
     value.startsWith('/storage/')
   );
 
+  const isVideoType = type === 'video' || (typeof value === 'string' && (value.endsWith('.mp4') || value.endsWith('.webm') || value.endsWith('.ogg') || value.startsWith('data:video/')));
+
   return (
     <div className="space-y-3">
       {/* Input de archivo oculto */}
@@ -168,18 +170,30 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
           }}
         >
           {isImgValid ? (
-            <img
-              src={value}
-              alt="Vista previa de imagen"
-              onError={() => setHasImgError(true)}
-              className="max-h-full max-w-full object-contain p-1 rounded-lg"
-            />
+            isVideoType ? (
+              <video
+                src={value}
+                muted
+                loop
+                autoPlay
+                playsInline
+                onError={() => setHasImgError(true)}
+                className="max-h-full max-w-full object-contain p-1 rounded-lg"
+              />
+            ) : (
+              <img
+                src={value}
+                alt="Vista previa"
+                onError={() => setHasImgError(true)}
+                className="max-h-full max-w-full object-contain p-1 rounded-lg"
+              />
+            )
           ) : (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-2 text-center transition-all hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer group select-none"
-              title="Haz clic para agregar una imagen"
+              title={`Haz clic para agregar un ${type === 'video' ? 'video' : 'recurso'}`}
             >
               <div
                 className="p-2 rounded-full border transition-transform group-hover:scale-110 flex items-center justify-center"
@@ -192,7 +206,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                 <Plus size={16} />
               </div>
               <span className="text-[10px] font-extrabold" style={{ color: 'var(--primary-accent)' }}>
-                Agregar Imagen
+                Agregar {type === 'video' ? 'Video' : 'Imagen'}
               </span>
             </button>
           )}
@@ -211,7 +225,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               borderColor: 'var(--border-color)',
               color: justAdded ? '#FFFFFF' : 'var(--primary-accent)',
             }}
-            title="Subir o reemplazar imagen desde tu dispositivo"
+            title="Subir o reemplazar recurso desde tu dispositivo"
           >
             {uploading ? (
               <LoaderCircle size={15} className="animate-spin" />
@@ -234,7 +248,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               borderColor: 'var(--border-color)',
               color: '#EF4444',
             }}
-            title="Quitar imagen de este elemento (mantiene la imagen en el banco)"
+            title="Quitar de este elemento (mantiene el recurso en el banco)"
           >
             <Trash2 size={15} className="transition-transform group-hover:scale-110" />
             <span className="text-[7px] font-extrabold uppercase leading-none">Quitar</span>
@@ -275,6 +289,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               })
               .map((asset, idx) => {
                 const isSelected = value === asset.url;
+                const isAssetVideo = asset.type === 'video' || asset.url.endsWith('.mp4') || asset.url.endsWith('.webm') || asset.url.endsWith('.ogg');
               return (
                 <div
                   key={asset.id}
@@ -292,11 +307,22 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                     borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
                   }}
                 >
-                  <img
-                    src={asset.url}
-                    alt={asset.name || `Asset ${asset.id}`}
-                    className="max-h-full max-w-full object-contain rounded"
-                  />
+                  {isAssetVideo ? (
+                    <video
+                      src={asset.url}
+                      muted
+                      loop
+                      autoPlay
+                      playsInline
+                      className="max-h-full max-w-full object-contain rounded pointer-events-none"
+                    />
+                  ) : (
+                    <img
+                      src={asset.url}
+                      alt={asset.name || `Asset ${asset.id}`}
+                      className="max-h-full max-w-full object-contain rounded"
+                    />
+                  )}
 
                   {/* Badge de seleccionado */}
                   {isSelected && (
@@ -323,13 +349,24 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               color: 'var(--text-main)',
             }}
           >
-            {/* Vista previa de la imagen a eliminar */}
+            {/* Vista previa del recurso a eliminar */}
             <div className="h-20 w-full rounded-lg border overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5 p-1">
-              <img
-                src={assets[deleteConfirmIndex].url}
-                alt="Imagen a borrar"
-                className="max-h-full max-w-full object-contain"
-              />
+              {assets[deleteConfirmIndex].type === 'video' || assets[deleteConfirmIndex].url.endsWith('.mp4') || assets[deleteConfirmIndex].url.endsWith('.webm') ? (
+                <video
+                  src={assets[deleteConfirmIndex].url}
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  className="max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={assets[deleteConfirmIndex].url}
+                  alt="Recurso a borrar"
+                  className="max-h-full max-w-full object-contain"
+                />
+              )}
             </div>
 
             <div>
