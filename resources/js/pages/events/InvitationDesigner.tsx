@@ -1456,10 +1456,10 @@ export default function InvitationDesigner() {
                               setSelectedElementIds(childIds);
                               setSelectedElementId(childIds[0] || null);
                             }}
-                            className="flex items-center justify-between p-2 cursor-pointer bg-amber-500/10 hover:bg-amber-500/15 transition-colors border-b select-none"
+                            className="flex items-center justify-between p-1.5 cursor-pointer bg-amber-500/10 hover:bg-amber-500/15 transition-colors border-b select-none"
                             style={{ borderColor: 'rgba(245, 158, 11, 0.2)' }}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1469,13 +1469,13 @@ export default function InvitationDesigner() {
                                 className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
                               >
                                 {isCollapsed ? (
-                                  <ChevronRight size={14} className="text-amber-500" />
+                                  <ChevronRight size={12} className="text-amber-500" />
                                 ) : (
-                                  <ChevronDown size={14} className="text-amber-500" />
+                                  <ChevronDown size={12} className="text-amber-500" />
                                 )}
                               </button>
-                              <Folder size={15} className="shrink-0 text-amber-500" />
-                              <span className="font-extrabold text-xs text-amber-600 dark:text-amber-400 truncate">
+                              <Folder size={13} className="shrink-0 text-amber-500" />
+                              <span className="font-extrabold text-[11px] text-amber-600 dark:text-amber-400 truncate">
                                 {el.groupName || `Grupo (${groupChildren.length} capas)`}
                               </span>
                             </div>
@@ -1494,7 +1494,7 @@ export default function InvitationDesigner() {
                                   style={{ color: 'var(--text-main)' }}
                                   title="Subir grupo de capas"
                                 >
-                                  <ChevronUp size={11} />
+                                  <ChevronUp size={10} />
                                 </button>
                                 <button
                                   type="button"
@@ -1506,7 +1506,7 @@ export default function InvitationDesigner() {
                                   style={{ color: 'var(--text-main)' }}
                                   title="Bajar grupo de capas"
                                 >
-                                  <ChevronDown size={11} />
+                                  <ChevronDown size={10} />
                                 </button>
                               </div>
 
@@ -1527,9 +1527,9 @@ export default function InvitationDesigner() {
                                   title="Mostrar/Ocultar capas del grupo"
                                 >
                                   {groupChildren.every((c) => c.visible === false) ? (
-                                    <EyeOff size={11} />
+                                    <EyeOff size={10} />
                                   ) : (
-                                    <Eye size={11} />
+                                    <Eye size={10} />
                                   )}
                                 </button>
 
@@ -1542,7 +1542,7 @@ export default function InvitationDesigner() {
                                   className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-amber-500 cursor-pointer"
                                   title="Desagrupar estas capas"
                                 >
-                                  <Unlink size={11} />
+                                  <Unlink size={10} />
                                 </button>
                               </div>
 
@@ -1558,7 +1558,7 @@ export default function InvitationDesigner() {
                                   style={{ color: 'var(--danger)' }}
                                   title="Eliminar grupo completo"
                                 >
-                                  <Trash2 size={11} />
+                                  <Trash2 size={10} />
                                 </button>
                               </div>
                             </div>
@@ -1566,7 +1566,7 @@ export default function InvitationDesigner() {
 
                           {/* Capas Hijos dentro del Grupo (Visualmente normales) */}
                           {!isCollapsed && (
-                            <div className="p-1.5 space-y-1.5 bg-black/5 dark:bg-white/5">
+                            <div className="p-1 space-y-1 bg-black/5 dark:bg-white/5">
                               {groupChildren.map((childEl) => {
                                 const childIdx = elements.findIndex((item) => item.id === childEl.id);
 
@@ -1576,29 +1576,29 @@ export default function InvitationDesigner() {
                                     onClick={(e) =>
                                       handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey)
                                     }
-                                    className="flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ml-2 hover:opacity-90 shadow-2xs"
+                                    className="flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ml-1.5 hover:opacity-90 shadow-2xs"
                                     style={{
                                       backgroundColor: 'var(--bg-card)',
                                       borderColor: 'var(--border-color)',
                                       color: 'var(--text-main)',
                                     }}
                                   >
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      {childEl.type === 'text' && <Type size={14} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                                      {childEl.type === 'image' && <ImageIcon size={14} className="shrink-0 text-blue-500" />}
-                                      {childEl.type === 'video' && <Video size={14} className="shrink-0 text-purple-500" />}
-                                      {childEl.type === 'shape' && <Square size={14} className="shrink-0 text-emerald-500" />}
-                                      {childEl.type === '3d' && <Box size={14} className="shrink-0 text-amber-500" />}
-                                      {childEl.type === 'audio' && <Music size={14} className="shrink-0 text-rose-500" />}
-                                      {childEl.type === 'button' && <Smartphone size={14} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      {childEl.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                                      {childEl.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
+                                      {childEl.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
+                                      {childEl.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
+                                      {childEl.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
+                                      {childEl.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
+                                      {childEl.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
 
-                                      <span className="truncate text-xs font-medium">
+                                      <span className="truncate text-[11px] font-medium">
                                         {childEl.content}
                                       </span>
                                     </div>
 
                                     {/* Controles de Capa Hijo */}
-                                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                                    <div className="flex items-center gap-0.5 shrink-0 ml-1">
                                       <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                         <button
                                           type="button"
@@ -1609,7 +1609,7 @@ export default function InvitationDesigner() {
                                           disabled={childIdx === 0}
                                           className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
                                         >
-                                          <ChevronUp size={11} />
+                                          <ChevronUp size={10} />
                                         </button>
                                         <button
                                           type="button"
@@ -1620,7 +1620,7 @@ export default function InvitationDesigner() {
                                           disabled={childIdx === elements.length - 1}
                                           className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
                                         >
-                                          <ChevronDown size={11} />
+                                          <ChevronDown size={10} />
                                         </button>
                                       </div>
 
@@ -1633,7 +1633,7 @@ export default function InvitationDesigner() {
                                           }}
                                           className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                                         >
-                                          {childEl.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                                          {childEl.visible === false ? <EyeOff size={10} /> : <Eye size={10} />}
                                         </button>
                                         <button
                                           type="button"
@@ -1643,7 +1643,7 @@ export default function InvitationDesigner() {
                                           }}
                                           className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                                         >
-                                          {childEl.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                                          {childEl.locked ? <Lock size={10} /> : <Unlock size={10} />}
                                         </button>
                                       </div>
 
@@ -1656,7 +1656,7 @@ export default function InvitationDesigner() {
                                           }}
                                           className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                                         >
-                                          <Trash2 size={11} />
+                                          <Trash2 size={10} />
                                         </button>
                                       </div>
                                     </div>
@@ -1674,7 +1674,7 @@ export default function InvitationDesigner() {
                       <div
                         key={el.id}
                         onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
-                        className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ${
+                        className={`flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ${
                           isSelected ? 'shadow-xs' : 'hover:opacity-90'
                         }`}
                         style={{
@@ -1683,16 +1683,16 @@ export default function InvitationDesigner() {
                           color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
                         }}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {el.type === 'text' && <Type size={15} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                          {el.type === 'image' && <ImageIcon size={15} className="shrink-0 text-blue-500" />}
-                          {el.type === 'video' && <Video size={15} className="shrink-0 text-purple-500" />}
-                          {el.type === 'shape' && <Square size={15} className="shrink-0 text-emerald-500" />}
-                          {el.type === '3d' && <Box size={15} className="shrink-0 text-amber-500" />}
-                          {el.type === 'audio' && <Music size={15} className="shrink-0 text-rose-500" />}
-                          {el.type === 'button' && <Smartphone size={15} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                          {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
+                          {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
+                          {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
+                          {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
+                          {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
+                          {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
 
-                          <span className={`truncate text-xs ${isSelected ? 'font-black' : 'font-semibold'}`}>
+                          <span className={`truncate text-[11px] ${isSelected ? 'font-black' : 'font-medium'}`}>
                             {el.content}
                           </span>
                         </div>
