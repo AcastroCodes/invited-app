@@ -156,7 +156,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-1 rounded-lg border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
+        className="w-full h-7 flex items-center justify-between p-1 rounded-lg border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
         style={{
           backgroundColor: 'var(--bg-app)',
           borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',
