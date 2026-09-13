@@ -61,6 +61,11 @@ import {
   Mountain,
   Undo,
   LoaderCircle,
+  Folder,
+  Group,
+  Ungroup,
+  Link,
+  Unlink,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
@@ -164,6 +169,102 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
   );
 };
 
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface InspectorSelectProps {
+  value: string;
+  onChange: (val: string) => void;
+  options: SelectOption[];
+  className?: string;
+}
+
+const InspectorSelect: React.FC<InspectorSelectProps> = ({
+  value,
+  onChange,
+  options,
+  className = '',
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOpt = options.find((o) => o.value === value) || options[0];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className={`relative select-none ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full h-7 rounded-lg border px-2 text-[10px] font-bold outline-none cursor-pointer flex items-center justify-between transition-all"
+        style={{
+          backgroundColor: 'var(--bg-app)',
+          borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',
+          color: 'var(--text-main)',
+        }}
+      >
+        <span className="truncate">{selectedOpt?.label}</span>
+        <ChevronDown size={12} className={`transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} />
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border shadow-xl overflow-hidden py-1"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-[10px] font-bold transition-colors cursor-pointer flex items-center justify-between"
+                style={{
+                  backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'transparent',
+                  color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = 'var(--primary-accent-light)';
+                    e.currentTarget.style.color = 'var(--primary-accent)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-main)';
+                  }
+                }}
+              >
+                <span className="truncate">{opt.label}</span>
+                {isSelected && <Check size={12} style={{ color: 'var(--primary-accent)' }} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface CanvasElement {
   id: string;
   type: 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
@@ -236,6 +337,9 @@ interface CanvasElement {
   imgBlur?: number;
   imgGrayscale?: boolean;
   imgSepia?: boolean;
+  groupId?: string;
+  groupName?: string;
+  preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };
 }
 
 interface FontOption {
@@ -391,6 +495,60 @@ export default function InvitationDesigner() {
     });
   };
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
+
+  // Función para manejar selección (sencilla o múltiple con Shift/Ctrl)
+  const handleSelectElement = (id: string | null, isMulti = false) => {
+    if (!id) {
+      setSelectedElementId(null);
+      setSelectedElementIds([]);
+      return;
+    }
+
+    if (isMulti) {
+      setSelectedElementIds((prev) => {
+        const exists = prev.includes(id);
+        let updated: string[];
+        if (exists) {
+          updated = prev.filter((i) => i !== id);
+        } else {
+          updated = [...prev, id];
+        }
+        setSelectedElementId(updated.length > 0 ? updated[updated.length - 1] : null);
+        return updated;
+      });
+    } else {
+      setSelectedElementId(id);
+      setSelectedElementIds([id]);
+    }
+  };
+
+  // Función para Agrupar capas seleccionadas
+  const handleGroupSelected = () => {
+    if (selectedElementIds.length < 2) return;
+    const newGroupId = `group-${Date.now()}`;
+    setElements((prev) =>
+      prev.map((el) =>
+        selectedElementIds.includes(el.id)
+          ? { ...el, groupId: newGroupId, groupName: `Grupo (${selectedElementIds.length})` }
+          : el
+      )
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  // Función para Desagrupar
+  const handleUngroupSelected = () => {
+    if (!selectedElementId) return;
+    const targetEl = elements.find((el) => el.id === selectedElementId);
+    if (!targetEl || !targetEl.groupId) return;
+
+    const gId = targetEl.groupId;
+    setElements((prev) =>
+      prev.map((el) => (el.groupId === gId ? { ...el, groupId: undefined, groupName: undefined } : el))
+    );
+    setHasUnsavedChanges(true);
+  };
   const [zoom, setZoom] = useState(30);
   const [zoomInputText, setZoomInputText] = useState('30');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -496,6 +654,51 @@ export default function InvitationDesigner() {
     },
   ]);
 
+  // Historial de cambios para función Deshacer (Undo / Ctrl+Z)
+  const [historyStack, setHistoryStack] = useState<CanvasElement[][]>([]);
+
+  // Función para guardar snapshot en el historial antes de modificar
+  const pushHistorySnapshot = (newElements: CanvasElement[]) => {
+    setHistoryStack((prev) => {
+      const updated = [...prev, elements];
+      // Limitar historial a los últimos 40 pasos para optimizar memoria
+      if (updated.length > 40) return updated.slice(updated.length - 40);
+      return updated;
+    });
+    setElements(newElements);
+    setHasUnsavedChanges(true);
+  };
+
+  // Función Deshacer (Undo)
+  const handleUndo = () => {
+    setHistoryStack((prev) => {
+      if (prev.length === 0) return prev;
+      const lastSnapshot = prev[prev.length - 1];
+      setElements(lastSnapshot);
+      setHasUnsavedChanges(true);
+      return prev.slice(0, prev.length - 1);
+    });
+  };
+
+  // Listener para Ctrl+Z / Cmd+Z en todo el diseñador
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorar si se está escribiendo dentro de un input o textarea editable
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [elements, historyStack]);
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
@@ -566,9 +769,9 @@ export default function InvitationDesigner() {
       color: 'var(--text-main)',
       textAlign: 'center',
     };
-    setElements([...elements, newEl]);
+    pushHistorySnapshot([...elements, newEl]);
     setSelectedElementId(newEl.id);
-    setHasUnsavedChanges(true);
+    setSelectedElementIds([newEl.id]);
   };
 
   const handleAddElementType = (elementType: 'text' | 'image' | 'video' | 'shape' | '3d' | 'button' | 'audio') => {
@@ -599,9 +802,9 @@ export default function InvitationDesigner() {
       locked: false,
     };
 
-    setElements([...elements, newEl]);
+    pushHistorySnapshot([...elements, newEl]);
     setSelectedElementId(newEl.id);
-    setHasUnsavedChanges(true);
+    setSelectedElementIds([newEl.id]);
   };
 
   const toggleElementVisibility = (id: string) => {
@@ -636,9 +839,9 @@ export default function InvitationDesigner() {
       visible: true,
       locked: false,
     };
-    setElements([...elements, newEl]);
+    pushHistorySnapshot([...elements, newEl]);
     setSelectedElementId(newEl.id);
-    setHasUnsavedChanges(true);
+    setSelectedElementIds([newEl.id]);
   };
 
   const handleDeleteElement = (id: string) => {
@@ -714,11 +917,28 @@ export default function InvitationDesigner() {
     const { x, y, width, height, rotation } = dragState.elementInitial;
 
     if (dragState.mode === 'move') {
-      const newX = Math.round(x + deltaX);
-      const newY = Math.round(y + deltaY);
+      const activeEl = elements.find((item) => item.id === selectedElementId);
+      const activeGroupId = activeEl?.groupId;
+
       setElements((prev) =>
-        prev.map((el) => (el.id === selectedElementId ? { ...el, x: newX, y: newY } : el))
+        prev.map((el) => {
+          if (activeGroupId && el.groupId === activeGroupId) {
+            // Si pertenece al mismo grupo, mover relativamente
+            const initialForEl = prev.find((item) => item.id === el.id);
+            if (!initialForEl) return el;
+            return {
+              ...el,
+              x: Math.round(el.x + (deltaX - (dragState as any).lastDeltaX || 0)),
+              y: Math.round(el.y + (deltaY - (dragState as any).lastDeltaY || 0)),
+            };
+          }
+          if (el.id === selectedElementId) {
+            return { ...el, x: Math.round(x + deltaX), y: Math.round(y + deltaY) };
+          }
+          return el;
+        })
       );
+      setDragState((prev) => (prev ? { ...prev, lastDeltaX: deltaX, lastDeltaY: deltaY } as any : null));
       setHasUnsavedChanges(true);
     } else if (dragState.mode === 'resize' && dragState.handle) {
       const currentEl = elements.find((item) => item.id === selectedElementId);
@@ -1107,16 +1327,19 @@ export default function InvitationDesigner() {
                   Capas
                 </h3>
               </div>
-              <span
-                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
-                style={{
-                  backgroundColor: 'var(--bg-app)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {elements.length}
-              </span>
+
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
+                  style={{
+                    backgroundColor: 'var(--bg-app)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {elements.length}
+                </span>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -1132,22 +1355,32 @@ export default function InvitationDesigner() {
                 </div>
               ) : (
                 elements.map((el, idx) => {
-                  const isSelected = selectedElementId === el.id;
+                  const isSelected = selectedElementIds.includes(el.id) || selectedElementId === el.id;
+                  const isGrouped = !!el.groupId;
 
                   return (
                     <div
                       key={el.id}
-                      onClick={() => setSelectedElementId(el.id)}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                      onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                      className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all ${
                         isSelected ? 'shadow-xs' : 'hover:opacity-90'
                       }`}
                       style={{
-                        backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'var(--bg-app)',
-                        borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                        backgroundColor: isSelected
+                          ? 'var(--primary-accent-light)'
+                          : isGrouped
+                          ? 'rgba(245, 158, 11, 0.08)'
+                          : 'var(--bg-app)',
+                        borderColor: isSelected
+                          ? 'var(--primary-accent)'
+                          : isGrouped
+                          ? '#F59E0B'
+                          : 'var(--border-color)',
                         color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
                       }}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
+                        {isGrouped && <Folder size={13} className="shrink-0 text-amber-500" title={`Forma parte de ${el.groupName || 'un grupo'}`} />}
                         {/* Icono por tipo de elemento */}
                         {el.type === 'text' && <Type size={15} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
                         {el.type === 'image' && <ImageIcon size={15} className="shrink-0 text-blue-500" />}
@@ -1162,74 +1395,112 @@ export default function InvitationDesigner() {
                         </span>
                       </div>
 
-                      {/* Controles de Capa (Reordenar arriba/abajo, Visibilidad, Candado y Eliminar) */}
-                      <div className="flex items-center gap-0.5 shrink-0 ml-2">
-                        {/* Subir Capa (Mover más arriba en la lista / frente) */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMoveLayerUp(idx);
-                          }}
-                          disabled={idx === 0}
-                          className="p-1 rounded-md hover:opacity-80 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                          style={{ color: 'var(--text-main)' }}
-                          title="Subir capa (Llevar hacia al frente)"
-                        >
-                          <ChevronUp size={13} />
-                        </button>
+                      {/* Controles de Capa Agrupados (Grupo 1: Subir/Bajar | Grupo 2: Ojo, Cadena, Candado | Grupo 3: Borrar) */}
+                      <div className="flex items-center gap-1 shrink-0 ml-1">
+                        {/* GRUPO 1: Reordenar (Subir / Bajar) */}
+                        <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveLayerUp(idx);
+                            }}
+                            disabled={idx === 0}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Subir capa (Al frente)"
+                          >
+                            <ChevronUp size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveLayerDown(idx);
+                            }}
+                            disabled={idx === elements.length - 1}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Bajar capa (Atrás)"
+                          >
+                            <ChevronDown size={11} />
+                          </button>
+                        </div>
 
-                        {/* Bajar Capa (Mover más abajo en la lista / atrás) */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMoveLayerDown(idx);
-                          }}
-                          disabled={idx === elements.length - 1}
-                          className="p-1 rounded-md hover:opacity-80 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                          style={{ color: 'var(--text-main)' }}
-                          title="Bajar capa (Enviar hacia atrás)"
-                        >
-                          <ChevronDown size={13} />
-                        </button>
+                        {/* GRUPO 2: Estado (Visibilidad / Ojo, Agrupar / Cadena, Candado) */}
+                        <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          {/* Ojo / Visibilidad */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleElementVisibility(el.id);
+                            }}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                            style={{ color: el.visible === false ? 'var(--text-muted)' : 'var(--text-main)' }}
+                            title={el.visible === false ? 'Mostrar capa' : 'Ocultar capa'}
+                          >
+                            {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                          </button>
 
-                        {/* Visibilidad */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleElementVisibility(el.id);
-                          }}
-                          className="p-1 rounded-md hover:opacity-80 transition-colors"
-                          style={{ color: el.visible === false ? 'var(--text-muted)' : 'var(--text-main)' }}
-                          title={el.visible === false ? 'Mostrar capa' : 'Ocultar capa'}
-                        >
-                          {el.visible === false ? <EyeOff size={13} /> : <Eye size={13} />}
-                        </button>
+                          {/* Cadena / Eslabón (Agrupar/Desagrupar) */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isGrouped) {
+                                handleUngroupSelected();
+                              } else if (selectedElementIds.length >= 2) {
+                                handleGroupSelected();
+                              } else {
+                                handleSelectElement(el.id, true);
+                              }
+                            }}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                            style={{
+                              color: isGrouped ? 'var(--primary-accent)' : selectedElementIds.length >= 2 ? 'var(--primary-accent)' : 'var(--text-muted)',
+                            }}
+                            title={
+                              isGrouped
+                                ? 'Capa vinculada/agrupada (Haz clic para desagrupar)'
+                                : selectedElementIds.length >= 2
+                                ? `Vincular ${selectedElementIds.length} capas seleccionadas`
+                                : 'Selecciona más capas (Ctrl/Shift + Clic) para vincular con la cadena'
+                            }
+                          >
+                            {isGrouped ? <Link size={11} className="font-bold shrink-0" /> : <Unlink size={11} className="opacity-60 shrink-0" />}
+                          </button>
 
-                        {/* Bloqueo / Candado */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleElementLock(el.id);
-                          }}
-                          className="p-1 rounded-md hover:opacity-80 transition-colors"
-                          style={{ color: el.locked ? 'var(--warning)' : 'var(--text-muted)' }}
-                          title={el.locked ? 'Desbloquear capa' : 'Bloquear capa'}
-                        >
-                          {el.locked ? <Lock size={13} /> : <Unlock size={13} />}
-                        </button>
+                          {/* Candado / Bloqueo */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleElementLock(el.id);
+                            }}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                            style={{ color: el.locked ? 'var(--warning)' : 'var(--text-muted)' }}
+                            title={el.locked ? 'Desbloquear capa' : 'Bloquear capa'}
+                          >
+                            {el.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                          </button>
+                        </div>
 
-                        {/* Eliminar Capa */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteElement(el.id);
-                          }}
-                          className="p-1 rounded-md hover:opacity-80 transition-colors"
-                          style={{ color: 'var(--danger)' }}
-                          title="Eliminar capa"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {/* GRUPO 3: Eliminar */}
+                        <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteElement(el.id);
+                            }}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                            style={{ color: 'var(--danger)' }}
+                            title="Eliminar capa"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1338,19 +1609,26 @@ export default function InvitationDesigner() {
                 transform: `scale(${zoom / 100})`,
               }}
             >
-              {/* Canvas Stage 1080px x 1920px (Lienzo Pro sin aspecto de teléfono) */}
+              {/* Canvas Stage 1080px x 1920px (Lienzo Pro con soporte para elementos fuera del lienzo con opacidad) */}
               <div
-                className="w-[1080px] h-[1920px] relative overflow-hidden shadow-2xl border"
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderColor: 'var(--border-color)',
-              }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  setSelectedElementId(null);
-                }
-              }}
-            >
+                className="w-[1080px] h-[1920px] relative overflow-visible shadow-2xl border"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: 'var(--border-color)',
+                }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setSelectedElementId(null);
+                  }
+                }}
+              >
+                {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
+                <div
+                  className="absolute inset-0 pointer-events-none z-[9999]"
+                  style={{
+                    boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.82)',
+                  }}
+                />
 
               {/* Canvas Elements */}
               {elements.map((el, index) => {
@@ -1949,20 +2227,24 @@ export default function InvitationDesigner() {
                         <div className="flex items-center gap-0">
                           <button
                             onClick={() => updateSelectedElement('flipH', !selectedElement.flipH)}
-                            className={`p-1 rounded-md transition-colors ${
-                              selectedElement.flipH ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
-                            }`}
-                            style={{ color: selectedElement.flipH ? undefined : 'var(--text-main)' }}
+                            className="p-1 rounded-md transition-colors border"
+                            style={{
+                              backgroundColor: selectedElement.flipH ? 'var(--primary-accent-light)' : 'transparent',
+                              borderColor: selectedElement.flipH ? 'var(--primary-accent)' : 'transparent',
+                              color: selectedElement.flipH ? 'var(--primary-accent)' : 'var(--text-main)',
+                            }}
                             title="Voltear horizontal (Flip H)"
                           >
                             <FlipHorizontal size={13} />
                           </button>
                           <button
                             onClick={() => updateSelectedElement('flipV', !selectedElement.flipV)}
-                            className={`p-1 rounded-md transition-colors ${
-                              selectedElement.flipV ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
-                            }`}
-                            style={{ color: selectedElement.flipV ? undefined : 'var(--text-main)' }}
+                            className="p-1 rounded-md transition-colors border"
+                            style={{
+                              backgroundColor: selectedElement.flipV ? 'var(--primary-accent-light)' : 'transparent',
+                              borderColor: selectedElement.flipV ? 'var(--primary-accent)' : 'transparent',
+                              color: selectedElement.flipV ? 'var(--primary-accent)' : 'var(--text-main)',
+                            }}
                             title="Voltear vertical (Flip V)"
                           >
                             <FlipVertical size={13} />
@@ -1972,10 +2254,12 @@ export default function InvitationDesigner() {
 
                           <button
                             onClick={() => updateSelectedElement('keepAspectRatio', !selectedElement.keepAspectRatio)}
-                            className={`p-1 rounded-md transition-colors ${
-                              selectedElement.keepAspectRatio ? 'bg-pink-500/20 text-pink-500 font-bold border border-pink-500/30' : 'hover:opacity-80'
-                            }`}
-                            style={{ color: selectedElement.keepAspectRatio ? undefined : 'var(--text-main)' }}
+                            className="p-1 rounded-md transition-colors border"
+                            style={{
+                              backgroundColor: selectedElement.keepAspectRatio ? 'var(--primary-accent-light)' : 'transparent',
+                              borderColor: selectedElement.keepAspectRatio ? 'var(--primary-accent)' : 'transparent',
+                              color: selectedElement.keepAspectRatio ? 'var(--primary-accent)' : 'var(--text-main)',
+                            }}
                             title={selectedElement.keepAspectRatio ? "Aspect Ratio Bloqueado (Proporcional)" : "Aspect Ratio Libre"}
                           >
                             <Ratio size={13} />
@@ -2073,9 +2357,68 @@ export default function InvitationDesigner() {
                       <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
                         {/* 1. MODO DE ENCUADRE Y REPETICIÓN */}
                         <div>
-                          <label className="block font-extrabold mb-1.5 uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                            Modo de Encuadre
-                          </label>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                              Modo de Encuadre
+                            </label>
+                            {/* Checkbox "Toda la Página" para expandir al lienzo completo (1080x1920) con memoria de estado previo */}
+                            <label
+                              className="flex items-center gap-1 text-[9px] font-extrabold uppercase cursor-pointer select-none transition-colors hover:opacity-80"
+                              style={{ color: 'var(--primary-accent)' }}
+                              title="Expandir imagen a toda la página del lienzo (1080x1920) y centrarla"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.width === 1080 && selectedElement.height === 1920 && selectedElement.x === 0 && selectedElement.y === 0}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    // Guardar el estado exacto anterior a expandir
+                                    const preState = {
+                                      x: selectedElement.x,
+                                      y: selectedElement.y,
+                                      width: selectedElement.width,
+                                      height: selectedElement.height,
+                                      objectFit: selectedElement.objectFit,
+                                    };
+                                    updateSelectedElementBatch({
+                                      x: 0,
+                                      y: 0,
+                                      width: 1080,
+                                      height: 1920,
+                                      objectFit: 'cover',
+                                      preFitState: preState,
+                                    });
+                                  } else {
+                                    // Si hay memoria previa guardada, restaurarla
+                                    if (selectedElement.preFitState) {
+                                      const { x, y, width, height, objectFit } = selectedElement.preFitState;
+                                      updateSelectedElementBatch({
+                                        x,
+                                        y,
+                                        width,
+                                        height,
+                                        objectFit: objectFit || 'contain',
+                                        preFitState: undefined,
+                                      });
+                                    } else {
+                                      // Fallback a dimensiones iniciales/originales si no hay preFitState
+                                      const origW = selectedElement.initialWidth || selectedElement.naturalWidth || 600;
+                                      const origH = selectedElement.initialHeight || selectedElement.naturalHeight || 800;
+                                      updateSelectedElementBatch({
+                                        x: Math.round((1080 - origW) / 2),
+                                        y: Math.round((1920 - origH) / 2),
+                                        width: origW,
+                                        height: origH,
+                                        objectFit: 'contain',
+                                      });
+                                    }
+                                  }
+                                }}
+                                className="h-3 w-3 rounded border cursor-pointer accent-[var(--primary-accent)]"
+                              />
+                              <span>Toda la Página</span>
+                            </label>
+                          </div>
                           <div className="grid grid-cols-4 gap-1 p-0.5 rounded-lg border shadow-2xs mb-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                             {[
                               { id: 'contain', label: 'Ajustar', title: 'Ajustar (Mantiene imagen completa)' },
@@ -2145,7 +2488,7 @@ export default function InvitationDesigner() {
                               <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
                                 Repetición
                               </label>
-                              <select
+                              <InspectorSelect
                                 value={
                                   selectedElement.objectFit === 'repeat' ||
                                   selectedElement.objectFit === 'repeat-x' ||
@@ -2153,26 +2496,20 @@ export default function InvitationDesigner() {
                                     ? selectedElement.objectFit
                                     : 'no-repeat'
                                 }
-                                onChange={(e) => {
-                                  const val = e.target.value;
+                                onChange={(val) => {
                                   if (val === 'no-repeat') {
                                     updateSelectedElement('objectFit', 'contain');
                                   } else {
                                     updateSelectedElement('objectFit', val);
                                   }
                                 }}
-                                className="w-full h-7 rounded-lg border px-2 text-[10px] font-bold outline-none cursor-pointer transition-all focus:ring-1 focus:ring-[var(--primary-accent)]"
-                                style={{
-                                  backgroundColor: 'var(--bg-app)',
-                                  borderColor: 'var(--border-color)',
-                                  color: 'var(--text-main)',
-                                }}
-                              >
-                                <option value="no-repeat">Sin repetición</option>
-                                <option value="repeat">Repetir (Mosaico XY)</option>
-                                <option value="repeat-x">Repetir X (Horizontal)</option>
-                                <option value="repeat-y">Repetir Y (Vertical)</option>
-                              </select>
+                                options={[
+                                  { value: 'no-repeat', label: 'Sin repetición' },
+                                  { value: 'repeat', label: 'Repetir (Mosaico XY)' },
+                                  { value: 'repeat-x', label: 'Repetir X (Horizontal)' },
+                                  { value: 'repeat-y', label: 'Repetir Y (Vertical)' },
+                                ]}
+                              />
                             </div>
                           </div>
 

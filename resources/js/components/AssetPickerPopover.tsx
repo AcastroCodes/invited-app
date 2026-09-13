@@ -265,8 +265,16 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               </span>
             </div>
           ) : (
-            assets.map((asset, idx) => {
-              const isSelected = value === asset.url;
+            [...assets]
+              .sort((a, b) => {
+                const aSel = a.url === value;
+                const bSel = b.url === value;
+                if (aSel && !bSel) return -1;
+                if (!aSel && bSel) return 1;
+                return 0;
+              })
+              .map((asset, idx) => {
+                const isSelected = value === asset.url;
               return (
                 <div
                   key={asset.id}
