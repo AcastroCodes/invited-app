@@ -855,8 +855,63 @@ export default function InvitationDesigner() {
   };
 
   const handleDeleteElement = (id: string) => {
-    setElements(elements.filter((el) => el.id !== id));
+    pushHistorySnapshot(elements.filter((el) => el.id !== id));
     if (selectedElementId === id) setSelectedElementId(null);
+  };
+
+  const handleDeleteGroup = (groupId: string) => {
+    pushHistorySnapshot(elements.filter((el) => el.groupId !== groupId));
+    setSelectedElementId(null);
+    setSelectedElementIds([]);
+  };
+
+  const toggleGroupVisibility = (groupId: string) => {
+    const groupItems = elements.filter((el) => el.groupId === groupId);
+    const areAllHidden = groupItems.every((el) => el.visible === false);
+
+    setElements((prev) =>
+      prev.map((el) => (el.groupId === groupId ? { ...el, visible: areAllHidden ? true : false } : el))
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const handleMoveGroupUp = (groupId: string) => {
+    // Encuentra el primer índice de un elemento del grupo
+    const firstIdx = elements.findIndex((el) => el.groupId === groupId);
+    if (firstIdx <= 0) return;
+
+    // Elementos del grupo y elementos fuera
+    const groupItems = elements.filter((el) => el.groupId === groupId);
+    const otherItems = elements.filter((el) => el.groupId !== groupId);
+
+    // Insertar el bloque del grupo una posición más arriba en el orden general
+    const prevItemIdx = firstIdx - 1;
+    const targetIdx = Math.max(0, prevItemIdx);
+
+    const newElements = [...elements.filter((el) => el.groupId !== groupId)];
+    newElements.splice(targetIdx, 0, ...groupItems);
+
+    setElements(newElements);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleMoveGroupDown = (groupId: string) => {
+    const groupIndices = elements
+      .map((el, idx) => (el.groupId === groupId ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    if (groupIndices.length === 0) return;
+    const lastIdx = groupIndices[groupIndices.length - 1];
+    if (lastIdx >= elements.length - 1) return;
+
+    const groupItems = elements.filter((el) => el.groupId === groupId);
+    const nextItemIdx = lastIdx + 1;
+
+    const newElements = [...elements.filter((el) => el.groupId !== groupId)];
+    const insertPosition = Math.min(newElements.length, nextItemIdx - groupItems.length + 1);
+    newElements.splice(insertPosition, 0, ...groupItems);
+
+    setElements(newElements);
     setHasUnsavedChanges(true);
   };
 
@@ -1425,18 +1480,87 @@ export default function InvitationDesigner() {
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUngroupSelected(gId);
-                                }}
-                                className="px-2 py-0.5 rounded border text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-white/50 dark:bg-black/30 hover:bg-amber-500 hover:text-white transition-all cursor-pointer flex items-center gap-1"
-                                title="Desagrupar capas"
-                              >
-                                <Unlink size={10} /> Desagrupar
-                              </button>
+                            {/* Controles del Grupo completo: Flechas Reordenar, Ojo, Cadena (Desagrupar), Eliminar */}
+                            <div className="flex items-center gap-1 shrink-0 ml-1">
+                              {/* Subir / Bajar Bloque del Grupo */}
+                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveGroupUp(gId);
+                                  }}
+                                  className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{ color: 'var(--text-main)' }}
+                                  title="Subir grupo de capas"
+                                >
+                                  <ChevronUp size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveGroupDown(gId);
+                                  }}
+                                  className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{ color: 'var(--text-main)' }}
+                                  title="Bajar grupo de capas"
+                                >
+                                  <ChevronDown size={11} />
+                                </button>
+                              </div>
+
+                              {/* Ojo (Visibilidad del grupo completo) & Cadena (Desagrupar solo icono) */}
+                              <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleGroupVisibility(gId);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{
+                                    color: groupChildren.every((c) => c.visible === false)
+                                      ? 'var(--text-muted)'
+                                      : 'var(--text-main)',
+                                  }}
+                                  title="Mostrar/Ocultar capas del grupo"
+                                >
+                                  {groupChildren.every((c) => c.visible === false) ? (
+                                    <EyeOff size={11} />
+                                  ) : (
+                                    <Eye size={11} />
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUngroupSelected(gId);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-amber-500 cursor-pointer"
+                                  title="Desagrupar estas capas"
+                                >
+                                  <Unlink size={11} />
+                                </button>
+                              </div>
+
+                              {/* Eliminar Grupo completo */}
+                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteGroup(gId);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{ color: 'var(--danger)' }}
+                                  title="Eliminar grupo completo"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
                             </div>
                           </div>
 
