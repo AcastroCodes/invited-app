@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Palette, X, Plus, Edit3 } from 'lucide-react';
+import { Palette, X, Plus, Edit3, Bookmark, Check } from 'lucide-react';
 
 export interface GradientStop {
   id: string;
@@ -15,26 +15,60 @@ interface ColorPickerPopoverProps {
   onChange: (val: string) => void;
   label?: string;
   allowTransparent?: boolean;
+  allowGradient?: boolean;
 }
+
+const COLOR_STORAGE_KEY = 'invited_saved_colors';
 
 export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
   value = '#212121',
   onChange,
   label,
   allowTransparent = false,
+  allowGradient = true,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [justSaved, setJustSaved] = useState(false);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
+
+  // Cargar colores guardados de localStorage
+  const [savedColors, setSavedColors] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(COLOR_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const saveColorsToStorage = (colors: string[]) => {
+    setSavedColors(colors);
+    try {
+      localStorage.setItem(COLOR_STORAGE_KEY, JSON.stringify(colors));
+    } catch (e) {
+      console.error('Error saving colors to localStorage:', e);
+    }
+  };
 
   const safeValue = typeof value === 'string' ? value : '#212121';
 
   // Mode: 'solid' or 'gradient'
-  const isGradientValue = safeValue.includes('gradient');
+  const isGradientValue = allowGradient && safeValue.includes('gradient');
   const [mode, setMode] = useState<'solid' | 'gradient'>(isGradientValue ? 'gradient' : 'solid');
 
+  // Helper to extract first solid color from a gradient string if needed
+  const getSolidFallback = (val: string) => {
+    if (!val.includes('gradient')) return val;
+    const match = val.match(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\))/);
+    return match ? match[1] : '#212121';
+  };
+
   // Solid State
-  const [solidColor, setSolidColor] = useState(isGradientValue ? '#E07A5F' : safeValue);
+  const [solidColor, setSolidColor] = useState(
+    safeValue.includes('gradient') ? getSolidFallback(safeValue) : safeValue
+  );
 
   // Gradient State (Photoshop Types: Lineal, Radial, Ángulo/Cónico, Reflejado, Diamante)
   const [gradType, setGradType] = useState<PhotoshopGradientType>('linear');
@@ -61,7 +95,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
   useEffect(() => {
     const curVal = typeof value === 'string' ? value : '#212121';
     setDraftValue(curVal);
-    if (curVal.includes('gradient')) {
+    if (allowGradient && curVal.includes('gradient')) {
       setMode('gradient');
       let type: PhotoshopGradientType = 'linear';
       if (curVal.includes('/*reflected*/') || curVal.includes('repeating-linear-gradient')) type = 'reflected';
@@ -92,9 +126,9 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
       }
     } else {
       setMode('solid');
-      setSolidColor(curVal);
+      setSolidColor(getSolidFallback(curVal));
     }
-  }, [value, isOpen]);
+  }, [value, isOpen, allowGradient]);
 
   // Helper to build gradient string based on Photoshop Gradient Types
   const buildGradientCss = (
@@ -129,6 +163,35 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
     // Default Photoshop Linear Gradient
     return `linear-gradient(${angle}deg, ${stopsCss})`;
   };
+
+  const handleSaveColor = () => {
+    const colorToSave = mode === 'gradient' ? buildGradientCss() : solidColor;
+
+    if (!savedColors.includes(colorToSave)) {
+      const updated = [colorToSave, ...savedColors];
+      saveColorsToStorage(updated);
+    }
+
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 1200);
+  };
+
+  const confirmDeleteColor = () => {
+    if (deleteConfirmIndex !== null) {
+      const updated = savedColors.filter((_, i) => i !== deleteConfirmIndex);
+      saveColorsToStorage(updated);
+      setDeleteConfirmIndex(null);
+    }
+  };
+
+  // Backup initial value before opening popover to allow reverting on Cancel
+  const [initialValue, setInitialValue] = useState(safeValue);
+
+  useEffect(() => {
+    if (isOpen) {
+      setInitialValue(safeValue);
+    }
+  }, [isOpen]);
 
   // Update current draft value
   const updateDraft = (newVal: string) => {
@@ -171,9 +234,10 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
     setIsOpen(false);
   };
 
-  // Cancel changes
+  // Cancel changes - revert parent element to initialValue
   const handleCancel = () => {
-    setDraftValue(value);
+    onChange(initialValue);
+    setDraftValue(initialValue);
     setIsOpen(false);
   };
 
@@ -270,60 +334,83 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                 </button>
               </div>
 
-              {/* Arriba: Preview de cómo se va a ver el color o degradado (Limpio) */}
-              <div
-                className="my-2 h-10 rounded-md border shadow-inner transition-all flex items-center justify-center relative overflow-hidden"
-                style={{
-                  background: mode === 'gradient' ? buildGradientCss() : (solidColor === 'transparent' ? '#FFFFFF' : solidColor),
-                  borderColor: 'var(--border-color)',
-                }}
-              >
-                {solidColor === 'transparent' && mode === 'solid' && (
-                  <span className="text-red-500 font-bold text-[10px] uppercase opacity-80">Transparente</span>
-                )}
+              {/* Preview Box con Botón de Guardar al lado derecho */}
+              <div className="my-2 flex items-center gap-1.5">
+                <div
+                  className="h-10 flex-1 rounded-md border shadow-inner transition-all flex items-center justify-center relative overflow-hidden shrink-0"
+                  style={{
+                    background: mode === 'gradient' ? buildGradientCss() : (solidColor === 'transparent' ? '#FFFFFF' : solidColor),
+                    borderColor: 'var(--border-color)',
+                  }}
+                >
+                  {solidColor === 'transparent' && mode === 'solid' && (
+                    <span className="text-red-500 font-bold text-[10px] uppercase opacity-80">Transparente</span>
+                  )}
+                </div>
+
+                {/* Botón de Guardar Color al Lado Derecho */}
+                <button
+                  type="button"
+                  onClick={handleSaveColor}
+                  className="self-stretch w-7 rounded-md border flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+                  style={{
+                    backgroundColor: justSaved ? 'var(--primary-accent)' : 'var(--bg-app)',
+                    borderColor: 'var(--border-color)',
+                    color: justSaved ? '#FFFFFF' : 'var(--primary-accent)',
+                  }}
+                  title={justSaved ? '¡Color Guardado!' : 'Guardar este color'}
+                >
+                  {justSaved ? (
+                    <Check size={14} className="animate-in zoom-in-50 duration-150" />
+                  ) : (
+                    <Bookmark size={14} />
+                  )}
+                </button>
               </div>
 
-              {/* Abajo: Pestañas Sólido vs Degradado */}
-              <div
-                className="grid grid-cols-2 h-6 p-0.5 rounded-md border text-[9px] font-bold mb-2"
-                style={{
-                  backgroundColor: 'var(--bg-app)',
-                  borderColor: 'var(--border-color)',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('solid');
-                    updateDraft(solidColor);
-                  }}
-                  className={`flex items-center justify-center gap-1 rounded transition-all ${
-                    mode === 'solid' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
-                  }`}
+              {/* Abajo: Pestañas Sólido vs Degradado (solo si allowGradient es true) */}
+              {allowGradient && (
+                <div
+                  className="grid grid-cols-2 h-6 p-0.5 rounded-md border text-[9px] font-bold mb-2"
                   style={{
-                    backgroundColor: mode === 'solid' ? 'var(--primary-accent)' : 'transparent',
-                    color: mode === 'solid' ? '#FFFFFF' : 'var(--text-muted)',
+                    backgroundColor: 'var(--bg-app)',
+                    borderColor: 'var(--border-color)',
                   }}
                 >
-                  Sólido
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('gradient');
-                    updateDraft(buildGradientCss());
-                  }}
-                  className={`flex items-center justify-center gap-1 rounded transition-all ${
-                    mode === 'gradient' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
-                  }`}
-                  style={{
-                    backgroundColor: mode === 'gradient' ? 'var(--primary-accent)' : 'transparent',
-                    color: mode === 'gradient' ? '#FFFFFF' : 'var(--text-muted)',
-                  }}
-                >
-                  Degradado
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('solid');
+                      updateDraft(solidColor);
+                    }}
+                    className={`flex items-center justify-center gap-1 rounded transition-all ${
+                      mode === 'solid' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
+                    }`}
+                    style={{
+                      backgroundColor: mode === 'solid' ? 'var(--primary-accent)' : 'transparent',
+                      color: mode === 'solid' ? '#FFFFFF' : 'var(--text-muted)',
+                    }}
+                  >
+                    Sólido
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('gradient');
+                      updateDraft(buildGradientCss());
+                    }}
+                    className={`flex items-center justify-center gap-1 rounded transition-all ${
+                      mode === 'gradient' ? 'text-white font-extrabold shadow-2xs' : 'hover:opacity-80'
+                    }`}
+                    style={{
+                      backgroundColor: mode === 'gradient' ? 'var(--primary-accent)' : 'transparent',
+                      color: mode === 'gradient' ? '#FFFFFF' : 'var(--text-muted)',
+                    }}
+                  >
+                    Degradado
+                  </button>
+                </div>
+              )}
 
               {/* CONTENIDO PESTAÑA SÓLIDO */}
               {mode === 'solid' && (
@@ -555,7 +642,98 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* LISTA DE COLORES GUARDADOS (Abajo de Paleta Rápida) */}
+              <div className="mt-2 pt-1.5 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] font-extrabold uppercase opacity-70 tracking-wider">
+                    Colores Guardados
+                  </span>
+                  <span className="text-[8px] opacity-50 font-bold">{savedColors.length}</span>
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 min-h-[28px] max-w-full no-scrollbar scroll-smooth">
+                  {(() => {
+                    const displayColors = allowGradient ? savedColors : savedColors.filter((c: string) => !c.includes('gradient'));
+                    if (displayColors.length === 0) {
+                      return (
+                        <span className="text-[9px] italic opacity-40 font-medium py-0.5">
+                          Sin colores guardados
+                        </span>
+                      );
+                    }
+                    return displayColors.map((col, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          updateDraft(col);
+                          onChange(col);
+                          if (col.includes('gradient')) {
+                            setMode('gradient');
+                          } else {
+                            setMode('solid');
+                            setSolidColor(col);
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmIndex(idx);
+                        }}
+                        className="group/item relative shrink-0 w-6 h-6 rounded-md border flex items-center justify-center cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-2xs overflow-hidden"
+                        title="Un clic para aplicar | Doble clic para eliminar"
+                        style={{
+                          background: col.includes('gradient') ? col : (col === 'transparent' ? '#FFFFFF' : col),
+                          borderColor: 'var(--border-color)',
+                        }}
+                      >
+                        {col === 'transparent' && (
+                          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_45%,#ef4444_45%,#ef4444_55%,transparent_55%)]" />
+                        )}
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
             </div>
+
+            {/* Modal de confirmación para eliminar color */}
+            {deleteConfirmIndex !== null && (
+              <div className="absolute inset-0 z-50 rounded-xl bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
+                <div
+                  className="w-full p-3 rounded-lg border shadow-xl text-center space-y-2"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-main)',
+                  }}
+                >
+                  <p className="text-[11px] font-bold">
+                    ¿Deseas eliminar este color guardado?
+                  </p>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmIndex(null)}
+                      className="px-2.5 py-1 rounded text-[10px] font-semibold border hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                      style={{
+                        backgroundColor: 'var(--bg-app)',
+                        borderColor: 'var(--border-color)',
+                        color: 'var(--text-main)',
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDeleteColor}
+                      className="px-2.5 py-1 rounded text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 transition-colors cursor-pointer shadow-2xs"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* BOTONES ABAJO A LA DERECHA: CANCELAR Y AGREGAR */}
             <div className="flex items-center justify-end gap-1 pt-2 mt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>

@@ -355,10 +355,10 @@ export default function InvitationDesigner() {
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     content: true,
-    transform: true,
-    typography: true,
+    transform: false,
+    typography: false,
     wordart: false,
-    container: true,
+    container: false,
   });
 
   const toggleSection = (section: string) => {
@@ -1341,8 +1341,8 @@ export default function InvitationDesigner() {
                       borderColor: (el.containerBorderWidth ?? el.borderWidth) ? (el.containerBorderColor || el.borderColor || 'transparent') : undefined,
                       borderStyle: (el.containerBorderWidth ?? el.borderWidth) ? (el.containerBorderStyle || el.borderStyle || 'solid') : undefined,
                       // Sombra del contenedor
-                      boxShadow: (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY || el.shadowBlur || el.shadowOffsetX || el.shadowOffsetY)
-                        ? `${el.containerShadowOffsetX ?? el.shadowOffsetX ?? 0}px ${el.containerShadowOffsetY ?? el.shadowOffsetY ?? 0}px ${el.containerShadowBlur ?? el.shadowBlur ?? 0}px ${el.containerShadowColor || el.shadowColor || 'rgba(0,0,0,0.5)'}`
+                      boxShadow: (el.type !== 'text' && (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY || el.shadowBlur || el.shadowOffsetX || el.shadowOffsetY)) || (el.type === 'text' && (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY))
+                        ? `${el.containerShadowOffsetX ?? (el.type !== 'text' ? el.shadowOffsetX : 0) ?? 0}px ${el.containerShadowOffsetY ?? (el.type !== 'text' ? el.shadowOffsetY : 0) ?? 0}px ${el.containerShadowBlur ?? (el.type !== 'text' ? el.shadowBlur : 0) ?? 0}px ${el.containerShadowColor || (el.type !== 'text' ? el.shadowColor : undefined) || 'rgba(0,0,0,0.5)'}`
                         : undefined,
                       textAlign: el.textAlign || 'left',
                       display: 'flex',
@@ -1537,26 +1537,16 @@ export default function InvitationDesigner() {
                           );
                         }
 
+                        const tShadowC = el.textShadowColor || 'rgba(0,0,0,0.5)';
+                        const isGradShadow = typeof tShadowC === 'string' && tShadowC.includes('gradient');
+
+                        const shadowCssVal = hasShadow
+                          ? `drop-shadow(${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${tShadowC})`
+                          : undefined;
+
                         return el.textAboveBorder ? (
-                          <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left', transform: skewTransform }}>
-                            {/* Capa inferior de Sombra proyectada por debajo de todo */}
-                            {hasShadow && (
-                              <span
-                                className="w-full absolute inset-0 block truncate pointer-events-none select-none opacity-90"
-                                style={{
-                                  color: isGradBorder ? 'transparent' : (tBorderW > 0 ? tBorderC : tColor),
-                                  backgroundImage: isGradBorder ? tBorderC : undefined,
-                                  WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
-                                  WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
-                                  WebkitTextStroke: tBorderW > 0 ? `${tBorderW * 2}px ${isGradBorder ? 'transparent' : tBorderC}` : undefined,
-                                  filter: `drop-shadow(${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'})`,
-                                  letterSpacing: lSpacing,
-                                }}
-                              >
-                                {el.content}
-                              </span>
-                            )}
-                            {/* Capa intermedia: Trazo de borde del texto sin la sombra encima */}
+                          <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left', transform: skewTransform, filter: shadowCssVal }}>
+                            {/* Trazo de borde */}
                             <span
                               className="w-full block truncate relative"
                               style={{
@@ -1570,7 +1560,7 @@ export default function InvitationDesigner() {
                             >
                               {el.content}
                             </span>
-                            {/* Capa superior: Texto limpio redibujado por encima del borde */}
+                            {/* Relleno principal */}
                             <span
                               className="w-full absolute inset-0 block truncate pointer-events-none"
                               style={{
@@ -1593,7 +1583,7 @@ export default function InvitationDesigner() {
                               backgroundImage: isGradColor ? tColor : undefined,
                               WebkitBackgroundClip: isGradColor ? 'text' : undefined,
                               WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
-                              filter: shadowStr ? `drop-shadow(${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'})` : undefined,
+                              filter: shadowCssVal,
                               WebkitTextStroke: tBorderW > 0 ? `${tBorderW}px ${isGradBorder ? '#000' : tBorderC}` : undefined,
                               letterSpacing: lSpacing,
                               transform: skewTransform,

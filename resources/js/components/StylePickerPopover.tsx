@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Palette, X, Edit3, Plus, Minus } from 'lucide-react';
+import { Palette, X, Edit3, Plus, Minus, Bookmark, Trash2, Check } from 'lucide-react';
 import { ColorPickerPopover } from './ColorPickerPopover';
 
 export interface ElementStyleConfig {
@@ -59,8 +59,13 @@ const NumberInput: React.FC<NumberInputProps> = ({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
-        className="w-full h-full text-center bg-transparent outline-none font-mono text-[10px] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        onChange={(e) => {
+          const val = parseFloat(e.target.value);
+          if (!isNaN(val)) {
+            onChange(Math.min(max, Math.max(min, val)));
+          }
+        }}
+        className="w-full h-full text-center text-[10px] font-bold bg-transparent outline-none px-1"
         style={{ color: 'var(--text-main)' }}
       />
       <button
@@ -84,8 +89,10 @@ interface StylePickerPopoverProps {
   styleConfig: ElementStyleConfig;
   onChange: (updated: Partial<ElementStyleConfig>) => void;
   label?: string;
-  elementType?: 'text' | 'container' | 'generic';
+  elementType?: 'text' | 'container' | 'button' | 'shape' | 'generic';
 }
+
+const STORAGE_KEY = 'invited_saved_element_styles';
 
 export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
   styleConfig,
@@ -95,9 +102,84 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'fondo' | 'borde' | 'sombra'>('fondo');
+  const [initialStyleConfig, setInitialStyleConfig] = useState<ElementStyleConfig>(styleConfig);
+
+  useEffect(() => {
+    if (isOpen) {
+      setInitialStyleConfig({ ...styleConfig });
+    }
+  }, [isOpen]);
+
+  const handleCancel = () => {
+    onChange(initialStyleConfig);
+    setIsOpen(false);
+  };
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [justSaved, setJustSaved] = useState(false);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
+
+  const confirmDeleteStyle = () => {
+    if (deleteConfirmIndex !== null) {
+      const updated = savedStyles.filter((_, i) => i !== deleteConfirmIndex);
+      saveStylesToStorage(updated);
+      setDeleteConfirmIndex(null);
+    }
+  };
+
+  // Cargar estilos guardados de localStorage
+  const [savedStyles, setSavedStyles] = useState<ElementStyleConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const saveStylesToStorage = (styles: ElementStyleConfig[]) => {
+    setSavedStyles(styles);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(styles));
+    } catch (e) {
+      console.error('Error saving styles to localStorage:', e);
+    }
+  };
+
+  const handleSaveStyle = () => {
+    const currentStyle: ElementStyleConfig = {
+      color: styleConfig?.color || 'transparent',
+      backgroundColor: styleConfig?.backgroundColor || 'transparent',
+      borderColor: styleConfig?.borderColor || 'transparent',
+      borderWidth: styleConfig?.borderWidth ?? 0,
+      borderStyle: styleConfig?.borderStyle || 'solid',
+      borderRadius: styleConfig?.borderRadius ?? 0,
+      shadowColor: styleConfig?.shadowColor || 'rgba(0,0,0,0)',
+      shadowBlur: styleConfig?.shadowBlur ?? 0,
+      shadowOffsetX: styleConfig?.shadowOffsetX ?? 0,
+      shadowOffsetY: styleConfig?.shadowOffsetY ?? 0,
+      textAboveBorder: styleConfig?.textAboveBorder ?? false,
+    };
+
+    const isDuplicate = savedStyles.some(
+      (s) => JSON.stringify(s) === JSON.stringify(currentStyle)
+    );
+
+    if (!isDuplicate) {
+      const updated = [currentStyle, ...savedStyles];
+      saveStylesToStorage(updated);
+    }
+
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 1200);
+  };
+
+  const handleDeleteSavedStyle = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedStyles.filter((_, i) => i !== index);
+    saveStylesToStorage(updated);
+  };
 
   // Destructure values with safe fallback values
   const safeConfig = styleConfig || {};
@@ -225,7 +307,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
         <>
           <div
             className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
+            onClick={handleCancel}
           />
 
           <div
@@ -249,7 +331,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={handleCancel}
                 className="p-0.5 rounded hover:opacity-80 transition-colors"
                 style={{ color: 'var(--text-muted)' }}
               >
@@ -257,82 +339,69 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
               </button>
             </div>
 
-            {/* Preview Box dentro del Modal */}
-            <div className="my-2 p-2 rounded-md flex items-center justify-center border border-dashed relative overflow-hidden" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-              {elementType === 'text' || elementType === 'button' ? (
-                <div
-                  className="px-2 py-1 flex items-center justify-center text-sm font-extrabold transition-all relative select-none"
-                  style={{
-                    backgroundColor: backgroundColor,
-                    borderRadius: `${borderRadius}px`,
-                  }}
-                >
-                  {textAboveBorder ? (
-                    <div className="relative inline-block">
-                      <span
-                        className="block"
-                        style={{
-                          color: (borderWidth > 0 && borderColor) ? borderColor : 'transparent',
-                          WebkitTextStroke: borderWidth > 0 ? `${borderWidth * 2}px ${borderColor}` : undefined,
-                          textShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                        }}
-                      >
-                        Texto Previo
-                      </span>
-                      <span
-                        className="absolute inset-0 block"
-                        style={{
-                          color: isGrad(color) ? 'transparent' : color || '#212121',
-                          backgroundImage: isGrad(color) ? color : undefined,
-                          WebkitBackgroundClip: isGrad(color) ? 'text' : undefined,
-                          WebkitTextFillColor: isGrad(color) ? 'transparent' : undefined,
-                          WebkitTextStroke: '0 transparent',
-                        }}
-                      >
-                        Texto Previo
-                      </span>
-                    </div>
-                  ) : (
-                    <span
+            {/* Preview Box dentro del Modal con Botón de Guardar al lado derecho */}
+            <div className="my-2 flex items-center gap-1.5">
+              <div className="flex-1 p-2 rounded-md flex items-center justify-center border border-dashed relative overflow-hidden" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                {(() => {
+                  const hasBackground = backgroundColor && backgroundColor !== 'transparent';
+                  const hasBorder = borderWidth > 0 && borderStyle !== 'none';
+                  const hasShadow = shadowCss !== 'none';
+                  const hasTextColor = elementType === 'text' && color && color !== 'transparent';
+                  const isConfigured = hasBackground || hasBorder || hasShadow || hasTextColor;
+                  const isBorderGradient = isGrad(borderColor);
+
+                  return (
+                    <div
+                      className="h-10 w-full rounded-md transition-all relative overflow-hidden flex items-center justify-center p-0.5"
                       style={{
-                        color: isGrad(color) ? 'transparent' : (color || 'var(--text-main)'),
-                        backgroundImage: isGrad(color) ? color : undefined,
-                        WebkitBackgroundClip: isGrad(color) ? 'text' : undefined,
-                        WebkitTextFillColor: isGrad(color) ? 'transparent' : undefined,
-                        textShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                        WebkitTextStroke: (borderWidth > 0 && borderColor) ? `${borderWidth}px ${borderColor}` : undefined,
+                        background: isGrad(backgroundColor)
+                          ? backgroundColor
+                          : (isGrad(color) && elementType === 'text' ? color : undefined),
+                        backgroundColor: !isGrad(backgroundColor)
+                          ? (backgroundColor === 'transparent'
+                              ? (elementType === 'text' && color && !isGrad(color) && color !== 'transparent' ? color : 'var(--bg-app)')
+                              : backgroundColor)
+                          : undefined,
+                        borderColor: (borderWidth > 0 && borderStyle !== 'none')
+                          ? (isBorderGradient ? 'transparent' : borderColor)
+                          : 'transparent',
+                        borderImage: (borderWidth > 0 && borderStyle !== 'none' && isBorderGradient)
+                          ? `${borderColor} 1`
+                          : undefined,
+                        borderWidth: (borderWidth > 0 && borderStyle !== 'none') ? `${Math.min(borderWidth, 3)}px` : '0px',
+                        borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
+                        borderRadius: `${Math.min(borderRadius, 6)}px`,
+                        boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
                       }}
                     >
-                      Texto Previo
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className="h-14 w-32 flex items-center justify-center text-[10px] font-bold transition-all relative overflow-hidden shadow-2xs"
-                  style={{
-                    background: isGrad(backgroundColor) ? backgroundColor : undefined,
-                    backgroundColor: !isGrad(backgroundColor)
-                      ? (backgroundColor === 'transparent' ? '#FFFFFF' : backgroundColor)
-                      : undefined,
-                    borderColor: (borderWidth > 0 && borderColor) ? (isGrad(borderColor) ? 'transparent' : borderColor) : 'transparent',
-                    borderImage: (borderWidth > 0 && borderStyle !== 'none' && isGrad(borderColor))
-                      ? `${borderColor} 1`
-                      : undefined,
-                    borderWidth: borderWidth > 0 ? `${borderWidth}px` : '0px',
-                    borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
-                    borderRadius: `${borderRadius}px`,
-                    boxShadow: shadowCss !== 'none' ? shadowCss : undefined,
-                    color: 'var(--text-main)',
-                  }}
-                >
-                  {backgroundColor === 'transparent' ? (
-                    <span className="text-[10px] text-red-500 font-extrabold uppercase">Transparente</span>
-                  ) : (
-                    'Vista Previa'
-                  )}
-                </div>
-              )}
+                      {!isConfigured && (
+                        <span className="text-[10px] font-bold select-none capitalize opacity-60" style={{ color: 'var(--text-muted)' }}>
+                          Ninguno
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Botón de Guardar Estilo del Lado Derecho (solo ícono, mismo alto del preview) */}
+              <button
+                type="button"
+                onClick={handleSaveStyle}
+                className="self-stretch w-7 rounded-md border flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+                style={{
+                  backgroundColor: justSaved ? 'var(--primary-accent)' : 'var(--bg-app)',
+                  borderColor: 'var(--border-color)',
+                  color: justSaved ? '#FFFFFF' : 'var(--primary-accent)',
+                }}
+                title={justSaved ? '¡Estilo Guardado!' : 'Guardar este estilo'}
+              >
+                {justSaved ? (
+                  <Check size={14} className="animate-in zoom-in-50 duration-150" />
+                ) : (
+                  <Bookmark size={14} />
+                )}
+              </button>
             </div>
 
             {/* Pestañas Principales: Fondo, Borde, Sombra */}
@@ -507,6 +576,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     <label className="block text-[10px] font-bold opacity-70 mb-1">Color de Sombra</label>
                     <ColorPickerPopover
                       value={shadowColor}
+                      allowGradient={false}
                       onChange={(newVal) => onChange({ shadowColor: newVal })}
                     />
                   </div>
@@ -545,11 +615,129 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
               </div>
             )}
 
+            {/* LISTA HORIZONTAL DE ESTILOS GUARDADOS (siempre visible abajo) */}
+            <div className="mt-2.5 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] font-extrabold uppercase opacity-70 tracking-wider">
+                  Estilos Guardados
+                </span>
+                <span className="text-[8px] opacity-50 font-bold">{savedStyles.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 min-h-[30px] max-w-full no-scrollbar scroll-smooth">
+                {savedStyles.length === 0 ? (
+                  <span className="text-[9px] italic opacity-40 font-medium py-1">
+                    Sin estilos guardados
+                  </span>
+                ) : (
+                  savedStyles.map((item, idx) => {
+                    const itemColor = item.color || '#212121';
+                    const itemBg = item.backgroundColor || 'transparent';
+                    const itemBorderColor = item.borderColor || 'transparent';
+                    const itemBorderWidth = item.borderWidth ?? 0;
+                    const itemBorderStyle = item.borderStyle || 'solid';
+                    const itemRadius = item.borderRadius ?? 0;
+                    const itemShadowBlur = item.shadowBlur ?? 0;
+                    const itemShadowColor = item.shadowColor || 'rgba(0,0,0,0)';
+                    const itemShadowX = item.shadowOffsetX ?? 0;
+                    const itemShadowY = item.shadowOffsetY ?? 0;
+                    const itemShadowCss = (itemShadowBlur > 0 || itemShadowX !== 0 || itemShadowY !== 0)
+                      ? `${itemShadowX}px ${itemShadowY}px ${itemShadowBlur}px ${itemShadowColor}`
+                      : 'none';
+
+                    const itemHasBg = itemBg && itemBg !== 'transparent';
+                    const itemHasBorder = itemBorderWidth > 0 && itemBorderStyle !== 'none';
+                    const itemHasShadow = itemShadowCss !== 'none';
+                    const itemHasTextColor = elementType === 'text' && itemColor && itemColor !== 'transparent';
+                    const itemIsConfigured = itemHasBg || itemHasBorder || itemHasShadow || itemHasTextColor;
+                    const itemIsBorderGradient = isGrad(itemBorderColor);
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => onChange(item)}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmIndex(idx);
+                        }}
+                        className="group/item relative shrink-0 w-7 h-7 rounded-md transition-all flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 overflow-hidden"
+                        title="Un clic para aplicar | Doble clic para eliminar"
+                        style={{
+                          background: isGrad(itemBg)
+                            ? itemBg
+                            : (isGrad(itemColor) && elementType === 'text' ? itemColor : undefined),
+                          backgroundColor: !isGrad(itemBg)
+                            ? (itemBg === 'transparent'
+                                ? (elementType === 'text' && itemColor && !isGrad(itemColor) && itemColor !== 'transparent' ? itemColor : 'var(--bg-app)')
+                                : itemBg)
+                            : undefined,
+                          borderColor: (itemBorderWidth > 0 && itemBorderStyle !== 'none')
+                            ? (itemIsBorderGradient ? 'transparent' : itemBorderColor)
+                            : 'var(--border-color)',
+                          borderImage: (itemBorderWidth > 0 && itemBorderStyle !== 'none' && itemIsBorderGradient)
+                            ? `${itemBorderColor} 1`
+                            : undefined,
+                          borderWidth: (itemBorderWidth > 0 && itemBorderStyle !== 'none') ? `${Math.min(itemBorderWidth, 2)}px` : '1px',
+                          borderStyle: (itemBorderWidth > 0 && itemBorderStyle !== 'none') ? itemBorderStyle : 'solid',
+                          borderRadius: `${Math.min(itemRadius, 6)}px`,
+                          boxShadow: itemShadowCss !== 'none' ? itemShadowCss : undefined,
+                        }}
+                      >
+                        {!itemIsConfigured && (
+                          <span className="text-[7px] font-extrabold select-none opacity-40" style={{ color: 'var(--text-muted)' }}>
+                            N/A
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Modal de confirmación para eliminar estilo (Sistema interno) */}
+            {deleteConfirmIndex !== null && (
+              <div className="absolute inset-0 z-50 rounded-xl bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150">
+                <div
+                  className="w-full p-3 rounded-lg border shadow-xl text-center space-y-2"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-main)',
+                  }}
+                >
+                  <p className="text-[11px] font-bold">
+                    ¿Deseas eliminar este estilo guardado?
+                  </p>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmIndex(null)}
+                      className="px-2.5 py-1 rounded text-[10px] font-semibold border hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                      style={{
+                        backgroundColor: 'var(--bg-app)',
+                        borderColor: 'var(--border-color)',
+                        color: 'var(--text-main)',
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDeleteStyle}
+                      className="px-2.5 py-1 rounded text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 transition-colors cursor-pointer shadow-2xs"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* BOTONES ABAJO A LA DERECHA: CANCELAR Y AGREGAR */}
             <div className="flex items-center justify-end gap-1.5 pt-2.5 mt-2.5 border-t" style={{ borderColor: 'var(--border-color)' }}>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={handleCancel}
                 className="px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
                 style={{
                   backgroundColor: 'var(--bg-app)',
