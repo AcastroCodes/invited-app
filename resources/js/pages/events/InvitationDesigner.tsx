@@ -1416,10 +1416,41 @@ export default function InvitationDesigner() {
                                       })()}
                                     </linearGradient>
                                   )}
+                                  {hasShadow && (
+                                    <filter id={`shadow-filter-${el.id}`} x="-20%" y="-20%" width="140%" height="140%">
+                                      <feDropShadow
+                                        dx={el.textShadowOffsetX || 0}
+                                        dy={el.textShadowOffsetY || 0}
+                                        stdDeviation={(el.textShadowBlur || 0) / 2}
+                                        floodColor={el.textShadowColor || 'rgba(0,0,0,0.5)'}
+                                      />
+                                    </filter>
+                                  )}
                                 </defs>
                                 <path id={pathId} d={dPath} fill="none" stroke="none" />
 
-                                {/* Si el borde debe estar abajo o redibujado por encima */}
+                                {/* Si hay sombra, dibujamos la sombra por debajo de todo */}
+                                {hasShadow && (
+                                  <text
+                                    fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
+                                    fontWeight={el.fontWeight || 'bold'}
+                                    fontFamily={el.fontFamily || 'Inter'}
+                                    letterSpacing={el.letterSpacing ?? 0}
+                                    textAnchor="middle"
+                                    filter={`url(#shadow-filter-${el.id})`}
+                                    style={{
+                                      stroke: tBorderW > 0 ? (isGradBorder ? '#E07A5F' : tBorderC) : undefined,
+                                      strokeWidth: tBorderW > 0 ? `${tBorderW * 2}px` : undefined,
+                                      fill: isGradColor ? `url(#${gradId})` : tColor,
+                                    }}
+                                  >
+                                    <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
+                                      {el.content}
+                                    </textPath>
+                                  </text>
+                                )}
+
+                                {/* Capa de Trazo / Borde de Texto */}
                                 {tBorderW > 0 && (
                                   <text
                                     fontSize={el.fontSize ? `${el.fontSize}px` : '24px'}
@@ -1431,7 +1462,6 @@ export default function InvitationDesigner() {
                                       stroke: isGradBorder ? '#E07A5F' : tBorderC,
                                       strokeWidth: `${tBorderW * 2}px`,
                                       fill: 'none',
-                                      filter: shadowStr ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : undefined,
                                     }}
                                   >
                                     <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
@@ -1451,7 +1481,6 @@ export default function InvitationDesigner() {
                                   style={{
                                     stroke: (!el.textAboveBorder && tBorderW > 0) ? (isGradBorder ? '#E07A5F' : tBorderC) : undefined,
                                     strokeWidth: (!el.textAboveBorder && tBorderW > 0) ? `${tBorderW}px` : undefined,
-                                    filter: (!tBorderW && shadowStr) ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : undefined,
                                   }}
                                 >
                                   <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
@@ -1465,22 +1494,38 @@ export default function InvitationDesigner() {
 
                         return el.textAboveBorder ? (
                           <div className="w-full relative inline-block text-left" style={{ textAlign: el.textAlign || 'left', transform: skewTransform }}>
-                            {/* Capa inferior: Trazo de borde del texto */}
+                            {/* Capa inferior de Sombra proyectada por debajo de todo */}
+                            {hasShadow && (
+                              <span
+                                className="w-full absolute inset-0 block truncate pointer-events-none select-none opacity-90"
+                                style={{
+                                  color: isGradBorder ? 'transparent' : (tBorderW > 0 ? tBorderC : tColor),
+                                  backgroundImage: isGradBorder ? tBorderC : undefined,
+                                  WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
+                                  WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
+                                  WebkitTextStroke: tBorderW > 0 ? `${tBorderW * 2}px ${isGradBorder ? 'transparent' : tBorderC}` : undefined,
+                                  filter: `drop-shadow(${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'})`,
+                                  letterSpacing: lSpacing,
+                                }}
+                              >
+                                {el.content}
+                              </span>
+                            )}
+                            {/* Capa intermedia: Trazo de borde del texto sin la sombra encima */}
                             <span
-                              className="w-full block truncate"
+                              className="w-full block truncate relative"
                               style={{
                                 color: isGradBorder ? 'transparent' : (tBorderW > 0 ? tBorderC : 'transparent'),
                                 backgroundImage: isGradBorder ? tBorderC : undefined,
                                 WebkitBackgroundClip: isGradBorder ? 'text' : undefined,
                                 WebkitTextFillColor: isGradBorder ? 'transparent' : undefined,
                                 WebkitTextStroke: tBorderW > 0 ? `${tBorderW * 2}px ${isGradBorder ? 'transparent' : tBorderC}` : undefined,
-                                textShadow: shadowStr,
                                 letterSpacing: lSpacing,
                               }}
                             >
                               {el.content}
                             </span>
-                            {/* Capa superior: Texto limpio redibujado por encima */}
+                            {/* Capa superior: Texto limpio redibujado por encima del borde */}
                             <span
                               className="w-full absolute inset-0 block truncate pointer-events-none"
                               style={{
@@ -1503,7 +1548,7 @@ export default function InvitationDesigner() {
                               backgroundImage: isGradColor ? tColor : undefined,
                               WebkitBackgroundClip: isGradColor ? 'text' : undefined,
                               WebkitTextFillColor: isGradColor ? 'transparent' : undefined,
-                              textShadow: shadowStr,
+                              filter: shadowStr ? `drop-shadow(${el.textShadowOffsetX || 0}px ${el.textShadowOffsetY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || 'rgba(0,0,0,0.5)'})` : undefined,
                               WebkitTextStroke: tBorderW > 0 ? `${tBorderW}px ${isGradBorder ? '#000' : tBorderC}` : undefined,
                               letterSpacing: lSpacing,
                               transform: skewTransform,
