@@ -690,7 +690,7 @@ export default function InvitationDesigner() {
     });
   };
 
-  // Listener para Ctrl+Z / Cmd+Z en todo el diseñador
+  // Listener para atajos de teclado globales (Ctrl+Z: Deshacer, Ctrl+G: Agrupar, Ctrl+Shift+G: Desagrupar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignorar si se está escribiendo dentro de un input o textarea editable
@@ -699,15 +699,30 @@ export default function InvitationDesigner() {
         return;
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      const keyLower = e.key.toLowerCase();
+
+      // Ctrl + Z / Cmd + Z (Deshacer)
+      if (isCmdOrCtrl && keyLower === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
+      }
+
+      // Ctrl + Shift + G / Cmd + Shift + G (Desagrupar)
+      if (isCmdOrCtrl && e.shiftKey && keyLower === 'g') {
+        e.preventDefault();
+        handleUngroupSelected();
+      }
+      // Ctrl + G / Cmd + G (Agrupar)
+      else if (isCmdOrCtrl && !e.shiftKey && keyLower === 'g') {
+        e.preventDefault();
+        handleGroupSelected();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [elements, historyStack]);
+  }, [elements, historyStack, selectedElementIds, selectedElementId]);
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
