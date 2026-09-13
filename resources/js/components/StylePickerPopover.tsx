@@ -171,6 +171,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
           const hasShadow = shadowCss !== 'none';
           const hasTextColor = elementType === 'text' && color && color !== 'transparent';
           const isConfigured = hasBackground || hasBorder || hasShadow || hasTextColor;
+          const isBorderGradient = isGrad(borderColor);
 
           return (
             <div
@@ -185,8 +186,11 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                       : backgroundColor)
                   : undefined,
                 borderColor: (borderWidth > 0 && borderStyle !== 'none')
-                  ? (isGrad(borderColor) ? '#E07A5F' : borderColor)
+                  ? (isBorderGradient ? 'transparent' : borderColor)
                   : 'transparent',
+                borderImage: (borderWidth > 0 && borderStyle !== 'none' && isBorderGradient)
+                  ? `${borderColor} 1`
+                  : undefined,
                 borderWidth: (borderWidth > 0 && borderStyle !== 'none') ? `${Math.min(borderWidth, 3)}px` : '0px',
                 borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
                 borderRadius: `${Math.min(borderRadius, 6)}px`,
@@ -311,7 +315,10 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     backgroundColor: !isGrad(backgroundColor)
                       ? (backgroundColor === 'transparent' ? '#FFFFFF' : backgroundColor)
                       : undefined,
-                    borderColor: (borderWidth > 0 && borderColor) ? borderColor : 'transparent',
+                    borderColor: (borderWidth > 0 && borderColor) ? (isGrad(borderColor) ? 'transparent' : borderColor) : 'transparent',
+                    borderImage: (borderWidth > 0 && borderStyle !== 'none' && isGrad(borderColor))
+                      ? `${borderColor} 1`
+                      : undefined,
                     borderWidth: borderWidth > 0 ? `${borderWidth}px` : '0px',
                     borderStyle: (borderWidth > 0 && borderStyle !== 'none') ? borderStyle : 'none',
                     borderRadius: `${borderRadius}px`,
