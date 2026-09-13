@@ -13,6 +13,7 @@ export interface AssetItem {
 
 interface AssetPickerPopoverProps {
   partnerId?: number | string;
+  partnerName?: string;
   value?: string;
   onChange: (val: string) => void;
   label?: string;
@@ -22,6 +23,7 @@ interface AssetPickerPopoverProps {
 
 export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
   partnerId,
+  partnerName = 'ConceptoDigital',
   value = '',
   onChange,
   label = 'Imagen del Elemento',
@@ -245,9 +247,8 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-extrabold uppercase opacity-70 tracking-wider flex items-center gap-1">
             <UploadCloud size={11} style={{ color: 'var(--primary-accent)' }} />
-            Banco del Partner ({assets.length})
+            Assets {partnerName ? `de ${partnerName}` : ''} ({assets.length})
           </span>
-          <span className="text-[8px] opacity-50 font-medium">1 Clic: Elegir | 2 Clics: Borrar</span>
         </div>
 
         {/* Galería Horizontal Desplazable */}

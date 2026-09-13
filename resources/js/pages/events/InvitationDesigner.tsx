@@ -223,6 +223,19 @@ interface CanvasElement {
   animEasing?: 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';
   locked?: boolean;
   visible?: boolean;
+  objectFit?: string;
+  imgScale?: number;
+  initialWidth?: number;
+  initialHeight?: number;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  repeatTileSize?: number;
+  imgBrightness?: number;
+  imgContrast?: number;
+  imgSaturate?: number;
+  imgBlur?: number;
+  imgGrayscale?: boolean;
+  imgSepia?: boolean;
 }
 
 interface FontOption {
@@ -357,6 +370,7 @@ export default function InvitationDesigner() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     content: true,
     transform: false,
+    imageFit: false,
     typography: false,
     wordart: false,
     container: false,
@@ -368,6 +382,7 @@ export default function InvitationDesigner() {
       return {
         content: false,
         transform: false,
+        imageFit: false,
         typography: false,
         wordart: false,
         container: false,
@@ -827,7 +842,12 @@ export default function InvitationDesigner() {
         content: newVal,
         width: newW,
         height: newH,
+        initialWidth: newW,
+        initialHeight: newH,
+        naturalWidth: img.naturalWidth || newW,
+        naturalHeight: img.naturalHeight || newH,
         keepAspectRatio: true,
+        imgScale: 100,
       });
     };
     img.onerror = () => {
@@ -1351,7 +1371,7 @@ export default function InvitationDesigner() {
                       isSelected ? 'outline-4 outline-dashed outline-pink-500' : ''
                     }`}
                     style={{
-                      zIndex: isSelected ? 999 : elements.length - index,
+                      zIndex: elements.length - index,
                       left: `${el.x}px`,
                       top: `${el.y}px`,
                       width: `${el.width}px`,
@@ -1629,11 +1649,28 @@ export default function InvitationDesigner() {
                       })()
                     ) : el.type === 'image' ? (
                       el.content ? (
-                        <img
-                          src={el.content}
-                          alt="Imagen del elemento"
-                          className="w-full h-full object-contain pointer-events-none select-none"
-                        />
+                        el.objectFit === 'repeat' || el.objectFit === 'repeat-x' || el.objectFit === 'repeat-y' ? (
+                          <div
+                            className="w-full h-full pointer-events-none select-none transition-all"
+                            style={{
+                              backgroundImage: `url(${el.content})`,
+                              backgroundRepeat: el.objectFit,
+                              backgroundSize: el.repeatTileSize ? `${el.repeatTileSize}px auto` : 'auto',
+                              backgroundPosition: 'top left',
+                              filter: `brightness(${el.imgBrightness !== undefined ? el.imgBrightness : 100}%) contrast(${el.imgContrast !== undefined ? el.imgContrast : 100}%) saturate(${el.imgSaturate !== undefined ? el.imgSaturate : 100}%) blur(${el.imgBlur || 0}px) ${el.imgGrayscale ? 'grayscale(100%)' : ''} ${el.imgSepia ? 'sepia(100%)' : ''}`.trim(),
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={el.content}
+                            alt="Imagen del elemento"
+                            className="w-full h-full pointer-events-none select-none transition-all"
+                            style={{
+                              objectFit: (el.objectFit as any) || 'contain',
+                              filter: `brightness(${el.imgBrightness !== undefined ? el.imgBrightness : 100}%) contrast(${el.imgContrast !== undefined ? el.imgContrast : 100}%) saturate(${el.imgSaturate !== undefined ? el.imgSaturate : 100}%) blur(${el.imgBlur || 0}px) ${el.imgGrayscale ? 'grayscale(100%)' : ''} ${el.imgSepia ? 'sepia(100%)' : ''}`.trim(),
+                            }}
+                          />
+                        )
                       ) : (
                         <div className="flex flex-col items-center justify-center w-full h-full bg-blue-950/20 border-2 border-dashed border-blue-500/40 rounded-xl text-blue-400 gap-2 text-sm font-bold p-2 text-center select-none">
                           <ImageIcon size={32} />
@@ -1805,6 +1842,12 @@ export default function InvitationDesigner() {
                         <div className="pt-2">
                           <AssetPickerPopover
                             partnerId={event?.partner_id}
+                            partnerName={
+                              event?.partner?.business_name ||
+                              event?.partner?.contact_name ||
+                              event?.partner?.user?.name ||
+                              'ConceptoDigital'
+                            }
                             value={selectedElement.content}
                             onChange={handleImageContentChange}
                           />
@@ -2012,6 +2055,241 @@ export default function InvitationDesigner() {
                     </div>
                   )}
                 </div>
+
+                {/* 2.5 ACORDEÓN: AJUSTE & FILTROS DE IMAGEN (solo para tipo image) */}
+                {selectedElement.type === 'image' && (
+                  <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSection('imageFit')}
+                      className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
+                      style={{ color: openSections.imageFit ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                    >
+                      <span>Ajuste & Filtros de Imagen</span>
+                      {openSections.imageFit ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+
+                    {openSections.imageFit && (
+                      <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                        {/* 1. MODO DE ENCUADRE Y REPETICIÓN */}
+                        <div>
+                          <label className="block font-extrabold mb-1.5 uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                            Modo de Encuadre
+                          </label>
+                          <div className="grid grid-cols-4 gap-1 p-0.5 rounded-lg border shadow-2xs mb-2" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            {[
+                              { id: 'contain', label: 'Ajustar', title: 'Ajustar (Mantiene imagen completa)' },
+                              { id: 'cover', label: 'Cubrir', title: 'Cubrir (Recorta los bordes sobrantes)' },
+                              { id: 'fill', label: 'Estirar', title: 'Estirar (Llenar contenedor)' },
+                              { id: 'none', label: 'Real', title: 'Sin escala (Tamaño original)' },
+                            ].map((mode) => {
+                              const currentFit = selectedElement.objectFit || 'contain';
+                              const isActive = currentFit === mode.id;
+                              return (
+                                <button
+                                  key={mode.id}
+                                  type="button"
+                                  onClick={() => updateSelectedElement('objectFit', mode.id)}
+                                  title={mode.title}
+                                  className="py-1 rounded-md text-[9px] font-extrabold uppercase transition-all cursor-pointer select-none border flex items-center justify-center"
+                                  style={{
+                                    backgroundColor: isActive ? 'var(--primary-accent-light)' : 'transparent',
+                                    borderColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                    color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
+                                  }}
+                                >
+                                  {mode.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* FILA CONJUNTA: ESCALA A LA IZQUIERDA Y SELECT DE REPETICIÓN A LA DERECHA */}
+                          <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
+                            {/* Control Escala de Imagen tomando en cuenta su tamaño original */}
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Escala (%)
+                              </label>
+                              <InspectorNumberInput
+                                value={(() => {
+                                  const baseW = selectedElement.initialWidth || selectedElement.naturalWidth || selectedElement.width || 200;
+                                  if (!baseW) return 100;
+                                  return Math.round((selectedElement.width / baseW) * 100);
+                                })()}
+                                min={10}
+                                max={500}
+                                step={5}
+                                onChange={(scaleVal) => {
+                                  // Base sobre la cual calcular el porcentaje (initialWidth o width si no existe)
+                                  const baseW = selectedElement.initialWidth || selectedElement.naturalWidth || selectedElement.width || 200;
+                                  const baseH = selectedElement.initialHeight || selectedElement.naturalHeight || selectedElement.height || 200;
+                                  const currentAspect = selectedElement.width > 0 && selectedElement.height > 0 ? selectedElement.height / selectedElement.width : baseH / baseW;
+                                  
+                                  const targetW = Math.round(baseW * (scaleVal / 100));
+                                  const targetH = Math.round(targetW * currentAspect);
+
+                                  updateSelectedElementBatch({
+                                    imgScale: scaleVal,
+                                    initialWidth: baseW,
+                                    initialHeight: baseH,
+                                    width: Math.max(10, targetW),
+                                    height: Math.max(10, targetH),
+                                  });
+                                }}
+                              />
+                            </div>
+
+                            {/* Select de Repetición / Patrón */}
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Repetición
+                              </label>
+                              <select
+                                value={
+                                  selectedElement.objectFit === 'repeat' ||
+                                  selectedElement.objectFit === 'repeat-x' ||
+                                  selectedElement.objectFit === 'repeat-y'
+                                    ? selectedElement.objectFit
+                                    : 'no-repeat'
+                                }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === 'no-repeat') {
+                                    updateSelectedElement('objectFit', 'contain');
+                                  } else {
+                                    updateSelectedElement('objectFit', val);
+                                  }
+                                }}
+                                className="w-full h-7 rounded-lg border px-2 text-[10px] font-bold outline-none cursor-pointer transition-all focus:ring-1 focus:ring-[var(--primary-accent)]"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                  color: 'var(--text-main)',
+                                }}
+                              >
+                                <option value="no-repeat">Sin repetición</option>
+                                <option value="repeat">Repetir (Mosaico XY)</option>
+                                <option value="repeat-x">Repetir X (Horizontal)</option>
+                                <option value="repeat-y">Repetir Y (Vertical)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Si está activa la repetición en mosaico, permitir ajustar tamaño del azulejo */}
+                          {(selectedElement.objectFit === 'repeat' ||
+                            selectedElement.objectFit === 'repeat-x' ||
+                            selectedElement.objectFit === 'repeat-y') && (
+                            <div className="pt-2 font-mono">
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Tamaño del Azulejo Patrón (px)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.repeatTileSize || 100}
+                                min={10}
+                                max={1000}
+                                step={10}
+                                onChange={(val) => updateSelectedElement('repeatTileSize', val)}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 2. FILTROS VISUALES DE IMAGEN */}
+                        <div className="space-y-2 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                          <span className="block font-extrabold uppercase text-[9px] tracking-wider opacity-70" style={{ color: 'var(--text-muted)' }}>
+                            Filtros de Color & Ajuste
+                          </span>
+
+                          {/* Brillo & Contraste */}
+                          <div className="grid grid-cols-2 gap-2 font-mono">
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Brillo (%)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.imgBrightness !== undefined ? selectedElement.imgBrightness : 100}
+                                min={0}
+                                max={200}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('imgBrightness', val)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Contraste (%)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.imgContrast !== undefined ? selectedElement.imgContrast : 100}
+                                min={0}
+                                max={200}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('imgContrast', val)}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Saturación & Desenfoque */}
+                          <div className="grid grid-cols-2 gap-2 font-mono">
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Saturación (%)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.imgSaturate !== undefined ? selectedElement.imgSaturate : 100}
+                                min={0}
+                                max={200}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('imgSaturate', val)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Blur (px)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.imgBlur || 0}
+                                min={0}
+                                max={20}
+                                step={1}
+                                onChange={(val) => updateSelectedElement('imgBlur', val)}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Toggles de Efectos Rápidos: B&N y Sepia */}
+                          <div className="grid grid-cols-2 gap-1.5 pt-1.5">
+                            <button
+                              type="button"
+                              onClick={() => updateSelectedElement('imgGrayscale', !selectedElement.imgGrayscale)}
+                              className="py-1 px-2 rounded-lg border text-[9px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              style={{
+                                backgroundColor: selectedElement.imgGrayscale ? 'var(--primary-accent-light)' : 'var(--bg-card)',
+                                borderColor: selectedElement.imgGrayscale ? 'var(--primary-accent)' : 'var(--border-color)',
+                                color: selectedElement.imgGrayscale ? 'var(--primary-accent)' : 'var(--text-main)',
+                              }}
+                            >
+                              Blanco y Negro
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => updateSelectedElement('imgSepia', !selectedElement.imgSepia)}
+                              className="py-1 px-2 rounded-lg border text-[9px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              style={{
+                                backgroundColor: selectedElement.imgSepia ? 'var(--primary-accent-light)' : 'var(--bg-card)',
+                                borderColor: selectedElement.imgSepia ? 'var(--primary-accent)' : 'var(--border-color)',
+                                color: selectedElement.imgSepia ? 'var(--primary-accent)' : 'var(--text-main)',
+                              }}
+                            >
+                              Tono Sepia
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 3. ACORDEÓN: TIPOGRAFÍA & ESTILO (solo si aplica a Texto o Botones) */}
                 {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
