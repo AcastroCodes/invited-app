@@ -59,6 +59,8 @@ import {
   Waves,
   Spline,
   Mountain,
+  Undo,
+  LoaderCircle,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
@@ -186,7 +188,7 @@ interface CanvasElement {
   textShadowOffsetX?: number;
   textShadowOffsetY?: number;
   textAboveBorder?: boolean;
-  wordArtShape?: 'none' | 'arcUp' | 'arcDown' | 'circle' | 'wave' | 'bulge' | 'skew' | 'semicircle';
+  wordArtShape?: 'none' | 'arc' | 'arcUp' | 'arcDown' | 'circle' | 'wave' | 'bulge' | 'skew' | 'semicircle';
   wordArtCurve?: number;
   letterSpacing?: number;
   skewX?: number;
@@ -1368,9 +1370,10 @@ export default function InvitationDesigner() {
                         const wShape = el.wordArtShape || 'none';
                         const curveVal = el.wordArtCurve ?? 50;
 
-                        if (wShape === 'arcUp' || wShape === 'arcDown' || wShape === 'wave' || wShape === 'circle' || wShape === 'semicircle') {
+                        if (wShape === 'arc' || wShape === 'arcUp' || wShape === 'arcDown' || wShape === 'wave' || wShape === 'circle' || wShape === 'semicircle' || wShape === 'bulge') {
                           const pathId = `wordart-path-${el.id}`;
                           const gradId = `wordart-grad-${el.id}`;
+                          const gradBorderId = `wordart-grad-border-${el.id}`;
                           const w = Math.max(100, el.width);
                           const h = Math.max(40, el.height);
                           const curveOffset = Math.round((curveVal / 100) * (h * 0.8));
@@ -1382,15 +1385,37 @@ export default function InvitationDesigner() {
                           } else if (wShape === 'wave') {
                             dPath = `M 0 ${centerY} Q ${w / 4} ${centerY - curveOffset} ${w / 2} ${centerY} T ${w} ${centerY}`;
                           } else if (wShape === 'circle') {
-                            const r = Math.min(w, h) / 2.2;
-                            dPath = `M ${w / 2} ${centerY - r} A ${r} ${r} 0 1 1 ${w / 2 - 0.1} ${centerY - r}`;
+                            // Círculo completo 360° con ángulo de inicio controlado por la curvatura
+                            const r = Math.min(w, h) / 2.3;
+                            const isPositive = curveVal >= 0;
+                            // El valor de curvatura (-100 a +100) rota el punto de inicio de la circunferencia
+                            const angleDeg = curveVal * 3.6; // Convertir porcentaje a grados (-360° a +360°)
+                            const angleRad = (angleDeg - 90) * (Math.PI / 180);
+                            
+                            // Punto de inicio calculado en la circunferencia
+                            const startX = w / 2 + r * Math.cos(angleRad);
+                            const startY = centerY + r * Math.sin(angleRad);
+                            
+                            // Si es positivo: de arriba hacia abajo (sweep 1). Si es negativo: de abajo hacia arriba (sweep 0)
+                            const sweep = isPositive ? 1 : 0;
+                            
+                            // Usamos dos arcos de 180° continuos para evitar problemas de renderizado al revés
+                            const midX = w / 2 - (startX - w / 2);
+                            const midY = centerY - (startY - centerY);
+
+                            dPath = `M ${startX} ${startY} A ${r} ${r} 0 1 ${sweep} ${midX} ${midY} A ${r} ${r} 0 1 ${sweep} ${startX - 0.01} ${startY - 0.01}`;
                           } else if (wShape === 'semicircle') {
                             // Semicírculo: Empieza abajo a la izquierda, sube en arco de 180° y cae a la derecha
                             const rx = w / 2;
                             const ry = Math.max(10, Math.min(h * 0.85, (curveVal / 100) * h));
                             const baseScaleY = Math.min(h - 5, centerY + (ry / 2));
                             dPath = `M 0 ${baseScaleY} A ${rx} ${ry} 0 0 1 ${w} ${baseScaleY}`;
+                          } else if (wShape === 'bulge') {
+                            // Inflado (Bulge): Línea base horizontal recta, la escala vertical abomba hacia arriba y abajo en el centro
+                            dPath = `M 0 ${centerY} L ${w} ${centerY}`;
                           }
+
+                          const strokeVal = isGradBorder ? `url(#${gradBorderId})` : tBorderC;
 
                           return (
                             <div className="w-full h-full flex items-center justify-center relative overflow-visible" style={{ transform: skewTransform }}>
@@ -1401,6 +1426,26 @@ export default function InvitationDesigner() {
                                       {(() => {
                                         const stopsMatches = Array.from(
                                           tColor.matchAll(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\)|[a-zA-Z]+)\s+(\d+)%/g)
+                                        );
+                                        if (stopsMatches.length >= 2) {
+                                          return stopsMatches.map((m, idx) => (
+                                            <stop key={idx} offset={`${m[2]}%`} stopColor={m[1]} />
+                                          ));
+                                        }
+                                        return (
+                                          <>
+                                            <stop offset="0%" stopColor="#E07A5F" />
+                                            <stop offset="100%" stopColor="#F2CC8F" />
+                                          </>
+                                        );
+                                      })()}
+                                    </linearGradient>
+                                  )}
+                                  {isGradBorder && (
+                                    <linearGradient id={gradBorderId} x1="0%" y1="0%" x2="100%" y2="100%">
+                                      {(() => {
+                                        const stopsMatches = Array.from(
+                                          tBorderC.matchAll(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\)|[a-zA-Z]+)\s+(\d+)%/g)
                                         );
                                         if (stopsMatches.length >= 2) {
                                           return stopsMatches.map((m, idx) => (
@@ -1439,7 +1484,7 @@ export default function InvitationDesigner() {
                                     textAnchor="middle"
                                     filter={`url(#shadow-filter-${el.id})`}
                                     style={{
-                                      stroke: tBorderW > 0 ? (isGradBorder ? '#E07A5F' : tBorderC) : undefined,
+                                      stroke: tBorderW > 0 ? strokeVal : undefined,
                                       strokeWidth: tBorderW > 0 ? `${tBorderW * 2}px` : undefined,
                                       fill: isGradColor ? `url(#${gradId})` : tColor,
                                     }}
@@ -1459,7 +1504,7 @@ export default function InvitationDesigner() {
                                     letterSpacing={el.letterSpacing ?? 0}
                                     textAnchor="middle"
                                     style={{
-                                      stroke: isGradBorder ? '#E07A5F' : tBorderC,
+                                      stroke: strokeVal,
                                       strokeWidth: `${tBorderW * 2}px`,
                                       fill: 'none',
                                     }}
@@ -1479,7 +1524,7 @@ export default function InvitationDesigner() {
                                   letterSpacing={el.letterSpacing ?? 0}
                                   textAnchor="middle"
                                   style={{
-                                    stroke: (!el.textAboveBorder && tBorderW > 0) ? (isGradBorder ? '#E07A5F' : tBorderC) : undefined,
+                                    stroke: (!el.textAboveBorder && tBorderW > 0) ? strokeVal : undefined,
                                     strokeWidth: (!el.textAboveBorder && tBorderW > 0) ? `${tBorderW}px` : undefined,
                                   }}
                                 >
@@ -2116,14 +2161,12 @@ export default function InvitationDesigner() {
                           <label className="block font-bold mb-1.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
                             Forma de Texto
                           </label>
-                          <div className="grid grid-cols-4 gap-1 rounded-lg p-1 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <div className="grid grid-cols-5 gap-1 rounded-lg p-1 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                             {[
                               { id: 'none', label: 'Normal', icon: Minus },
-                              { id: 'arcUp', label: 'Arco Arriba', icon: Moon },
-                              { id: 'arcDown', label: 'Arco Abajo', icon: Sun },
+                              { id: 'arc', label: 'Arco', icon: Spline },
                               { id: 'wave', label: 'Onda', icon: Waves },
-                              { id: 'semicircle', label: 'Semicírculo', icon: Moon },
-                              { id: 'bulge', label: 'Abombado', icon: Sparkles },
+                              { id: 'circle', label: 'Circular', icon: LoaderCircle },
                               { id: 'skew', label: 'Inclinado', icon: Spline },
                             ].map((item) => {
                               const IconComp = item.icon;
@@ -2134,7 +2177,7 @@ export default function InvitationDesigner() {
                                   type="button"
                                   onClick={() => updateSelectedElement('wordArtShape', item.id as any)}
                                   title={item.label}
-                                  className={`flex flex-col items-center justify-center p-1.5 rounded-md transition-all cursor-pointer ${
+                                  className={`flex items-center justify-center h-7 rounded-md transition-all cursor-pointer ${
                                     isSelected ? 'font-extrabold shadow-2xs' : 'hover:opacity-80'
                                   }`}
                                   style={{
@@ -2143,17 +2186,16 @@ export default function InvitationDesigner() {
                                     borderColor: isSelected ? 'var(--primary-accent)' : 'transparent',
                                   }}
                                 >
-                                  <IconComp size={15} />
-                                  <span className="text-[9px] mt-0.5 font-semibold truncate w-full text-center">{item.label}</span>
+                                  <IconComp size={16} />
                                 </button>
                               );
                             })}
                           </div>
                         </div>
 
-                        {/* Controles en la misma fila: Curvatura (si aplica) y Espaciado de Letras */}
-                        <div className="grid grid-cols-2 gap-2">
-                          {selectedElement.wordArtShape && selectedElement.wordArtShape !== 'none' ? (
+                        {/* Controles: Curvatura (si aplica) y Espaciado de Letras */}
+                        <div className={selectedElement.wordArtShape && selectedElement.wordArtShape !== 'none' ? 'grid grid-cols-2 gap-2' : 'w-full'}>
+                          {selectedElement.wordArtShape && selectedElement.wordArtShape !== 'none' && (
                             <div>
                               <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
                                 Curvatura (%)
@@ -2166,11 +2208,9 @@ export default function InvitationDesigner() {
                                 onChange={(val) => updateSelectedElement('wordArtCurve', val)}
                               />
                             </div>
-                          ) : (
-                            <div />
                           )}
 
-                          <div>
+                          <div className={selectedElement.wordArtShape && selectedElement.wordArtShape !== 'none' ? '' : 'w-full'}>
                             <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
                               Espaciado (px)
                             </label>
