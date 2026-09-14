@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import html2canvas from 'html2canvas';
 import {
   ArrowLeft,
   Save,
@@ -588,6 +589,7 @@ export default function InvitationDesigner() {
   };
 
   const mainContainerRef = useRef<HTMLDivElement>(null);
+  const stageCanvasRef = useRef<HTMLDivElement>(null);
 
   const handleFitToScreen = () => {
     if (!mainContainerRef.current) {
@@ -785,21 +787,68 @@ export default function InvitationDesigner() {
     if (hasUnsavedChanges) {
       setShowUnsavedModal(true);
     } else {
-      navigate(`/events/${eventId}/config`);
+      navigate(`/events/${eventId}/config?tab=INVITACION`);
     }
   };
 
   const handleConfirmExit = () => {
     setShowUnsavedModal(false);
-    navigate(`/events/${eventId}/config`);
+    navigate(`/events/${eventId}/config?tab=INVITACION`);
   };
 
   const handleSave = async () => {
     if (!invitationId) return;
     setSaving(true);
+
+    setSelectedElementId(null);
+    setSelectedElementIds([]);
+
+    let previewUrl: string | undefined = invitation?.content?.preview;
+
+    if (stageCanvasRef.current) {
+      try {
+        const stageNode = stageCanvasRef.current;
+        const currentZoom = zoom;
+
+        // Ocultar suave e imperceptiblemente el contenedor principal durante la micro-captura (50ms)
+        if (mainContainerRef.current) {
+          mainContainerRef.current.style.opacity = '0';
+          mainContainerRef.current.style.transition = 'none';
+        }
+
+        setZoom(100);
+        await new Promise((r) => setTimeout(r, 60));
+
+        const canvas = await html2canvas(stageNode, {
+          scale: 0.35,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#FFFFFF',
+          logging: false,
+          ignoreElements: (element) => element.classList.contains('outline-pink-500'),
+        });
+
+        previewUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        // Restaurar zoom y visibilidad suavemente
+        setZoom(currentZoom);
+        if (mainContainerRef.current) {
+          mainContainerRef.current.style.opacity = '1';
+        }
+      } catch (err) {
+        console.error('Error generando vista previa:', err);
+        if (mainContainerRef.current) {
+          mainContainerRef.current.style.opacity = '1';
+        }
+      }
+    }
+
     try {
       await api.put(`/invitations/${invitationId}`, {
-        content: { elements },
+        content: {
+          elements,
+          preview: previewUrl,
+        },
       });
       setSavedSuccess(true);
       setHasUnsavedChanges(false);
@@ -2039,9 +2088,19 @@ export default function InvitationDesigner() {
                 transform: `scale(${zoom / 100})`,
               }}
             >
+              {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
+              <div
+                className="absolute inset-0 pointer-events-none z-[9999]"
+                style={{
+                  boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.82)',
+                }}
+              />
+
               {/* Canvas Stage 1080px x 1920px (Lienzo Pro con soporte para elementos fuera del lienzo con opacidad) */}
               <div
-                className="w-[1080px] h-[1920px] relative overflow-visible shadow-2xl border"
+                ref={stageCanvasRef}
+                data-stage-canvas="true"
+                className="w-[1080px] h-[1920px] relative overflow-hidden shadow-2xl border"
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderColor: 'var(--border-color)',
@@ -2052,13 +2111,6 @@ export default function InvitationDesigner() {
                   }
                 }}
               >
-                {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
-                <div
-                  className="absolute inset-0 pointer-events-none z-[9999]"
-                  style={{
-                    boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.82)',
-                  }}
-                />
 
               {/* Canvas Elements */}
               {elements.map((el, index) => {

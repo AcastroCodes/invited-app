@@ -214,7 +214,7 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
                       <img
                         src={inv.content.preview}
                         alt={inv.title}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain bg-white"
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center p-2 text-center">

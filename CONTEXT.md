@@ -1,32 +1,39 @@
 # Contexto de Desarrollo - Proyecto "Invited"
 
-Este archivo fue generado automáticamente para que el modelo de IA del día siguiente pueda retomar el contexto de inmediato.
+Este archivo mantiene el contexto del proyecto para retomar de inmediato en las siguientes sesiones de trabajo.
 
-## Estado Actual del Proyecto (Día 1 Completado)
-- **Stack:** Laravel 12 (API), React 19 (SPA), Vite, TailwindCSS v4.
-- **Autenticación:** Implementada con Laravel Sanctum (Cookies Stateful). El hook `useAuth.tsx` maneja el estado del usuario (`user`, `login`, `register`, `logout`) y la sesión persiste sin usar localStorage para tokens.
-- **UI Base Clonada:** Hemos migrado exitosamente el `AppLayout`, `Sidebar`, `Header` y `ThemeProvider` desde el proyecto `dInvitedapp`.
-- **Rutas Principales (app.jsx):**
-  - `/` -> Landing Page (Diseño original con globo 3D).
-  - `/login` -> Funcional, conectado a Sanctum.
-  - `/dashboard` -> Enrutado. Contiene gráficas (Recharts).
-  - `/events` -> Listado de eventos funcional.
-  - `/events/new` y `/events/:id/edit` -> `EventForm` implementado.
-  - `/users` y `/partners` -> Listados implementados.
+## Estado Actual del Proyecto (Última actualización: 14 de Septiembre, 2026)
+- **Stack:** Laravel 12 (API), React 19 (SPA), Vite, TailwindCSS v4, HTML2Canvas.
+- **Autenticación:** Implementada con Laravel Sanctum (Cookies Stateful) con el hook `useAuth.tsx`.
+- **Rutas Principales (`app.jsx`):**
+  - `/` -> Landing Page con globo 3D.
+  - `/login` -> Inicio de sesión.
+  - `/dashboard` -> Estadísticas e indicadores.
+  - `/events` -> Listado de eventos.
+  - `/events/:id/config` -> Pantalla unificada de servicios del evento (Invitados, Invitación, Protocolo, Tótem).
+  - `/events/:id/invitations/:invitationId/designer` -> **Diseñador de Invitaciones Interactivas 2D/3D (Clon estilo Canva/Jitter)**.
 
-## Lo que se completó en la sesión anterior:
-1. Migración total del entorno CSS. Tailwind v4 lee las variables `--bg-card`, `--text-main` correctamente para modo claro y oscuro.
-2. Construcción de la migración y controlador `EventController.php` con operaciones CRUD y campos: `name`, `event_type`, `event_date`, `location`, `description`, `theme_color`, `status`, `guest_count`, `confirmed_count`.
-3. Ajuste en el enrutamiento: El menú lateral apunta a rutas absolutas (`/users`, `/events`), por lo que `AppLayout` envuelve a estas rutas en el primer nivel del Router.
+## Avances Completados en esta Sesión:
+1. **Diseñador de Invitaciones (`InvitationDesigner.tsx`)**:
+   - Soporte para lienzo interactivo en formato móvil (1080x1920).
+   - Inserción y edición de elementos (Textos con Google Fonts & fuentes personalizadas, WordArt SVG curvo, Imágenes, Videos, Botones interactivos como RSVP, Figuras y Audios).
+   - Panel de capas con reordenamiento, agrupación (`Ctrl+G`), desagrupación (`Ctrl+Shift+G`), visibilidad y bloqueo.
+   - Historial de cambios Undo/Redo (`Ctrl+Z`, `Ctrl+Y`) con pila de 15 estados.
+   - Inspector de propiedades completo (tipografía, colores, bordes, sombras, animaciones).
+2. **Generación Automática de Previews & Navegación**:
+   - Implementado guardado de vista previa instantánea con `html2canvas`.
+   - Transparencia visual para el usuario: la micro-captura ajusta temporalmente la opacidad del lienzo para evitar parpadeos o saltos de zoom.
+   - La vista previa se almacena en `content.preview` de la invitación y se renderiza en la tarjeta de la izquierda en `http://localhost:8000/events/1/config?tab=INVITACION`.
+   - Navegación mejorada: al salir del diseñador o guardar, se regresa a `/events/:id/config?tab=INVITACION`.
 
-## Próximos Pasos Inmediatos (Fase 3 y 4)
-- **Fase 3 (Logística):** Construir la gestión de invitados y planimetría (las rutas `/guests` y `/tables` del menú lateral actual necesitan reestructurarse para depender del ID de un evento).
-- **Fase 4 (Diseñador 3D/Parallax):**
-  - Desarrollar un clon de `Jitter.video` orientado a invitaciones web.
-  - Construir un panel de lienzo libre, capas, e Inspector.
-  - Generar el JSON estandarizado que incluye `parallax_depth` para aplicar el efecto giroscopio a los elementos.
+## Pendientes para Continuar Mañana:
+1. **Perfeccionar la Vista Pública de Invitaciones (`/i/:slug` o `/i/:id`)**:
+   - Construir la vista donde los invitados finales abren el diseño guardado en sus dispositivos móviles.
+   - Implementar los efectos de entrada y animaciones configurados en el diseñador (`fadeIn`, `slideInUp`, `zoomIn`).
+   - Conectar los botones interactivos del diseño (Confirmación RSVP, Mapa con Leaflet, Galería, etc.).
+2. **Protocolo y Tótem de Recepción (Fases siguientes)**:
+   - Pantalla de check-in en puerta y kiosco interactivo para eventos.
 
-## Nota para el Desarrollador (Agente de IA)
-1. Antes de iniciar cualquier tarea, revisa este archivo.
-2. Todas las dependencias ya están instaladas (`npm install` y `composer install` si se cambió de PC).
-3. La base de datos es SQLite (`database/database.sqlite`), por lo que la data persiste entre PCs.
+## Notas para el Desarrollador (Agente de IA)
+1. Todas las dependencias están instaladas y verificadas con `npm run build`.
+2. La vista previa utiliza `object-contain bg-white` en `InvitationManager.tsx` para mantener la relación de aspecto 9:16 intacta.

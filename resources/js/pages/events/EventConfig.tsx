@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -77,10 +77,14 @@ export default function EventConfig() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const tabParam = searchParams.get('tab');
+
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('INVITADOS');
+  const [activeTab, setActiveTab] = useState<string>(tabParam ? tabParam.toUpperCase() : 'INVITADOS');
 
   const fetchEvent = () => {
     if (!id) return;
