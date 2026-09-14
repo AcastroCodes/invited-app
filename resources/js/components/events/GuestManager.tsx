@@ -58,11 +58,24 @@ interface GuestManagerProps {
 export default function GuestManager({ eventId }: GuestManagerProps) {
   const [groups, setGroups] = useState<GuestGroupItem[]>([]);
   const [invitations, setInvitations] = useState<InvitationOption[]>([]);
+  const [eventInfo, setEventInfo] = useState<{ name?: string; partnerName?: string }>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
   const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
   const excelMenuRef = React.useRef<HTMLDivElement>(null);
+
+  const getCleanFileName = (suffix: string) => {
+    const partner = (eventInfo.partnerName || 'partner').trim();
+    const eventName = (eventInfo.name || `evento_${eventId}`).trim();
+    const rawName = `${partner}_${eventName}_${suffix}`;
+    return rawName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+      .replace(/[^a-zA-Z0-9_\-]/g, '_') // Reemplazar caracteres especiales y espacios por guion bajo
+      .replace(/_+/g, '_') // Evitar guiones bajos dobles
+      .toLowerCase();
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -134,7 +147,8 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Lista de Invitados');
-    XLSX.writeFile(wb, `invitados_evento_${eventId}.xlsx`);
+    const fileName = `${getCleanFileName('invitados')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   // Modal State
@@ -360,7 +374,8 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
-    XLSX.writeFile(wb, 'invitadoexcel.xlsx');
+    const fileName = `${getCleanFileName('plantilla_invitados')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const handleExcelFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

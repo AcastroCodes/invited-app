@@ -49,7 +49,13 @@ class GuestController extends Controller
             ];
         });
 
+        $event->load('partner.user');
+
         return response()->json([
+            'eventInfo' => [
+                'name' => $event->name,
+                'partnerName' => $event->partner?->business_name ?? $event->partner?->user?->name ?? '',
+            ],
             'groups' => $groups,
             'invitations' => $invitations,
         ]);
