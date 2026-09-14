@@ -350,7 +350,7 @@ export default function EventConfig() {
             <span className="font-black text-sm uppercase tracking-wider">SERVICIOS</span>
           </div>
 
-          <div className="flex items-center gap-3 overflow-visible">
+          <div className="flex items-center gap-5 overflow-visible">
             {ALL_SERVICES.map((srv) => {
               const Icon = srv.icon;
               const isIncluded = srv.id === 'INVITADOS' || event.services?.includes(srv.id);
@@ -361,11 +361,12 @@ export default function EventConfig() {
               return (
                 <button
                   key={srv.id}
+                  title={!isActiveService ? srv.name : undefined}
                   onClick={() => setActiveTab(srv.id as any)}
                   className={`flex items-center gap-2 rounded-lg font-extrabold transition-all ${
                     isActiveService
                       ? 'bg-white text-[var(--primary-accent)] shadow-2xl text-base px-6 py-2.5 -my-3.5 z-30 scale-110 border-[3.5px]'
-                      : 'bg-white/20 text-white hover:bg-white/35 text-sm px-5 py-1'
+                      : 'bg-white/20 text-white hover:bg-white/35 p-1.5'
                   }`}
                   style={
                     isActiveService
@@ -373,8 +374,8 @@ export default function EventConfig() {
                       : undefined
                   }
                 >
-                  <Icon size={isActiveService ? 19 : 16} />
-                  <span>{srv.name}</span>
+                  <Icon size={isActiveService ? 19 : 18} />
+                  {isActiveService && <span>{srv.name}</span>}
                 </button>
               );
             })}

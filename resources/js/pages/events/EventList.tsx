@@ -773,21 +773,25 @@ export default function EventList() {
                     ) : null;
                   })}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/events/${ev.id}/config`);
-                    }}
-                    className="flex h-8 w-8 items-center justify-center rounded-t-lg rounded-b-none text-white shadow-sm transition-opacity hover:opacity-80"
-                    style={{ backgroundColor: 'var(--primary-accent)' }}
-                    title="Configuración"
-                  >
-                    <Settings size={16} />
-                  </button>
-
+                <div className="flex items-center justify-end gap-1">
                   <div
-                    className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
+                    className="flex items-center rounded-t-lg px-1.5 py-0.5 text-white"
+                    style={{ backgroundColor: 'var(--primary-accent)' }}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/events/${ev.id}/config`);
+                      }}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                      title="Configuración"
+                    >
+                      <Settings size={11} />
+                    </button>
+                  </div>
+                  
+                  <div
+                    className="flex items-center rounded-tl-lg px-1.5 py-0.5 text-white"
                     style={{ backgroundColor: 'var(--primary-accent)' }}
                   >
                     <button
@@ -795,20 +799,20 @@ export default function EventList() {
                         e.stopPropagation();
                         openEditModal(ev);
                       }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
                       title="Editar"
                     >
-                      <Pencil size={15} />
+                      <Pencil size={11} />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteId(ev.id);
                       }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
                       title="Eliminar"
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={11} />
                     </button>
                   </div>
                 </div>

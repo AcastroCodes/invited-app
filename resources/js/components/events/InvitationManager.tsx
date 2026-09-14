@@ -192,7 +192,7 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
             return (
               <div
                 key={inv.id}
-                className="flex items-stretch overflow-hidden rounded-xl transition-all hover:shadow-md relative"
+                className="flex items-stretch overflow-hidden transition-all hover:shadow-md relative"
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderTop: '2px solid var(--primary-accent)',
@@ -204,7 +204,7 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
                 {/* Lado Izquierdo: Preview 9:16 con pequeño margen elegante */}
                 <div className="p-1.5 shrink-0 flex items-center">
                   <div
-                    className="aspect-[9/16] w-22 rounded-lg overflow-hidden flex flex-col items-center justify-center relative border shadow-xs"
+                    className="aspect-[9/16] w-22 overflow-hidden flex flex-col items-center justify-center relative border shadow-xs"
                     style={{
                       backgroundColor: 'var(--bg-app)',
                       borderColor: 'var(--border-color)',
@@ -252,36 +252,38 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
                   </div>
 
                   {/* Bottom Actions */}
-                  <div className="mt-auto flex items-end justify-end">
-                    <div className="flex items-center gap-2">
+                  <div className="mt-auto flex items-end justify-end gap-1">
+                    <div
+                      className="flex items-center rounded-t-lg px-1.5 py-0.5 text-white"
+                      style={{ backgroundColor: 'var(--primary-accent)' }}
+                    >
                       <button
                         onClick={() => navigate(`/events/${eventId}/invitations/${inv.id}/designer`)}
-                        className="flex h-8 w-8 items-center justify-center rounded-t-lg rounded-b-none text-white shadow-sm transition-opacity hover:opacity-80"
-                        style={{ backgroundColor: 'var(--primary-accent)' }}
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
                         title="Diseñador"
                       >
-                        <Palette size={16} />
+                        <Palette size={11} />
                       </button>
-
-                      <div
-                        className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
-                        style={{ backgroundColor: 'var(--primary-accent)' }}
+                    </div>
+                    
+                    <div
+                      className="flex items-center rounded-tl-lg px-1.5 py-0.5 text-white"
+                      style={{ backgroundColor: 'var(--primary-accent)' }}
+                    >
+                      <button
+                        onClick={() => handleOpenEdit(inv)}
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                        title="Editar"
                       >
-                        <button
-                          onClick={() => handleOpenEdit(inv)}
-                          className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
-                          title="Editar"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteInvitation(inv)}
-                          className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
+                        <Pencil size={11} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteInvitation(inv)}
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={11} />
+                      </button>
                     </div>
                   </div>
                 </div>

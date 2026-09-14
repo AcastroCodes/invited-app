@@ -72,11 +72,13 @@ import {
   Ungroup,
   Link,
   Unlink,
+  Layout,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
+import AppSelect from '../../components/AppSelect';
 import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
 
@@ -350,6 +352,16 @@ interface CanvasElement {
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };
 }
 
+export interface Scene {
+  id: string;
+  name: string;
+  elements: CanvasElement[];
+  transition?: 'none' | 'fade' | 'slideLeft' | 'slideRight' | 'slideUp' | 'slideDown' | 'zoomIn' | 'zoomOut';
+  transitionDuration?: number;
+  autoAdvance?: boolean;
+  autoAdvanceDelay?: number;
+}
+
 interface FontOption {
   name: string;
   category: string;
@@ -429,6 +441,15 @@ export default function InvitationDesigner() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
+  // Scenes State
+  const [scenes, setScenes] = useState<Scene[]>([]);
+  const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+  
+  // UI Panels State
+  const [scenesPanelHeight, setScenesPanelHeight] = useState(250);
+  const [isResizingScenes, setIsResizingScenes] = useState(false);
+  const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
+  const [editingSceneName, setEditingSceneName] = useState('');
   // Fonts state
   const [availableFonts, setAvailableFonts] = useState<FontOption[]>(INITIAL_FONTS);
   const [showFontModal, setShowFontModal] = useState(false);
@@ -757,6 +778,30 @@ export default function InvitationDesigner() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [elements, historyStack, redoStack, selectedElementIds, selectedElementId]);
 
+  // Handle Scenes Resizer
+  useEffect(() => {
+    if (!isResizingScenes) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Calculate new height based on window height and mouse Y
+      const newHeight = window.innerHeight - e.clientY;
+      // Clamp between 100px and 600px
+      setScenesPanelHeight(Math.max(100, Math.min(newHeight, 600)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingScenes(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingScenes]);
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
@@ -772,8 +817,33 @@ export default function InvitationDesigner() {
         if (invRes) {
           const invData = invRes.data.data || invRes.data;
           setInvitation(invData);
-          if (invData.content?.elements) {
-            setElements(invData.content.elements);
+          if (invData.content) {
+            if (invData.content.scenes && invData.content.scenes.length > 0) {
+              setScenes(invData.content.scenes);
+              const activeId = invData.content.activeSceneId || invData.content.scenes[0].id;
+              setActiveSceneId(activeId);
+              setElements(invData.content.scenes.find((s: Scene) => s.id === activeId)?.elements || []);
+            } else if (invData.content.elements) {
+              // Backward compatibility for single scene
+              const defaultScene: Scene = {
+                id: 'scene-1',
+                name: 'Escena 01',
+                elements: invData.content.elements,
+              };
+              setScenes([defaultScene]);
+              setActiveSceneId('scene-1');
+              setElements(invData.content.elements);
+            } else {
+              // Empty state
+              const defaultScene: Scene = {
+                id: 'scene-1',
+                name: 'Escena 01',
+                elements: [],
+              };
+              setScenes([defaultScene]);
+              setActiveSceneId('scene-1');
+              setElements([]);
+            }
           }
         }
       })
@@ -803,24 +873,35 @@ export default function InvitationDesigner() {
     setSelectedElementId(null);
     setSelectedElementIds([]);
 
+    // Sync current elements to the active scene before saving
+    let updatedScenes = scenes;
+    if (activeSceneId) {
+      updatedScenes = scenes.map((s) => (s.id === activeSceneId ? { ...s, elements } : s));
+      setScenes(updatedScenes);
+    }
+
     let previewUrl: string | undefined = invitation?.content?.preview;
+    
+    const originalSceneId = activeSceneId;
+    const firstScene = updatedScenes.length > 0 ? updatedScenes[0] : null;
+    const needsSwitchForPreview = firstScene && firstScene.id !== originalSceneId;
+
+    if (needsSwitchForPreview) {
+      setActiveSceneId(firstScene.id);
+      setElements(firstScene.elements);
+    }
 
     if (stageCanvasRef.current) {
       try {
         const stageNode = stageCanvasRef.current;
         const currentZoom = zoom;
 
-        // Ocultar suave e imperceptiblemente el contenedor principal durante la micro-captura (50ms)
-        if (mainContainerRef.current) {
-          mainContainerRef.current.style.opacity = '0';
-          mainContainerRef.current.style.transition = 'none';
-        }
-
+        // Wait long enough for React to render the first scene and the browser to reflow the zoom.
         setZoom(100);
-        await new Promise((r) => setTimeout(r, 60));
+        await new Promise((r) => setTimeout(r, 600));
 
         const canvas = await html2canvas(stageNode, {
-          scale: 0.35,
+          scale: 0.4,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#FFFFFF',
@@ -828,38 +909,146 @@ export default function InvitationDesigner() {
           ignoreElements: (element) => element.classList.contains('outline-pink-500'),
         });
 
-        previewUrl = canvas.toDataURL('image/jpeg', 0.85);
+        previewUrl = canvas.toDataURL('image/jpeg', 0.7);
 
-        // Restaurar zoom y visibilidad suavemente
+        // Restaurar zoom
         setZoom(currentZoom);
-        if (mainContainerRef.current) {
-          mainContainerRef.current.style.opacity = '1';
-        }
       } catch (err) {
         console.error('Error generando vista previa:', err);
-        if (mainContainerRef.current) {
-          mainContainerRef.current.style.opacity = '1';
-        }
+      }
+    }
+
+    if (needsSwitchForPreview && originalSceneId) {
+      const originalScene = updatedScenes.find(s => s.id === originalSceneId);
+      if (originalScene) {
+        setActiveSceneId(originalScene.id);
+        setElements(originalScene.elements);
       }
     }
 
     try {
+      // Ensure CSRF token is fresh before saving to avoid CSRF token mismatch on long sessions
+      await api.get('/sanctum/csrf-cookie').catch(() => {});
+
       await api.put(`/invitations/${invitationId}`, {
         content: {
-          elements,
+          scenes: updatedScenes,
+          activeSceneId: originalSceneId,
+          elements, // This closure still holds the original elements of the active scene
           preview: previewUrl,
         },
       });
       setSavedSuccess(true);
       setHasUnsavedChanges(false);
       setTimeout(() => setSavedSuccess(false), 2500);
-    } catch {
-      alert('Error al guardar los cambios del diseñador');
+    } catch (err: any) {
+      alert('Error al guardar los cambios del diseñador: ' + (err.response?.data?.message || err.message));
+      console.error('Save error details:', err.response || err);
     } finally {
       setSaving(false);
     }
   };
 
+  // Scene Management Functions
+  const handleSwitchScene = (sceneId: string) => {
+    if (sceneId === activeSceneId) return;
+
+    // Sync current elements to current active scene
+    setScenes((prev) => prev.map((s) => (s.id === activeSceneId ? { ...s, elements } : s)));
+
+    // Load new scene
+    setScenes((currentScenes) => {
+      const newScene = currentScenes.find((s) => s.id === sceneId);
+      if (newScene) {
+        setActiveSceneId(sceneId);
+        setElements(newScene.elements);
+        setHistoryStack([]);
+        setRedoStack([]);
+        setSelectedElementId(null);
+        setSelectedElementIds([]);
+      }
+      return currentScenes;
+    });
+  };
+
+  const handleAddScene = () => {
+    // Sync current first
+    setScenes((prev) => prev.map((s) => (s.id === activeSceneId ? { ...s, elements } : s)));
+    
+    setScenes((currentScenes) => {
+      const sceneCount = currentScenes.length;
+      const newSceneId = `scene-${Date.now()}`;
+      const newScene: Scene = {
+        id: newSceneId,
+        name: `Escena ${String(sceneCount + 1).padStart(2, '0')}`,
+        elements: [],
+      };
+      
+      const newScenesList = [...currentScenes, newScene];
+      
+      // Auto-switch to new scene
+      setActiveSceneId(newSceneId);
+      setElements([]);
+      setHistoryStack([]);
+      setRedoStack([]);
+      setSelectedElementId(null);
+      setSelectedElementIds([]);
+      
+      return newScenesList;
+    });
+  };
+
+  const handleDeleteScene = (sceneId: string) => {
+    if (scenes.length <= 1) {
+      alert("No puedes eliminar la única escena.");
+      return;
+    }
+    
+    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta escena?");
+    if (!confirmDelete) return;
+
+    setScenes((prev) => {
+      const filtered = prev.filter((s) => s.id !== sceneId);
+      // If we are deleting the active scene, switch to the first available
+      if (activeSceneId === sceneId) {
+        const fallback = filtered[0];
+        setActiveSceneId(fallback.id);
+        setElements(fallback.elements);
+        setHistoryStack([]);
+        setRedoStack([]);
+        setSelectedElementId(null);
+        setSelectedElementIds([]);
+      }
+      return filtered;
+    });
+  };
+
+  const handleMoveSceneUp = (index: number) => {
+    if (index === 0) return;
+    setScenes((prev) => {
+      const next = [...prev];
+      const temp = next[index - 1];
+      next[index - 1] = next[index];
+      next[index] = temp;
+      return next;
+    });
+  };
+
+  const handleMoveSceneDown = (index: number) => {
+    if (index === scenes.length - 1) return;
+    setScenes((prev) => {
+      const next = [...prev];
+      const temp = next[index + 1];
+      next[index + 1] = next[index];
+      next[index] = temp;
+      return next;
+    });
+  };
+
+  const handleRenameScene = (sceneId: string, newName: string) => {
+    setScenes((prev) => prev.map((s) => (s.id === sceneId ? { ...s, name: newName || s.name } : s)));
+    setEditingSceneId(null);
+  };
   const handleAddText = (type: 'title' | 'subtitle' | 'body') => {
     const newEl: CanvasElement = {
       id: `el-text-${Date.now()}`,
@@ -1253,6 +1442,15 @@ export default function InvitationDesigner() {
   };
 
   const selectedElement = elements.find((el) => el.id === selectedElementId);
+  const activeScene = scenes.find((s) => s.id === activeSceneId);
+
+  const updateActiveScene = (key: keyof Scene, val: any) => {
+    if (!activeSceneId) return;
+    setScenes((prev) =>
+      prev.map((s) => (s.id === activeSceneId ? { ...s, [key]: val } : s))
+    );
+    setHasUnsavedChanges(true);
+  };
 
   const updateSelectedElement = (key: keyof CanvasElement, val: any) => {
     if (!selectedElementId) return;
@@ -1987,6 +2185,147 @@ export default function InvitationDesigner() {
               )}
             </div>
           </div>
+
+          {/* Resizer */}
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizingScenes(true);
+            }}
+            className="h-1 w-full cursor-row-resize shrink-0 transition-colors hover:bg-amber-500/50"
+            style={{ backgroundColor: 'var(--border-color)' }}
+          />
+
+          {/* 3. SECCIÓN ESCENAS */}
+          <div
+            className="flex flex-col shrink-0"
+            style={{ height: scenesPanelHeight }}
+          >
+            <div
+              className="flex items-center justify-between p-3 border-b shrink-0"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-color)',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Layout size={15} style={{ color: 'var(--primary-accent)' }} />
+                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                  Escenas
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
+                  style={{
+                    backgroundColor: 'var(--bg-app)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {scenes.length}
+                </span>
+                <button
+                  onClick={handleAddScene}
+                  className="p-1 rounded-md transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                  style={{ color: 'var(--primary-accent)' }}
+                  title="Añadir Escena"
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {scenes.map((scene, idx) => {
+                const isActive = activeSceneId === scene.id;
+                const isEditing = editingSceneId === scene.id;
+                
+                return (
+                  <div
+                    key={scene.id}
+                    onClick={() => handleSwitchScene(scene.id)}
+                    className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs"
+                    style={{
+                      backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
+                      borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between cursor-pointer">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editingSceneName}
+                          onChange={(e) => setEditingSceneName(e.target.value)}
+                          onBlur={() => handleRenameScene(scene.id, editingSceneName)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameScene(scene.id, editingSceneName);
+                            if (e.key === 'Escape') setEditingSceneId(null);
+                          }}
+                          autoFocus
+                          className="flex-1 text-xs font-bold bg-transparent outline-none border-b mr-2"
+                          style={{ borderColor: 'var(--primary-accent)', color: 'var(--text-main)' }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSceneId(scene.id);
+                            setEditingSceneName(scene.name);
+                          }}
+                          className="text-xs font-bold truncate flex-1"
+                          style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
+                          title="Doble clic para renombrar"
+                        >
+                          {scene.name}
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-0.5 shrink-0 ml-2 border rounded-md p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveSceneUp(idx);
+                          }}
+                          disabled={idx === 0}
+                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
+                          style={{ color: 'var(--text-main)' }}
+                          title="Subir"
+                        >
+                          <ChevronUp size={11} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveSceneDown(idx);
+                          }}
+                          disabled={idx === scenes.length - 1}
+                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
+                          style={{ color: 'var(--text-main)' }}
+                          title="Bajar"
+                        >
+                          <ChevronDown size={11} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteScene(scene.id);
+                          }}
+                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ml-0.5"
+                          style={{ color: 'var(--danger)' }}
+                          title="Eliminar Escena"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </aside>
 
         {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema) */}
@@ -2290,47 +2629,127 @@ export default function InvitationDesigner() {
           }}
         >
           {/* Tabs principales del Inspector: Diseño y Animación */}
-          <div
-            className="grid grid-cols-2 h-11 border-b text-xs font-bold shrink-0"
-            style={{
-              backgroundColor: 'var(--bg-app)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <button
-              onClick={() => setInspectorTab('design')}
-              className={`flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
-                inspectorTab === 'design' ? 'font-black' : 'hover:opacity-80'
-              }`}
+          {selectedElement && (
+            <div
+              className="grid grid-cols-2 h-11 border-b text-xs font-bold shrink-0"
               style={{
-                borderColor: inspectorTab === 'design' ? 'var(--primary-accent)' : 'transparent',
-                color: inspectorTab === 'design' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
               }}
             >
-              <Palette size={15} /> Diseño
-            </button>
-            <button
-              onClick={() => setInspectorTab('animation')}
-              className={`flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
-                inspectorTab === 'animation' ? 'font-black' : 'hover:opacity-80'
-              }`}
-              style={{
-                borderColor: inspectorTab === 'animation' ? 'var(--primary-accent)' : 'transparent',
-                color: inspectorTab === 'animation' ? 'var(--primary-accent)' : 'var(--text-muted)',
-              }}
-            >
-              <Zap size={15} /> Animación
-            </button>
-          </div>
+              <button
+                onClick={() => setInspectorTab('design')}
+                className={`flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+                  inspectorTab === 'design' ? 'font-black' : 'hover:opacity-80'
+                }`}
+                style={{
+                  borderColor: inspectorTab === 'design' ? 'var(--primary-accent)' : 'transparent',
+                  color: inspectorTab === 'design' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                }}
+              >
+                <Palette size={15} /> Diseño
+              </button>
+              <button
+                onClick={() => setInspectorTab('animation')}
+                className={`flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+                  inspectorTab === 'animation' ? 'font-black' : 'hover:opacity-80'
+                }`}
+                style={{
+                  borderColor: inspectorTab === 'animation' ? 'var(--primary-accent)' : 'transparent',
+                  color: inspectorTab === 'animation' ? 'var(--primary-accent)' : 'var(--text-muted)',
+                }}
+              >
+                <Zap size={15} /> Animación
+              </button>
+            </div>
+          )}
 
           {/* Body del Inspector */}
           <div className="flex-1 overflow-y-auto">
             {!selectedElement ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                <Sliders size={32} className="opacity-30 mb-2" style={{ color: 'var(--text-muted)' }} />
-                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                  Selecciona una capa en el lienzo para ver y editar sus propiedades.
-                </p>
+              <div className="flex flex-col pb-6">
+                <div className="p-3 m-3 rounded-xl border flex items-center gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
+                  <Layout size={18} style={{ color: 'var(--primary-accent)' }} />
+                  <div>
+                    <p className="font-extrabold leading-tight" style={{ color: 'var(--primary-accent)' }}>Configuración de Escena</p>
+                    <p className="text-[10px] leading-tight mt-0.5" style={{ color: 'var(--text-main)' }}>Ajusta el comportamiento de la escena actual.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 px-4 mt-2">
+                  {/* Transición */}
+                  <div>
+                    <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Transición hacia la siguiente escena</label>
+                    <AppSelect
+                      value={activeScene?.transition || 'none'}
+                      onChange={(val) => updateActiveScene('transition', val)}
+                      options={[
+                        { value: 'none', label: 'Ninguna' },
+                        { value: 'fade', label: 'Desvanecer (Fade)' },
+                        { value: 'slideLeft', label: 'Deslizar Izquierda' },
+                        { value: 'slideRight', label: 'Deslizar Derecha' },
+                        { value: 'slideUp', label: 'Deslizar Arriba' },
+                        { value: 'slideDown', label: 'Deslizar Abajo' },
+                        { value: 'zoomIn', label: 'Acercar (Zoom In)' },
+                        { value: 'zoomOut', label: 'Alejar (Zoom Out)' },
+                      ]}
+                      buttonClassName="!py-1.5 !px-2.5 !text-xs"
+                      itemClassName="!py-1.5 !text-xs"
+                    />
+                  </div>
+                  
+                  {/* Duración */}
+                  {activeScene?.transition && activeScene.transition !== 'none' && (
+                    <div>
+                      <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Duración de transición (s)</label>
+                      <InspectorNumberInput
+                        value={activeScene?.transitionDuration || 0.5}
+                        onChange={(val) => updateActiveScene('transitionDuration', val)}
+                        step={0.1}
+                        min={0.1}
+                        max={5}
+                        isFloat={true}
+                      />
+                    </div>
+                  )}
+
+                  {/* Separador */}
+                  <div className="h-px w-full my-4" style={{ backgroundColor: 'var(--border-color)' }}></div>
+
+                  {/* Auto-Advance */}
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-xs font-bold leading-tight" style={{ color: 'var(--text-muted)' }}>
+                      Pasar automáticamente a la siguiente escena
+                    </label>
+                    <div
+                      className="w-9 h-5 rounded-full p-1 cursor-pointer transition-colors relative flex shrink-0"
+                      style={{ backgroundColor: activeScene?.autoAdvance ? 'var(--primary-accent)' : 'var(--border-color)' }}
+                      onClick={() => updateActiveScene('autoAdvance', !activeScene?.autoAdvance)}
+                    >
+                      <div
+                        className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200 ${activeScene?.autoAdvance ? 'translate-x-4' : 'translate-x-0'}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Auto-Advance Delay */}
+                  {activeScene?.autoAdvance && (
+                    <div className="pt-2">
+                      <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Tiempo de espera (s)</label>
+                      <InspectorNumberInput
+                        value={activeScene?.autoAdvanceDelay || 3}
+                        onChange={(val) => updateActiveScene('autoAdvanceDelay', val)}
+                        step={0.5}
+                        min={0}
+                        max={60}
+                        isFloat={true}
+                      />
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                        Tiempo que la escena permanecerá visible antes de cambiar a la siguiente.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : inspectorTab === 'design' ? (
               /* TAB: DISEÑO (ACORDEÓN EDGE-TO-EDGE SIN ESPACIOS MARGINALES) */
@@ -4212,6 +4631,15 @@ export default function InvitationDesigner() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Overlay de Guardado / Generando Preview */}
+      {saving && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in text-white">
+          <div className="h-16 w-16 animate-spin rounded-full border-4 border-solid border-current border-r-transparent mb-6" style={{ color: 'var(--primary-accent)' }} />
+          <h2 className="text-2xl font-extrabold tracking-tight">Guardando diseño...</h2>
+          <p className="text-sm opacity-80 mt-2 font-medium">Generando vista previa en alta calidad, por favor espera.</p>
         </div>
       )}
     </div>

@@ -507,22 +507,22 @@ export default function PartnerList() {
 
               <div className="mt-auto flex items-end justify-end">
                 <div
-                  className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
+                  className="flex items-center rounded-tl-lg px-1.5 py-0.5 text-white"
                   style={{ backgroundColor: 'var(--primary-accent)' }}
                 >
                   <button
                     onClick={() => openEditModal(p)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
                     title="Editar"
                   >
-                    <Edit size={15} />
+                    <Edit size={11} />
                   </button>
                   <button
                     onClick={() => setDeleteId(p.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
                     title="Eliminar"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={11} />
                   </button>
                 </div>
               </div>

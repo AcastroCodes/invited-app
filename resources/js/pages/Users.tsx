@@ -378,27 +378,25 @@ export default function UserList() {
                 </div>
               </div>
 
-              <div
-                className="mt-auto flex items-end justify-end"
-              >
+              <div className="mt-auto flex items-end justify-end">
                 <div
-                  className="flex items-center gap-0.5 rounded-tl-lg p-0.5 text-white"
+                  className="flex items-center rounded-tl-lg px-1.5 py-0.5 text-white"
                   style={{ backgroundColor: 'var(--primary-accent)' }}
                 >
                   <button
                     onClick={() => openEditModal(u)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
                     title="Editar"
                   >
-                    <Edit size={15} />
+                    <Edit size={11} />
                   </button>
                   <button
                     onClick={() => setDeleteId(u.id)}
                     disabled={currentUser?.id === u.id}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-40"
                     title={currentUser?.id === u.id ? 'No puedes eliminar tu propia cuenta' : 'Eliminar'}
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={11} />
                   </button>
                 </div>
               </div>

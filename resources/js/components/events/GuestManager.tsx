@@ -1445,15 +1445,10 @@ const GuestGroupCard: React.FC<{
             <h3 className="font-extrabold text-sm uppercase tracking-wide truncate" style={{ color: 'var(--text-main)' }}>
               {group.formalAddressee}
             </h3>
-            {group.contactEmail && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate shrink-0 max-w-[110px]" style={{ color: 'var(--text-muted)' }}>
-                <Mail size={10} /> {group.contactEmail}
-              </span>
-            )}
           </div>
 
           {/* Member breakdown (Espaciado simétrico izquierda/derecha) */}
-          <div className="my-2.5 space-y-0.5 py-1 pr-1 max-h-[96px] overflow-y-auto custom-scrollbar">
+          <div className="my-2.5 space-y-0.5 py-1 pr-1 max-h-[76px] overflow-y-auto custom-scrollbar">
             {group.guests?.map((guest, idx) => {
               let IconComponent = UserMinus;
               let iconColorClass = 'text-slate-400';
@@ -1485,15 +1480,25 @@ const GuestGroupCard: React.FC<{
       </div>
 
       {/* Card Footer - Estilo Partner */}
-      <div className="mt-auto flex items-end justify-between border-t pl-2.5 h-6" style={{ borderColor: 'var(--border-color)' }}>
-        {/* RSVP Badge Inferior Izquierda */}
-        <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${rsvpColorClass}`}>
-          RSVP: {rsvpText}
-        </span>
+      <div className="mt-auto flex items-end justify-between pl-2.5 pt-1 h-12">
+        {/* Contact info and RSVP Badge Inferior Izquierda */}
+        <div className="flex flex-col justify-end gap-1 pb-1 h-full">
+          <div className="flex items-center gap-2 text-[8.5px] truncate max-w-[200px] h-[14px]" style={{ color: 'var(--text-muted)' }}>
+            {group.contactEmail && (
+              <span className="flex items-center gap-0.5 truncate"><Mail size={9} /> {group.contactEmail}</span>
+            )}
+            {group.contactPhone && (
+              <span className="flex items-center gap-0.5 truncate"><Phone size={9} /> {group.contactPhone}</span>
+            )}
+          </div>
+          <span className={`w-fit px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${rsvpColorClass}`}>
+            RSVP: {rsvpText}
+          </span>
+        </div>
 
         {/* Action Buttons (Estilo Partner / Corner Block rounded-tl-lg) */}
         <div
-          className="flex items-center gap-1 rounded-tl-lg px-1.5 py-0.5 text-white"
+          className="flex items-center rounded-tl-lg px-1.5 py-0.5 text-white"
           style={{ backgroundColor: 'var(--primary-accent)' }}
         >
           <button
