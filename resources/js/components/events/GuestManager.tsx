@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   Search,
@@ -80,10 +81,20 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
   const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
   const excelMenuRef = React.useRef<HTMLDivElement>(null);
 
-  // Modal State para Duplicados
+  // Toast Notification State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Duplicate Resolution Modal State
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [conflictingRows, setConflictingRows] = useState<DuplicateConflict[]>([]);
   const [validGroupsToImport, setValidGroupsToImport] = useState<any[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
 
   const getCleanFileName = (suffix: string) => {
     const partner = (eventInfo.partnerName || 'partner').trim();
@@ -195,6 +206,9 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
       .then((res) => {
         setGroups(res.data.groups || []);
         setInvitations(res.data.invitations || []);
+        if (res.data.eventInfo) {
+          setEventInfo(res.data.eventInfo);
+        }
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
@@ -460,7 +474,7 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
 
         const groupsArray = Object.values(groupsMap);
         if (groupsArray.length === 0) {
-          alert('No se pudieron procesar integrantes válidos del archivo Excel.');
+          showToast('No se pudieron procesar integrantes válidos del archivo Excel.', 'error');
           return;
         }
 
@@ -535,7 +549,7 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
         }
       } catch (err) {
         console.error('Error al procesar archivo Excel:', err);
-        alert('Ocurrió un error al leer o importar el archivo Excel.');
+        showToast('Ocurrió un error al leer o importar el archivo Excel.', 'error');
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
@@ -562,11 +576,11 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
         await api.post(`/events/${eventId}/guests`, payload);
         createdCount++;
       }
-      alert(`¡Carga masiva completada! Se crearon o actualizaron ${createdCount} sobre(s) de invitación correctamente.`);
+      showToast(`¡Carga masiva completada! Se procesaron ${createdCount} sobre(s) de invitación correctamente.`, 'success');
       fetchGuestData();
     } catch (err) {
       console.error('Error al guardar grupos:', err);
-      alert('Error al guardar los grupos de invitados.');
+      showToast('Error al guardar los grupos de invitados.', 'error');
     } finally {
       setSaving(false);
       setDuplicateModalOpen(false);
@@ -618,7 +632,7 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const validGuests = guestsList.filter((g) => g.name && g.name.trim() !== '');
-    if (validGuests.length === 0) return alert('Por favor, agrega al menos un integrante con nombre.');
+    if (validGuests.length === 0) return showToast('Por favor, agrega al menos un integrante con nombre.', 'error');
 
     setSaving(true);
     const finalWhatsapp = whatsappSameAsPhone ? contactPhone : contactWhatsapp;
@@ -639,11 +653,12 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
     req
       .then(() => {
         setIsModalOpen(false);
+        showToast(editingGroup ? 'Invitado actualizado correctamente' : 'Invitado creado correctamente', 'success');
         fetchGuestData();
       })
       .catch((err) => {
         const message = err?.response?.data?.message || 'Error al guardar los datos del invitado.';
-        alert(message);
+        showToast(message, 'error');
         console.error('Error saving guest group:', err?.response?.data || err);
       })
       .finally(() => setSaving(false));
@@ -799,7 +814,7 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
       </div>
 
       {/* Main Content Grid (Estilo deventsapp) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[250px] items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[250px]">
         {filteredGroups.length === 0 ? (
           <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl flex flex-col items-center justify-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
             <Users size={32} className="mx-auto mb-2 opacity-40" />
@@ -1322,24 +1337,52 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
           </div>
         </div>
       )}
+
+      {/* Componente Toast de Notificación del Sistema */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl text-xs font-bold ${
+              toast.type === 'success'
+                ? 'bg-emerald-500 text-white border-emerald-400'
+                : toast.type === 'error'
+                ? 'bg-rose-500 text-white border-rose-400'
+                : 'bg-slate-900 text-white border-slate-700'
+            }`}
+          >
+            {toast.type === 'success' && <Check size={16} className="shrink-0" />}
+            {toast.type === 'error' && <AlertTriangle size={16} className="shrink-0" />}
+            <span>{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-2 opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const GuestGroupCard: React.FC<{
   group: GuestGroupItem;
-  invitations: InvitationOption[];
+  invitations?: InvitationOption[];
   onEdit: () => void;
   onDelete: () => void;
-}> = ({ group, invitations, onEdit, onDelete }) => {
+}> = ({ group, invitations = [], onEdit, onDelete }) => {
+  if (!group) return null;
+
   // Solo contar respuestas si la invitación fue enviada o si el grupo tiene respuestas reales
   const isSentOrResponded = group.status === 'sent' || group.status === 'Enviada' || group.status === 'enviada' || group.status === 'responded';
   
   const confirmedCount = (isSentOrResponded && group.guests) 
-    ? group.guests.filter((g) => g.isConfirmed === true || String(g.isConfirmed) === '1').length 
+    ? group.guests.filter((g) => g && (g.isConfirmed === true || String(g.isConfirmed) === '1')).length 
     : 0;
   const rejectedCount = (isSentOrResponded && group.guests) 
-    ? group.guests.filter((g) => g.isConfirmed === false || String(g.isConfirmed) === '0').length 
+    ? group.guests.filter((g) => g && (g.isConfirmed === false || String(g.isConfirmed) === '0')).length 
     : 0;
   const totalGuests = group.guests ? group.guests.length : 0;
 
@@ -1369,12 +1412,13 @@ const GuestGroupCard: React.FC<{
     rsvpColorClass = 'bg-slate-500/10 text-slate-500 dark:text-slate-400';
   }
 
-  const assignedInvitation = invitations.find((i) => String(i.id) === String(group.assignedInvitationId));
+  const safeInvitations = Array.isArray(invitations) ? invitations : [];
+  const assignedInvitation = safeInvitations.find((i) => i && String(i.id) === String(group.assignedInvitationId));
   const hasThumbnail = !!assignedInvitation?.thumbnail;
 
   return (
     <div
-      className="flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-shadow relative"
+      className="h-44 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-shadow relative"
       style={{
         backgroundColor: 'var(--bg-card)',
         borderTop: '2px solid var(--primary-accent)',
