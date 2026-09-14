@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   Search,
@@ -18,6 +17,7 @@ import {
   UserX,
   UserMinus,
   Download,
+  AlertTriangle,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../lib/api';
@@ -51,6 +51,21 @@ export interface InvitationOption {
   thumbnail?: string;
 }
 
+export interface DuplicateConflict {
+  id: string; // ID único temporal
+  cardName: string;
+  originalName: string;
+  newName: string;
+  title: string;
+  role: string;
+  category: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  conflictReason: string;
+  action: 'edit' | 'skip' | 'force';
+}
+
 interface GuestManagerProps {
   eventId: number;
 }
@@ -64,6 +79,11 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
   const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
   const excelMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Modal State para Duplicados
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [conflictingRows, setConflictingRows] = useState<DuplicateConflict[]>([]);
+  const [validGroupsToImport, setValidGroupsToImport] = useState<any[]>([]);
 
   const getCleanFileName = (suffix: string) => {
     const partner = (eventInfo.partnerName || 'partner').trim();
@@ -444,35 +464,155 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
           return;
         }
 
-        setSaving(true);
-        let createdCount = 0;
+        // Obtener la lista existente de nombres normalizados de la BD
+        const existingGuestNames = new Set<string>();
+        groups.forEach((grp) => {
+          grp.guests.forEach((g) => {
+            if (g.name) {
+              const norm = g.name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              existingGuestNames.add(norm);
+            }
+          });
+        });
 
-        for (const grp of groupsArray) {
-          const payload = {
-            eventId,
-            formalAddressee: grp.formalAddressee,
-            contactEmail: grp.email || null,
-            contactPhone: grp.phone || null,
-            contactWhatsapp: grp.whatsapp || grp.phone || null,
-            assignedInvitationId: invitations.length === 1 ? invitations[0].id : null,
-            guests: grp.guests,
-          };
-          await api.post(`/events/${eventId}/guests`, payload);
-          createdCount++;
+        // Analizar duplicados (tanto en BD como internamente en el Excel)
+        const seenInExcelNames = new Map<string, string>(); // normName -> cardName
+        const conflicts: DuplicateConflict[] = [];
+        const cleanGroupsMap: { [cardName: string]: { formalAddressee: string; email: string; phone: string; whatsapp: string; guests: any[] } } = {};
+
+        groupsArray.forEach((grp) => {
+          grp.guests.forEach((g: any) => {
+            const rawName = g.name.trim();
+            const normName = rawName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            let conflictReason = '';
+
+            if (existingGuestNames.has(normName)) {
+              conflictReason = 'Ya existe registrado en el evento';
+            } else if (seenInExcelNames.has(normName)) {
+              conflictReason = `Duplicado dentro del Excel (en la tarjeta "${seenInExcelNames.get(normName)}")`;
+            }
+
+            if (conflictReason) {
+              conflicts.push({
+                id: Math.random().toString(36).substring(2, 9),
+                cardName: grp.formalAddressee,
+                originalName: rawName,
+                newName: rawName,
+                title: g.title || 'Sr.',
+                role: g.role || 'Principal',
+                category: g.category || 'Adulto',
+                email: grp.email || '',
+                phone: grp.phone || '',
+                whatsapp: grp.whatsapp || '',
+                conflictReason,
+                action: 'edit',
+              });
+            } else {
+              seenInExcelNames.set(normName, grp.formalAddressee);
+              if (!cleanGroupsMap[grp.formalAddressee]) {
+                cleanGroupsMap[grp.formalAddressee] = {
+                  formalAddressee: grp.formalAddressee,
+                  email: grp.email,
+                  phone: grp.phone,
+                  whatsapp: grp.whatsapp,
+                  guests: [],
+                };
+              }
+              cleanGroupsMap[grp.formalAddressee].guests.push(g);
+            }
+          });
+        });
+
+        const initialValidGroups = Object.values(cleanGroupsMap);
+
+        if (conflicts.length > 0) {
+          setValidGroupsToImport(initialValidGroups);
+          setConflictingRows(conflicts);
+          setDuplicateModalOpen(true);
+        } else {
+          // Si no hay duplicados, guardar directamente
+          await saveImportedGroups(initialValidGroups);
         }
-
-        alert(`¡Carga masiva completada! Se crearon ${createdCount} sobre(s) de invitación correctamente.`);
-        fetchGuestData();
       } catch (err) {
         console.error('Error al procesar archivo Excel:', err);
         alert('Ocurrió un error al leer o importar el archivo Excel.');
       } finally {
-        setSaving(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
 
     reader.readAsBinaryString(file);
+  };
+
+  const saveImportedGroups = async (groupsToSave: any[]) => {
+    setSaving(true);
+    let createdCount = 0;
+    try {
+      for (const grp of groupsToSave) {
+        if (!grp.guests || grp.guests.length === 0) continue;
+        const payload = {
+          eventId,
+          formalAddressee: grp.formalAddressee,
+          contactEmail: grp.email || null,
+          contactPhone: grp.phone || null,
+          contactWhatsapp: grp.whatsapp || grp.phone || null,
+          assignedInvitationId: invitations.length === 1 ? invitations[0].id : null,
+          guests: grp.guests,
+        };
+        await api.post(`/events/${eventId}/guests`, payload);
+        createdCount++;
+      }
+      alert(`¡Carga masiva completada! Se crearon o actualizaron ${createdCount} sobre(s) de invitación correctamente.`);
+      fetchGuestData();
+    } catch (err) {
+      console.error('Error al guardar grupos:', err);
+      alert('Error al guardar los grupos de invitados.');
+    } finally {
+      setSaving(false);
+      setDuplicateModalOpen(false);
+      setConflictingRows([]);
+      setValidGroupsToImport([]);
+    }
+  };
+
+  const handleConfirmDuplicateResolution = async () => {
+    const finalGroupsMap: { [cardName: string]: { formalAddressee: string; email: string; phone: string; whatsapp: string; guests: any[] } } = {};
+
+    // 1. Agregar grupos limpios iniciales
+    validGroupsToImport.forEach((grp) => {
+      finalGroupsMap[grp.formalAddressee] = { ...grp, guests: [...grp.guests] };
+    });
+
+    // 2. Procesar resoluciones de duplicados
+    conflictingRows.forEach((item) => {
+      if (item.action === 'skip') return; // Omitir
+
+      const finalName = item.action === 'edit' ? item.newName.trim() : item.originalName.trim();
+      if (!finalName) return;
+
+      const cardName = item.cardName || 'Invitado Especial';
+
+      if (!finalGroupsMap[cardName]) {
+        finalGroupsMap[cardName] = {
+          formalAddressee: cardName,
+          email: item.email,
+          phone: item.phone,
+          whatsapp: item.whatsapp,
+          guests: [],
+        };
+      }
+
+      finalGroupsMap[cardName].guests.push({
+        name: finalName,
+        title: item.title,
+        role: item.role,
+        category: item.category,
+        isConfirmed: null,
+      });
+    });
+
+    const finalGroupsArray = Object.values(finalGroupsMap);
+    await saveImportedGroups(finalGroupsArray);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1032,6 +1172,152 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
               >
                 {saving ? 'Guardando...' : editingGroup ? 'Actualizar' : 'Crear Invitado'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Resolución de Duplicados */}
+      {duplicateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-4xl max-h-[90vh] rounded-2xl border shadow-2xl flex flex-col overflow-hidden"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-color)',
+            }}
+          >
+            {/* Header */}
+            <div
+              className="px-6 py-4 border-b flex items-center justify-between shrink-0"
+              style={{ backgroundColor: 'rgba(245, 158, 11, 0.08)', borderColor: 'var(--border-color)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold" style={{ color: 'var(--text-main)' }}>
+                    Revisión de Invitados Duplicados
+                  </h2>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Se detectaron <strong className="text-amber-500 font-black">{conflictingRows.length}</strong> registro(s) duplicado(s). Modifica o selecciona la acción deseada.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDuplicateModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-muted-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content Table */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border-color)' }}>
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr
+                      className="border-b uppercase tracking-wider font-extrabold text-[10px]"
+                      style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                    >
+                      <th className="p-3">Sobre / Tarjeta</th>
+                      <th className="p-3">Nombre en Excel</th>
+                      <th className="p-3">Motivo / Conflicto</th>
+                      <th className="p-3">Acción y Corrección</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
+                    {conflictingRows.map((item, index) => (
+                      <tr key={item.id} className="hover:bg-amber-500/5 transition-colors">
+                        <td className="p-3 font-bold truncate max-w-[150px]" style={{ color: 'var(--text-main)' }}>
+                          {item.cardName}
+                        </td>
+                        <td className="p-3 font-semibold" style={{ color: 'var(--text-main)' }}>
+                          {item.originalName}
+                        </td>
+                        <td className="p-3 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                          {item.conflictReason}
+                        </td>
+                        <td className="p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={item.action}
+                              onChange={(e) => {
+                                const val = e.target.value as 'edit' | 'skip' | 'force';
+                                const updated = [...conflictingRows];
+                                updated[index].action = val;
+                                setConflictingRows(updated);
+                              }}
+                              className="rounded-lg px-2 py-1 text-xs border outline-none font-bold"
+                              style={{
+                                backgroundColor: 'var(--bg-app)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            >
+                              <option value="edit">✏️ Corregir Nombre</option>
+                              <option value="skip">🚫 Omitir Registros</option>
+                              <option value="force">⚠️ Importar De Todos Modos</option>
+                            </select>
+                          </div>
+
+                          {item.action === 'edit' && (
+                            <input
+                              type="text"
+                              value={item.newName}
+                              placeholder="Escribe el nombre corregido..."
+                              onChange={(e) => {
+                                const updated = [...conflictingRows];
+                                updated[index].newName = e.target.value;
+                                setConflictingRows(updated);
+                              }}
+                              className="w-full rounded-lg px-2.5 py-1 text-xs border outline-none font-medium focus:ring-1 focus:ring-amber-500"
+                              style={{
+                                backgroundColor: 'var(--bg-app)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div
+              className="px-6 py-3.5 border-t shrink-0 flex items-center justify-between gap-3"
+              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+            >
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                Se añadirán <strong>{validGroupsToImport.length}</strong> sobres limpios + <strong>{conflictingRows.filter((i) => i.action !== 'skip').length}</strong> resuelto(s).
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDuplicateModalOpen(false)}
+                  className="px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                  style={{ color: 'var(--text-muted)' }}
+                  disabled={saving}
+                >
+                  Cancelar Carga
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDuplicateResolution}
+                  disabled={saving}
+                  className="px-5 py-2 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                  style={{ backgroundColor: 'var(--primary-accent)' }}
+                >
+                  {saving ? 'Guardando...' : 'Confirmar e Importar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
