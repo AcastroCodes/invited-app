@@ -269,6 +269,19 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Ajustar anchos de columnas
+    ws['!cols'] = [
+      { wch: 26 }, // Nombre de la Tarjeta
+      { wch: 10 }, // Trato
+      { wch: 26 }, // Nombre Completo
+      { wch: 14 }, // Rol
+      { wch: 14 }, // Categoria
+      { wch: 28 }, // Email Contacto
+      { wch: 20 }, // Telefono Contacto
+      { wch: 20 }, // WhatsApp Contacto
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
     XLSX.writeFile(wb, 'invitadoexcel.xlsx');

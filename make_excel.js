@@ -55,9 +55,23 @@ const data = [
 ];
 
 const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+// Configurar ancho de columnas
+worksheet['!cols'] = [
+  { wch: 26 }, // Nombre de la Tarjeta
+  { wch: 10 }, // Trato
+  { wch: 26 }, // Nombre Completo
+  { wch: 14 }, // Rol
+  { wch: 14 }, // Categoria
+  { wch: 28 }, // Email Contacto
+  { wch: 20 }, // Telefono Contacto
+  { wch: 20 }, // WhatsApp Contacto
+];
+
 const workbook = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(workbook, worksheet, 'Invitados');
 
 const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 fs.writeFileSync('invitadoexcel.xlsx', buffer);
 console.log('invitadoexcel.xlsx creado exitosamente');
+
