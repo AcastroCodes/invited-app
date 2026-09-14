@@ -61,6 +61,81 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
+  const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
+  const excelMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (excelMenuRef.current && !excelMenuRef.current.contains(e.target as Node)) {
+        setIsExcelMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleExportGuests = () => {
+    setIsExcelMenuOpen(false);
+    if (!groups || groups.length === 0) {
+      alert('No hay invitados registrados para exportar.');
+      return;
+    }
+
+    const exportData: any[][] = [
+      [
+        'Nombre de la Tarjeta',
+        'Trato',
+        'Nombre Completo',
+        'Rol',
+        'Categoria',
+        'Estado Confirmacion',
+        'Email Contacto',
+        'Telefono Contacto',
+        'WhatsApp Contacto',
+      ],
+    ];
+
+    groups.forEach((grp) => {
+      grp.guests.forEach((g, index) => {
+        const isFirst = index === 0;
+        const confirmStatus =
+          g.isConfirmed === true
+            ? 'Confirmado'
+            : g.isConfirmed === false
+            ? 'Rechazado'
+            : 'Pendiente';
+
+        exportData.push([
+          isFirst ? grp.formalAddressee : '',
+          g.title || '',
+          g.name || '',
+          g.role || 'Principal',
+          g.category || 'Adulto',
+          confirmStatus,
+          isFirst ? grp.contactEmail || '' : '',
+          isFirst ? grp.contactPhone || '' : '',
+          isFirst ? grp.contactWhatsapp || '' : '',
+        ]);
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    ws['!cols'] = [
+      { wch: 26 }, // Nombre de la Tarjeta
+      { wch: 10 }, // Trato
+      { wch: 26 }, // Nombre Completo
+      { wch: 14 }, // Rol
+      { wch: 14 }, // Categoria
+      { wch: 18 }, // Estado Confirmación
+      { wch: 28 }, // Email Contacto
+      { wch: 20 }, // Telefono Contacto
+      { wch: 20 }, // WhatsApp Contacto
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Lista de Invitados');
+    XLSX.writeFile(wb, `invitados_evento_${eventId}.xlsx`);
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -215,6 +290,7 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDownloadTemplate = () => {
+    setIsExcelMenuOpen(false);
     const data = [
       [
         'Nombre de la Tarjeta',
@@ -500,31 +576,61 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
             className="hidden"
           />
 
-          <button
-            type="button"
-            title="Descargar Plantilla Excel de ejemplo"
-            onClick={handleDownloadTemplate}
-            className="h-[34px] w-[34px] rounded-xl border flex items-center justify-center shrink-0 shadow-sm transition-all hover:bg-sky-500/10 hover:border-sky-500 text-sky-600 dark:text-sky-400 active:scale-95"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <Download size={16} />
-          </button>
+          {/* Menú Contextual Desplegable de Excel */}
+          <div className="relative" ref={excelMenuRef}>
+            <button
+              type="button"
+              title="Opciones de Excel"
+              onClick={() => setIsExcelMenuOpen(!isExcelMenuOpen)}
+              className="h-[34px] w-[34px] rounded-xl border flex items-center justify-center shrink-0 shadow-sm transition-all hover:bg-emerald-500/10 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 active:scale-95"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-color)',
+              }}
+            >
+              <FileSpreadsheet size={16} />
+            </button>
 
-          <button
-            type="button"
-            title="Subir lista desde Excel (.xlsx)"
-            onClick={() => fileInputRef.current?.click()}
-            className="h-[34px] px-3 rounded-xl border flex items-center gap-1.5 shrink-0 shadow-sm transition-all hover:bg-emerald-500/10 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs active:scale-95"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <FileSpreadsheet size={16} /> Cargar Excel
-          </button>
+            {isExcelMenuOpen && (
+              <div
+                className="absolute right-0 mt-2 w-56 rounded-xl border shadow-xl z-50 py-1 flex flex-col text-xs font-semibold overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderColor: 'var(--border-color)',
+                  color: 'var(--text-main)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="px-3.5 py-2.5 text-left flex items-center gap-2.5 transition-colors hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
+                >
+                  <Download size={14} className="text-sky-500 shrink-0" />
+                  <span>Bajar Plantilla de Excel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExcelMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="px-3.5 py-2.5 text-left flex items-center gap-2.5 transition-colors hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 border-t border-b"
+                  style={{ borderColor: 'var(--border-color)' }}
+                >
+                  <FileSpreadsheet size={14} className="text-emerald-500 shrink-0" />
+                  <span>Subir Plantilla</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportGuests}
+                  className="px-3.5 py-2.5 text-left flex items-center gap-2.5 transition-colors hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
+                >
+                  <Download size={14} className="text-indigo-500 shrink-0" />
+                  <span>Descargar Lista de Invitados</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
