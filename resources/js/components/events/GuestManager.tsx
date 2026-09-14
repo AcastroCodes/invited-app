@@ -17,7 +17,9 @@ import {
   UserCheck,
   UserX,
   UserMinus,
+  Download,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import api from '../../lib/api';
 
 export interface GuestItem {
@@ -27,7 +29,6 @@ export interface GuestItem {
   role: string;
   category?: string;
   isConfirmed: boolean | null;
-  dietaryRestrictions?: string;
 }
 
 export interface GuestGroupItem {
@@ -211,6 +212,165 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
     }
   };
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleDownloadTemplate = () => {
+    const data = [
+      [
+        'Nombre de la Tarjeta',
+        'Trato',
+        'Nombre Completo',
+        'Rol',
+        'Categoria',
+        'Email Contacto',
+        'Telefono Contacto',
+        'WhatsApp Contacto',
+      ],
+      [
+        'Familia Castro Pérez',
+        'Sr.',
+        'Aristides Castro',
+        'Principal',
+        'Adulto',
+        'aristides@ejemplo.com',
+        '+584120000000',
+        '+584120000000',
+      ],
+      [
+        '',
+        'Sra.',
+        'María Pérez',
+        'Esposa',
+        'Adulto',
+        '',
+        '',
+        '',
+      ],
+      [
+        '',
+        'Srito.',
+        'Aristides Jr. Castro',
+        'Hijo',
+        'Joven',
+        '',
+        '',
+        '',
+      ],
+      [
+        'Sr. Juan Mendoza',
+        'Sr.',
+        'Juan Mendoza',
+        'Principal',
+        'Adulto',
+        'juan@ejemplo.com',
+        '+584141112233',
+        '+584141112233',
+      ],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
+    XLSX.writeFile(wb, 'invitadoexcel.xlsx');
+  };
+
+  const handleExcelFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (rows.length === 0) {
+          alert('El archivo no contiene filas válidas.');
+          return;
+        }
+
+        // Agrupar por Nombre de la Tarjeta (manteniendo la última tarjeta si la celda viene vacía)
+        const groupsMap: { [cardName: string]: { formalAddressee: string; email: string; phone: string; whatsapp: string; guests: any[] } } = {};
+        let currentCardName = '';
+
+        rows.forEach((row) => {
+          const rawCardName = row['Nombre de la Tarjeta'] || row['Nombre de la tarjeta'] || row['Nombre Tarjeta'] || row['Tarjeta'] || row['Familia'] || '';
+          if (rawCardName.trim()) {
+            currentCardName = rawCardName.trim();
+          }
+
+          const cardName = currentCardName || 'Invitado Especial';
+          const name = row['Nombre Completo'] || row['Nombre'] || row['Invitado'] || '';
+          if (!name) return;
+
+          const email = row['Email Contacto'] || row['Email'] || row['Correo'] || '';
+          const phone = row['Telefono Contacto'] || row['Telefono'] || row['Teléfono'] || '';
+          const whatsapp = row['WhatsApp Contacto'] || row['WhatsApp'] || row['Whatsapp'] || '';
+
+          if (!groupsMap[cardName]) {
+            groupsMap[cardName] = {
+              formalAddressee: cardName,
+              email: email,
+              phone: phone,
+              whatsapp: whatsapp,
+              guests: [],
+            };
+          } else {
+            // Si la fila principal no tenía email/teléfono y esta fila sí, se actualizan los datos de contacto
+            if (!groupsMap[cardName].email && email) groupsMap[cardName].email = email;
+            if (!groupsMap[cardName].phone && phone) groupsMap[cardName].phone = phone;
+            if (!groupsMap[cardName].whatsapp && whatsapp) groupsMap[cardName].whatsapp = whatsapp;
+          }
+
+          groupsMap[cardName].guests.push({
+            name,
+            title: row['Trato'] || row['Título'] || 'Sr.',
+            role: row['Rol'] || 'Principal',
+            category: row['Categoria'] || row['Categoría'] || 'Adulto',
+            isConfirmed: null,
+          });
+        });
+
+        const groupsArray = Object.values(groupsMap);
+        if (groupsArray.length === 0) {
+          alert('No se pudieron procesar integrantes válidos del archivo Excel.');
+          return;
+        }
+
+        setSaving(true);
+        let createdCount = 0;
+
+        for (const grp of groupsArray) {
+          const payload = {
+            eventId,
+            formalAddressee: grp.formalAddressee,
+            contactEmail: grp.email || null,
+            contactPhone: grp.phone || null,
+            contactWhatsapp: grp.whatsapp || grp.phone || null,
+            assignedInvitationId: invitations.length === 1 ? invitations[0].id : null,
+            guests: grp.guests,
+          };
+          await api.post(`/events/${eventId}/guests`, payload);
+          createdCount++;
+        }
+
+        alert(`¡Carga masiva completada! Se crearon ${createdCount} sobre(s) de invitación correctamente.`);
+        fetchGuestData();
+      } catch (err) {
+        console.error('Error al procesar archivo Excel:', err);
+        alert('Ocurrió un error al leer o importar el archivo Excel.');
+      } finally {
+        setSaving(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const validGuests = guestsList.filter((g) => g.name && g.name.trim() !== '');
@@ -318,17 +478,39 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
             </select>
           </div>
 
+          {/* Input oculto para carga de Excel */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleExcelFileUpload}
+            accept=".xlsx, .xls, .csv"
+            className="hidden"
+          />
+
           <button
             type="button"
-            title="Cargar lista desde Excel"
-            onClick={() => alert('La carga masiva desde Excel estará disponible próximamente.')}
-            className="h-[34px] w-[34px] rounded-xl border flex items-center justify-center shrink-0 shadow-sm transition-all hover:bg-emerald-500/10 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 active:scale-95"
+            title="Descargar Plantilla Excel de ejemplo"
+            onClick={handleDownloadTemplate}
+            className="h-[34px] w-[34px] rounded-xl border flex items-center justify-center shrink-0 shadow-sm transition-all hover:bg-sky-500/10 hover:border-sky-500 text-sky-600 dark:text-sky-400 active:scale-95"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border-color)',
             }}
           >
-            <FileSpreadsheet size={16} />
+            <Download size={16} />
+          </button>
+
+          <button
+            type="button"
+            title="Subir lista desde Excel (.xlsx)"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-[34px] px-3 rounded-xl border flex items-center gap-1.5 shrink-0 shadow-sm transition-all hover:bg-emerald-500/10 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs active:scale-95"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-color)',
+            }}
+          >
+            <FileSpreadsheet size={16} /> Cargar Excel
           </button>
 
           <button
@@ -343,7 +525,7 @@ export default function GuestManager({ eventId }: GuestManagerProps) {
       </div>
 
       {/* Main Content Grid (Estilo deventsapp) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[250px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[250px] items-start">
         {filteredGroups.length === 0 ? (
           <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl flex flex-col items-center justify-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
             <Users size={32} className="mx-auto mb-2 opacity-40" />
@@ -772,15 +954,15 @@ const GuestGroupCard: React.FC<{
 
   return (
     <div
-      className="rounded-md shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between max-h-[110px]"
+      className="flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md transition-shadow relative"
       style={{
         backgroundColor: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
+        borderTop: '2px solid var(--primary-accent)',
+        borderBottom: '2px solid var(--primary-accent)',
+        borderLeft: '1px solid var(--border-color)',
+        borderRight: '1px solid var(--border-color)',
       }}
     >
-      {/* Accent Left Bar */}
-      <div className="absolute top-0 left-0 w-1 h-full z-10" style={{ backgroundColor: 'var(--primary-accent)' }} />
-
       <div className="flex flex-1 min-h-0">
         {/* Thumbnail if assigned */}
         {hasThumbnail && (
@@ -794,20 +976,20 @@ const GuestGroupCard: React.FC<{
         )}
 
         {/* Content Body */}
-        <div className={`flex-1 py-1 pr-2 ${hasThumbnail ? 'pl-2' : 'pl-2.5'}`}>
+        <div className={`flex-1 pt-2 pb-1 ${hasThumbnail ? 'px-2' : 'px-3'}`}>
           <div className="flex items-center justify-between gap-1 shrink-0">
-            <h3 className="font-bold text-[11px] uppercase tracking-wide truncate" style={{ color: 'var(--text-main)' }}>
+            <h3 className="font-extrabold text-sm uppercase tracking-wide truncate" style={{ color: 'var(--text-main)' }}>
               {group.formalAddressee}
             </h3>
             {group.contactEmail && (
-              <span className="text-[9px] text-muted-foreground flex items-center gap-0.5 truncate shrink-0 max-w-[110px]" style={{ color: 'var(--text-muted)' }}>
-                <Mail size={9} /> {group.contactEmail}
+              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate shrink-0 max-w-[110px]" style={{ color: 'var(--text-muted)' }}>
+                <Mail size={10} /> {group.contactEmail}
               </span>
             )}
           </div>
 
-          {/* Member breakdown */}
-          <div className="mt-1.5 space-y-0.5 border-t pt-1.5 max-h-[84px] overflow-y-auto pr-1 custom-scrollbar" style={{ borderColor: 'var(--border-color)' }}>
+          {/* Member breakdown (Espaciado simétrico izquierda/derecha) */}
+          <div className="my-2.5 space-y-0.5 py-1 pr-1 max-h-[96px] overflow-y-auto custom-scrollbar">
             {group.guests?.map((guest, idx) => {
               let IconComponent = UserMinus;
               let iconColorClass = 'text-slate-400';
@@ -823,12 +1005,12 @@ const GuestGroupCard: React.FC<{
               }
 
               return (
-                <div key={guest.id || idx} className="flex justify-between items-center text-[10px] leading-none py-0.5">
+                <div key={guest.id || idx} className="flex justify-between items-center text-[10.5px] leading-snug py-0.5">
                   <span className="flex items-center gap-1 font-semibold truncate" style={{ color: 'var(--text-main)' }}>
                     <IconComponent size={10} className={`${iconColorClass} shrink-0`} />
                     <span className="truncate">{guest.name}</span>
                   </span>
-                  <span className="text-[8px] uppercase shrink-0 ml-1.5" style={{ color: 'var(--text-muted)' }}>
+                  <span className="text-[8.5px] uppercase shrink-0 ml-1.5" style={{ color: 'var(--text-muted)' }}>
                     {guest.role} {guest.category ? `- ${guest.category}` : ''}
                   </span>
                 </div>
@@ -838,33 +1020,33 @@ const GuestGroupCard: React.FC<{
         </div>
       </div>
 
-      {/* Card Footer */}
-      <div className="flex items-center justify-between border-t pl-2 shrink-0 h-5" style={{ borderColor: 'var(--border-color)' }}>
-        {/* RSVP Label Inferior Izquierda */}
-        <span className={`px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider ${rsvpColorClass}`}>
+      {/* Card Footer - Estilo Partner */}
+      <div className="mt-auto flex items-end justify-between border-t pl-2.5 h-6" style={{ borderColor: 'var(--border-color)' }}>
+        {/* RSVP Badge Inferior Izquierda */}
+        <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${rsvpColorClass}`}>
           RSVP: {rsvpText}
         </span>
 
-        {/* Action Buttons (Estilo Partner / Corner Block) */}
+        {/* Action Buttons (Estilo Partner / Corner Block rounded-tl-lg) */}
         <div
-          className="flex items-center gap-0.5 rounded-tl-md p-0.5 text-white h-full"
+          className="flex items-center gap-1 rounded-tl-lg px-1.5 py-0.5 text-white"
           style={{ backgroundColor: 'var(--primary-accent)' }}
         >
           <button
             type="button"
             onClick={onEdit}
-            className="flex h-4 w-4 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+            className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
             title="Editar sobre"
           >
-            <Edit2 size={10} />
+            <Edit2 size={11} />
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="flex h-4 w-4 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
+            className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-opacity hover:opacity-70"
             title="Eliminar sobre"
           >
-            <Trash2 size={10} />
+            <Trash2 size={11} />
           </button>
         </div>
       </div>
