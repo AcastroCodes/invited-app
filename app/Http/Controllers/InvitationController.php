@@ -42,6 +42,30 @@ class InvitationController extends Controller
     }
 
     /**
+     * Display the specified invitation for public guests.
+     */
+    public function showPublic($idOrSlug)
+    {
+        // Try to find by slug first, if not found or if it's numeric, find by ID
+        $invitation = Invitation::where('slug', $idOrSlug)
+            ->orWhere('id', $idOrSlug)
+            ->firstOrFail();
+
+        // Check if invitation is active
+        if (!$invitation->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Esta invitación no está activa o ya no está disponible.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $invitation,
+        ]);
+    }
+
+    /**
      * Store a newly created invitation for an event.
      */
     public function store(Request $request, $eventId)

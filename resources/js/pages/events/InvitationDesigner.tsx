@@ -1562,6 +1562,23 @@ export default function InvitationDesigner() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
+          {/* Botón de Preview */}
+          <a
+            href={`/v/${invitationId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer shadow-sm"
+            style={{ 
+              backgroundColor: 'var(--bg-card)', 
+              borderColor: 'var(--border-color)',
+              color: 'var(--primary-accent)'
+            }}
+            title="Ver en móvil (Preview)"
+          >
+            <Smartphone size={16} />
+            <span className="text-xs font-bold">Preview</span>
+          </a>
+
           {/* Botones de Deshacer (Undo) y Rehacer (Redo) con Historial de 15 acciones */}
           <div className="flex items-center rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
             <button

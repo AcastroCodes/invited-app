@@ -16,6 +16,7 @@ import EventConfig from './pages/events/EventConfig.tsx';
 import GuestList from './pages/events/GuestList.tsx';
 import TableList from './pages/events/TableList.tsx';
 import InvitationDesigner from './pages/events/InvitationDesigner.tsx';
+import InvitationViewer from './pages/events/InvitationViewer.tsx';
 
 import { AuthProvider } from './hooks/useAuth.tsx';
 import { PartnerProvider } from './context/PartnerContext.tsx';
@@ -31,6 +32,7 @@ function App() {
                         <Routes>
                             <Route path="/" element={<Index />} />
                             <Route path="/login" element={<Login />} />
+                            <Route path="/v/:id" element={<InvitationViewer />} />
                             
                             <Route element={<AppLayout />}>
                                 <Route path="/dashboard" element={<Dashboard />} />
