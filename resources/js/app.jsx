@@ -23,6 +23,38 @@ import { PartnerProvider } from './context/PartnerContext.tsx';
 import { ThemeProvider } from './components/theme/ThemeProvider.tsx';
 import AppLayout from './components/layout/AppLayout.tsx';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', backgroundColor: '#f8d7da', color: '#721c24', fontFamily: 'monospace' }}>
+          <h2>Something went wrong in React:</h2>
+          <details style={{ whiteSpace: 'pre-wrap' }}>
+            <summary>{this.state.error && this.state.error.toString()}</summary>
+            <br />
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </details>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
     return (
         <ThemeProvider>
@@ -59,5 +91,9 @@ function App() {
 const rootElement = document.getElementById('app');
 if (rootElement) {
     const root = createRoot(rootElement);
-    root.render(<App />);
+    root.render(
+        <ErrorBoundary>
+            <App />
+        </ErrorBoundary>
+    );
 }

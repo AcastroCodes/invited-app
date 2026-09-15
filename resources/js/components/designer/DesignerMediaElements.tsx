@@ -271,13 +271,13 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
         <video
           ref={videoRef}
           src={element.content}
-          controls={!element.chromaKeyEnabled}
+          controls={false}
           autoPlay
           loop
           muted
           crossOrigin="anonymous"
           playsInline
-          className={`w-full h-full object-cover rounded-xl pointer-events-auto transition-all ${
+          className={`w-full h-full object-cover rounded-xl pointer-events-none transition-all ${
             element.chromaKeyEnabled ? 'hidden' : 'block'
           }`}
           style={{

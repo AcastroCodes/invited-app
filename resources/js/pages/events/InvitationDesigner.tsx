@@ -352,15 +352,59 @@ interface CanvasElement {
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };
 }
 
+import { EnvelopeSettings } from '../../types/designerTypes';
+import { EnvelopeView, EnvelopeInspector, DEFAULT_ENVELOPE_SETTINGS } from '../../components/designer/EnvelopeCustomizer';
+
 export interface Scene {
   id: string;
   name: string;
+  isEnvelope?: boolean;
+  envelopeSettings?: EnvelopeSettings;
   elements: CanvasElement[];
   transition?: 'none' | 'fade' | 'slideLeft' | 'slideRight' | 'slideUp' | 'slideDown' | 'zoomIn' | 'zoomOut';
   transitionDuration?: number;
   autoAdvance?: boolean;
   autoAdvanceDelay?: number;
 }
+
+const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
+  const defaultEnv: Scene = {
+    id: 'scene-envelope',
+    name: 'Sobre ✉️',
+    isEnvelope: true,
+    envelopeSettings: DEFAULT_ENVELOPE_SETTINGS,
+    elements: [],
+  };
+
+  if (!rawScenes || rawScenes.length === 0) {
+    return [
+      defaultEnv,
+      { id: 'scene-1', name: 'Escena 01', elements: [] }
+    ];
+  }
+
+  if (rawScenes[0].isEnvelope || rawScenes[0].id === 'scene-envelope') {
+    const envScene: Scene = {
+      ...rawScenes[0],
+      isEnvelope: true,
+      name: 'Sobre ✉️',
+      envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(rawScenes[0].envelopeSettings || {}) }
+    };
+    return [envScene, ...rawScenes.slice(1)];
+  }
+
+  const existingEnv = rawScenes.find(s => s.isEnvelope || s.id === 'scene-envelope');
+  const rest = rawScenes.filter(s => s !== existingEnv);
+
+  const envScene: Scene = existingEnv ? {
+    ...existingEnv,
+    isEnvelope: true,
+    name: 'Sobre ✉️',
+    envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) }
+  } : defaultEnv;
+
+  return [envScene, ...rest];
+};
 
 interface FontOption {
   name: string;
@@ -818,32 +862,21 @@ export default function InvitationDesigner() {
           const invData = invRes.data.data || invRes.data;
           setInvitation(invData);
           if (invData.content) {
-            if (invData.content.scenes && invData.content.scenes.length > 0) {
-              setScenes(invData.content.scenes);
-              const activeId = invData.content.activeSceneId || invData.content.scenes[0].id;
-              setActiveSceneId(activeId);
-              setElements(invData.content.scenes.find((s: Scene) => s.id === activeId)?.elements || []);
-            } else if (invData.content.elements) {
-              // Backward compatibility for single scene
-              const defaultScene: Scene = {
-                id: 'scene-1',
-                name: 'Escena 01',
-                elements: invData.content.elements,
-              };
-              setScenes([defaultScene]);
-              setActiveSceneId('scene-1');
-              setElements(invData.content.elements);
-            } else {
-              // Empty state
-              const defaultScene: Scene = {
-                id: 'scene-1',
-                name: 'Escena 01',
-                elements: [],
-              };
-              setScenes([defaultScene]);
-              setActiveSceneId('scene-1');
-              setElements([]);
-            }
+            const raw = invData.content.scenes && invData.content.scenes.length > 0
+              ? invData.content.scenes
+              : invData.content.elements
+              ? [{ id: 'scene-1', name: 'Escena 01', elements: invData.content.elements }]
+              : [];
+            
+            const processedScenes = ensureEnvelopeScene(raw);
+            setScenes(processedScenes);
+
+            const activeId = invData.content.activeSceneId && processedScenes.some((s: Scene) => s.id === invData.content.activeSceneId)
+              ? invData.content.activeSceneId
+              : processedScenes[0].id;
+            
+            setActiveSceneId(activeId);
+            setElements(processedScenes.find((s: Scene) => s.id === activeId)?.elements || []);
           }
         }
       })
@@ -999,8 +1032,14 @@ export default function InvitationDesigner() {
   };
 
   const handleDeleteScene = (sceneId: string) => {
-    if (scenes.length <= 1) {
-      alert("No puedes eliminar la única escena.");
+    const targetScene = scenes.find((s) => s.id === sceneId);
+    if (targetScene?.isEnvelope || sceneId === scenes[0]?.id) {
+      alert("La escena 'Sobre ✉️' es obligatoria para la portada y no se puede eliminar.");
+      return;
+    }
+
+    if (scenes.length <= 2) {
+      alert("Debes conservar al menos una escena de contenido además del Sobre.");
       return;
     }
     
@@ -1009,7 +1048,6 @@ export default function InvitationDesigner() {
 
     setScenes((prev) => {
       const filtered = prev.filter((s) => s.id !== sceneId);
-      // If we are deleting the active scene, switch to the first available
       if (activeSceneId === sceneId) {
         const fallback = filtered[0];
         setActiveSceneId(fallback.id);
@@ -1024,7 +1062,8 @@ export default function InvitationDesigner() {
   };
 
   const handleMoveSceneUp = (index: number) => {
-    if (index === 0) return;
+    // La escena 0 (Sobre) no se puede mover, ni otra escena puede subirse a la posición 0
+    if (index <= 1) return;
     setScenes((prev) => {
       const next = [...prev];
       const temp = next[index - 1];
@@ -1035,7 +1074,8 @@ export default function InvitationDesigner() {
   };
 
   const handleMoveSceneDown = (index: number) => {
-    if (index === scenes.length - 1) return;
+    // La escena 0 (Sobre) no se puede mover hacia abajo
+    if (index === 0 || index === scenes.length - 1) return;
     setScenes((prev) => {
       const next = [...prev];
       const temp = next[index + 1];
@@ -2437,26 +2477,18 @@ export default function InvitationDesigner() {
           >
             {/* Canvas stage transform container */}
             <div
-              className="transition-transform duration-150 relative shadow-2xl shrink-0 origin-center"
+              className="transition-transform duration-150 relative shrink-0 origin-center"
               style={{
                 width: '1080px',
                 height: '1920px',
                 transform: `scale(${zoom / 100})`,
               }}
             >
-              {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
-              <div
-                className="absolute inset-0 pointer-events-none z-[9999]"
-                style={{
-                  boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.82)',
-                }}
-              />
-
               {/* Canvas Stage 1080px x 1920px (Lienzo Pro con soporte para elementos fuera del lienzo con opacidad) */}
               <div
                 ref={stageCanvasRef}
                 data-stage-canvas="true"
-                className="w-[1080px] h-[1920px] relative overflow-hidden shadow-2xl border"
+                className="w-[1080px] h-[1920px] relative overflow-visible shadow-2xl border"
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderColor: 'var(--border-color)',
@@ -2467,6 +2499,21 @@ export default function InvitationDesigner() {
                   }
                 }}
               >
+                {activeScene?.isEnvelope ? (
+                  <EnvelopeView
+                    settings={activeScene.envelopeSettings}
+                    isInteractive={false}
+                    preloadProgress={100}
+                  />
+                ) : (
+                  <>
+                    {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
+                    <div
+                      className="absolute inset-0 pointer-events-none z-[80] border-2 border-pink-500/50"
+                      style={{
+                        boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.72)',
+                      }}
+                    />
 
               {/* Canvas Elements */}
               {elements.map((el, index) => {
@@ -2632,6 +2679,8 @@ export default function InvitationDesigner() {
                   </div>
                 );
               })}
+                  </>
+                )}
             </div>
           </div>
         </div>
@@ -2683,7 +2732,17 @@ export default function InvitationDesigner() {
 
           {/* Body del Inspector */}
           <div className="flex-1 overflow-y-auto">
-            {!selectedElement ? (
+            {activeScene?.isEnvelope ? (
+              <EnvelopeInspector
+                settings={activeScene.envelopeSettings}
+                onChange={(updated) => {
+                  setScenes((prev) =>
+                    prev.map((s) => (s.id === activeScene.id ? { ...s, envelopeSettings: updated } : s))
+                  );
+                  setHasUnsavedChanges(true);
+                }}
+              />
+            ) : !selectedElement ? (
               <div className="flex flex-col pb-6">
                 <div className="p-3 m-3 rounded-xl border flex items-center gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
                   <Layout size={18} style={{ color: 'var(--primary-accent)' }} />
@@ -3290,6 +3349,44 @@ export default function InvitationDesigner() {
                             onChange={(val) => updateSelectedElement('opacity', val)}
                           />
                         </div>
+                      </div>
+
+                      {/* Profundidad 3D */}
+                      <div className="font-mono pt-3 pb-1 border-t mt-3" style={{ borderColor: 'var(--border-color)' }}>
+                        <div 
+                          className="flex items-center justify-between mb-2 cursor-pointer group" 
+                          onClick={() => updateSelectedElement('parallaxEnabled', !selectedElement.parallaxEnabled)}
+                        >
+                          <label className="font-extrabold uppercase text-[10px] cursor-pointer group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                            Efecto Parallax (3D)
+                          </label>
+                          <div 
+                            className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200"
+                            style={{
+                              backgroundColor: selectedElement.parallaxEnabled ? 'var(--primary-accent)' : 'transparent',
+                              borderColor: selectedElement.parallaxEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                              borderWidth: '1.5px',
+                              boxShadow: selectedElement.parallaxEnabled ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                            }}
+                          >
+                            {selectedElement.parallaxEnabled && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                          </div>
+                        </div>
+
+                        {selectedElement.parallaxEnabled && (
+                          <div className="pl-1 animate-fade-in mt-2">
+                            <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }} title="Intensidad del efecto al mover el móvil (-100 a 100)">
+                              Profundidad
+                            </label>
+                            <InspectorNumberInput
+                              value={selectedElement.depth || 0}
+                              min={-100}
+                              max={100}
+                              step={5}
+                              onChange={(val) => updateSelectedElement('depth', val)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

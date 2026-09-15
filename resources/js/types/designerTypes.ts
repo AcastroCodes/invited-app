@@ -11,6 +11,8 @@ export interface CanvasElement {
   flipV?: boolean;
   keepAspectRatio?: boolean;
   opacity?: number;
+  parallaxEnabled?: boolean;
+  depth?: number;
   fontSize?: number;
   fontWeight?: string;
   fontFamily?: string;
@@ -94,6 +96,19 @@ export interface CanvasElement {
   groupId?: string;
   groupName?: string;
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };
+}
+
+export interface EnvelopeSettings {
+  enabled?: boolean;
+  color?: string;
+  flapColor?: string;
+  innerColor?: string;
+  sealDesign?: 'wax_monogram' | 'wax_heart' | 'wax_rings' | 'ribbon' | 'gold_seal';
+  sealColor?: string;
+  sealText?: string;
+  recipientText?: string;
+  openButtonText?: string;
+  patternStyle?: 'classic' | 'floral' | 'stripes' | 'dots' | 'clean';
 }
 
 export interface FontOption {
