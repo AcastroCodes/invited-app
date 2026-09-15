@@ -277,6 +277,7 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
           muted
           crossOrigin="anonymous"
           playsInline
+          disablePictureInPicture
           className={`w-full h-full object-cover rounded-xl pointer-events-none transition-all ${
             element.chromaKeyEnabled ? 'hidden' : 'block'
           }`}

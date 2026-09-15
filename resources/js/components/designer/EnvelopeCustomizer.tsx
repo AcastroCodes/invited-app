@@ -22,6 +22,7 @@ interface EnvelopeViewProps {
   preloadProgress?: number;
   isPreloading?: boolean;
   isInteractive?: boolean;
+  partner?: any;
 }
 
 export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
@@ -31,6 +32,7 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
   preloadProgress = 100,
   isPreloading = false,
   isInteractive = true,
+  partner,
 }) => {
   const envColor = settings.color || DEFAULT_ENVELOPE_SETTINGS.color;
   const flapColor = settings.flapColor || DEFAULT_ENVELOPE_SETTINGS.flapColor;
@@ -41,10 +43,18 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
   const isReady = preloadProgress >= 100;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-slate-950 p-6 select-none font-sans">
+    <div className="w-full h-full flex flex-col items-center justify-between relative overflow-hidden bg-slate-950 p-6 select-none font-sans">
       {/* Fondo ambiental sutil */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-black opacity-90 pointer-events-none" />
       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#ec4899_1px,transparent_1px)] [background-size:24px_24px]" />
+
+      {/* Sección Top */}
+      <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col justify-center items-center text-center px-4 mt-8">
+        <h1 className="text-4xl sm:text-5xl font-serif text-amber-100/90 font-extrabold tracking-widest drop-shadow-lg" style={{textShadow: '0 4px 20px rgba(251, 191, 36, 0.2)'}}>
+          ¡ESTÁS INVITADO!
+        </h1>
+        <p className="text-slate-400 text-xs sm:text-sm mt-3 tracking-[0.3em] uppercase whitespace-nowrap">Tenemos algo especial para ti</p>
+      </div>
 
       {/* Contenedor principal del Sobre 3D */}
       <div 
@@ -53,14 +63,14 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
             onOpen();
           }
         }}
-        className={`relative w-[340px] sm:w-[400px] h-[520px] rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-700 flex flex-col items-center justify-center p-6 border border-white/10 ${
+        className={`relative w-[340px] sm:w-[400px] h-[280px] sm:h-[320px] rounded-xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-700 flex flex-col items-center justify-center p-6 border border-white/10 shrink-0 ${
           isInteractive && isReady ? 'cursor-pointer hover:scale-[1.02] active:scale-95 group' : ''
         }`}
         style={{ backgroundColor: envColor }}
       >
         {/* Solapa Superior del Sobre (Flap) */}
         <div 
-          className="absolute top-0 left-0 right-0 h-44 rounded-t-2xl transition-transform duration-700 origin-top shadow-md flex items-end justify-center pb-2 z-10"
+          className="absolute top-0 left-0 right-0 h-36 sm:h-40 rounded-t-2xl transition-transform duration-700 origin-top shadow-md flex items-end justify-center pb-2 z-10"
           style={{ 
             backgroundColor: flapColor,
             clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
@@ -69,6 +79,7 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
         >
           {/* Sombra de plegado */}
           <div className="w-full h-full bg-black/5 pointer-events-none" />
+          <div className="absolute left-1/2 bottom-0 w-3 h-3 bg-blue-500 transform -translate-x-1/2 translate-y-1/2"></div>
         </div>
 
         {/* Interior visible del Sobre */}
@@ -77,68 +88,52 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
           style={{ backgroundColor: innerColor }}
         />
 
-        {/* Texto del Destinatario impreso en el sobre */}
-        <div className="z-20 text-center my-auto px-4 max-w-xs">
-          <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold mb-2">
-            Invitación Especial
+        {/* Texto del Destinatario en la base del sobre */}
+        <div className="absolute left-2 right-2 top-[36px] sm:top-[40px] bottom-2 flex flex-col items-center justify-center border border-red-500 rounded-xl">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1 opacity-70">
+            ENTREGAR A:
           </div>
-          <h2 className="text-2xl sm:text-3xl font-serif font-extrabold text-slate-800 tracking-tight leading-snug drop-shadow-xs">
-            {settings.recipientText || '¡Estás Invitado!'}
+          <h2 className="text-2xl font-serif font-extrabold text-slate-800 tracking-tight leading-snug drop-shadow-xs truncate px-4">
+            {settings.recipientText || 'Invitado Especial'}
           </h2>
-          <div className="w-12 h-0.5 bg-slate-400/50 mx-auto mt-3 rounded-full" />
+          <div className="w-8 h-0.5 bg-slate-400/50 mx-auto mt-3 rounded-full" />
         </div>
 
-        {/* Sello de Cera / Wax Seal Interactivo */}
-        <div 
-          className="z-30 relative my-4 flex items-center justify-center shadow-xl rounded-full transition-transform duration-300 group-hover:scale-110"
-          style={{
-            width: '84px',
-            height: '84px',
-            backgroundColor: sealColor,
-            boxShadow: `0 10px 25px -5px ${sealColor}80, inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.4)`
-          }}
-        >
-          {/* Borde irregular de cera */}
-          <div className="absolute inset-1 rounded-full border-2 border-white/30 pointer-events-none" />
-          
-          {/* Icono o Monograma dentro del sello */}
-          {sealDesign === 'wax_heart' ? (
-            <Heart size={36} className="text-amber-100 fill-amber-100/30 drop-shadow-md" />
-          ) : sealDesign === 'wax_rings' ? (
-            <Gift size={36} className="text-amber-100 drop-shadow-md" />
-          ) : sealDesign === 'gold_seal' ? (
-            <Award size={40} className="text-yellow-200 drop-shadow-md" />
-          ) : (
-            <span className="text-xl font-serif font-bold text-amber-100 tracking-wider drop-shadow-md">
-              {settings.sealText || 'E & V'}
-            </span>
-          )}
-        </div>
+      </div>
 
-        {/* Estado de Precarga / Barra de Carga */}
-        {!isReady && (
-          <div className="z-20 w-full max-w-[220px] flex flex-col items-center gap-2 mt-2">
-            <div className="w-full bg-black/10 rounded-full h-2 overflow-hidden border border-black/5 p-0.5">
+      {/* Sección Partner (Footer) */}
+      <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col items-center justify-center pb-4">
+        {!isReady ? (
+          <div className="w-full max-w-[220px] flex flex-col items-center gap-2">
+            <div className="w-full bg-black/30 rounded-full h-1.5 overflow-hidden border border-white/10 p-0.5">
               <div 
                 className="h-full bg-pink-500 rounded-full transition-all duration-300 shadow-xs"
                 style={{ width: `${Math.min(100, Math.max(5, preloadProgress))}%` }}
               />
             </div>
-            <span className="text-[11px] font-bold text-slate-500 tracking-wider">
-              CARGANDO DETALLES... {preloadProgress}%
+            <span className="text-[10px] font-bold text-slate-400/80 tracking-widest">
+              CARGANDO INVITACIÓN... {preloadProgress}%
             </span>
           </div>
-        )}
-
-        {/* Botón de Apertura activado cuando la precarga está lista */}
-        {isReady && (
-          <div className="z-20 mt-2 flex flex-col items-center animate-pulse">
-            <span className="px-5 py-2.5 rounded-full bg-slate-900 text-white font-extrabold text-xs tracking-wider uppercase shadow-lg border border-white/20 flex items-center gap-2 group-hover:bg-pink-600 transition-colors">
-              <Sparkles size={14} className="text-amber-300 animate-spin" style={{ animationDuration: '3s' }} />
+        ) : (
+          <div className="flex flex-col items-center animate-fadeIn">
+            <span className="px-6 py-3 rounded-full bg-white/5 backdrop-blur-md text-amber-50 font-bold text-xs tracking-widest uppercase shadow-xl border border-white/10 flex items-center gap-2 transition-all">
+              <Sparkles size={16} className="text-amber-300 animate-pulse" />
               {settings.openButtonText || 'Toca para abrir 💌'}
             </span>
           </div>
         )}
+
+        <div className="flex flex-col items-center justify-center mt-8 gap-2">
+           <span className="text-[9px] uppercase tracking-widest text-slate-500/60 font-semibold">
+             Powered By
+           </span>
+           {partner && partner.logo ? (
+             <img src={`/storage/${partner.logo}`} alt={partner.business_name} className="h-6 object-contain opacity-70 grayscale hover:grayscale-0 transition-all duration-500" />
+           ) : (
+             <div className="text-sm font-bold text-slate-400/80 uppercase tracking-widest opacity-70">{partner?.business_name || 'Invited Pro'}</div>
+           )}
+        </div>
       </div>
     </div>
   );

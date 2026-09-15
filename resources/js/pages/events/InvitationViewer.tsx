@@ -71,8 +71,10 @@ export default function InvitationViewer() {
   }, []);
   
   const [hasEntered, setHasEntered] = useState(false);
-  const [preloadProgress, setPreloadProgress] = useState(0);
-  const [isPreloading, setIsPreloading] = useState(false);
+  const [envelopePreloadProgress, setEnvelopePreloadProgress] = useState(0);
+  const [scenesPreloadProgress, setScenesPreloadProgress] = useState(0);
+  const [isPreloadingEnvelope, setIsPreloadingEnvelope] = useState(false);
+  const [isPreloadingScenes, setIsPreloadingScenes] = useState(false);
 
   useEffect(() => {
     // Fetch invitation from the public route
@@ -137,15 +139,74 @@ export default function InvitationViewer() {
     };
   }, []);
 
-  // Preload Logic
+  // Preload Envelope Logic (Phase 1)
   useEffect(() => {
     if (!invitation?.content?.scenes || loading) return;
-    if (isPreloading || hasEntered || preloadProgress === 100) return;
+    if (isPreloadingEnvelope || envelopePreloadProgress === 100) return;
     
-    setIsPreloading(true);
+    setIsPreloadingEnvelope(true);
+    
+    const scenes = ensureEnvelopeScene(invitation.content.scenes);
+    const envelopeScene = scenes.find((s: any) => s.isEnvelope);
     
     const assetsToLoad: string[] = [];
-    invitation.content.scenes.forEach((scene: any) => {
+    if (envelopeScene) {
+      if (envelopeScene.backgroundImage) {
+        assetsToLoad.push(envelopeScene.backgroundImage);
+      }
+      envelopeScene.elements?.forEach((el: any) => {
+        if (el.type === 'image' && el.content) assetsToLoad.push(el.content);
+        if (el.type === 'video' && el.content) assetsToLoad.push(el.content);
+        if (el.type === 'audio' && el.content) assetsToLoad.push(el.content);
+      });
+    }
+
+    const uniqueAssets = Array.from(new Set(assetsToLoad));
+    
+    if (uniqueAssets.length === 0) {
+      setEnvelopePreloadProgress(100);
+      return;
+    }
+
+    let loadedCount = 0;
+    
+    uniqueAssets.forEach(url => {
+      const isVideoOrAudio = url.match(/\.(mp4|webm|m4v|mp3|wav|ogg)$/i);
+      if (isVideoOrAudio) {
+        fetch(url)
+          .then(res => res.blob())
+          .finally(() => {
+            loadedCount++;
+            setEnvelopePreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
+          });
+      } else {
+        const img = new Image();
+        img.onload = () => {
+          loadedCount++;
+          setEnvelopePreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
+        };
+        img.onerror = () => {
+          loadedCount++;
+          setEnvelopePreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
+        };
+        img.src = url;
+      }
+    });
+  }, [invitation, isPreloadingEnvelope, loading, envelopePreloadProgress]);
+
+  // Preload Scenes Logic (Phase 2)
+  useEffect(() => {
+    // Solo empezamos a cargar las escenas cuando el sobre ya cargó (Fase 1 terminada)
+    if (!invitation?.content?.scenes || loading || envelopePreloadProgress < 100) return;
+    if (isPreloadingScenes || scenesPreloadProgress === 100) return;
+    
+    setIsPreloadingScenes(true);
+    
+    const scenes = ensureEnvelopeScene(invitation.content.scenes);
+    const otherScenes = scenes.filter((s: any) => !s.isEnvelope);
+    
+    const assetsToLoad: string[] = [];
+    otherScenes.forEach((scene: any) => {
       if (scene.backgroundImage) {
         assetsToLoad.push(scene.backgroundImage);
       }
@@ -159,7 +220,7 @@ export default function InvitationViewer() {
     const uniqueAssets = Array.from(new Set(assetsToLoad));
     
     if (uniqueAssets.length === 0) {
-      setPreloadProgress(100);
+      setScenesPreloadProgress(100);
       return;
     }
 
@@ -170,28 +231,24 @@ export default function InvitationViewer() {
       if (isVideoOrAudio) {
         fetch(url)
           .then(res => res.blob())
-          .then(() => {
+          .finally(() => {
             loadedCount++;
-            setPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
-          })
-          .catch(() => {
-             loadedCount++;
-             setPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
+            setScenesPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
           });
       } else {
         const img = new Image();
         img.onload = () => {
           loadedCount++;
-          setPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
+          setScenesPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
         };
         img.onerror = () => {
           loadedCount++;
-          setPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
+          setScenesPreloadProgress(Math.round((loadedCount / uniqueAssets.length) * 100));
         };
         img.src = url;
       }
     });
-  }, [invitation, isPreloading, hasEntered, loading, preloadProgress]);
+  }, [invitation, isPreloadingScenes, loading, envelopePreloadProgress, scenesPreloadProgress]);
 
   const handleEnter = async () => {
     const isMobile = window.innerWidth < 768;
@@ -223,13 +280,21 @@ export default function InvitationViewer() {
   // Escuchar botón atrás y salida de pantalla completa
   useEffect(() => {
     const handlePopState = () => {
-      if (hasEntered) setHasEntered(false);
+      if (hasEntered) {
+        setHasEntered(false);
+        setCurrentSceneIndex(0);
+        setPrevSceneIndex(-1);
+        setIsTransitioning(false);
+      }
     };
 
     const handleFullscreenChange = () => {
       const isFullscreen = document.fullscreenElement || (document as any).webkitFullscreenElement;
       if (!isFullscreen && hasEntered) {
         setHasEntered(false);
+        setCurrentSceneIndex(0);
+        setPrevSceneIndex(-1);
+        setIsTransitioning(false);
       }
     };
 
@@ -324,9 +389,10 @@ export default function InvitationViewer() {
         <div key={scene.id} className="w-full h-full absolute inset-0 z-40 bg-black">
           <EnvelopeView
             settings={scene.envelopeSettings}
-            preloadProgress={preloadProgress}
-            isPreloading={isPreloading}
+            preloadProgress={envelopePreloadProgress}
+            isPreloading={isPreloadingEnvelope}
             isInteractive={true}
+            partner={invitation?.event?.partner}
             onOpen={() => {
               handleEnter();
               goToScene(1);
@@ -519,12 +585,6 @@ export default function InvitationViewer() {
         )
       )}
 
-      {/* Debug del giroscopio (temporal para verificar si iOS lo bloquea por HTTP) */}
-      <div className="fixed top-4 right-4 z-50 bg-black/75 text-white text-[10px] p-2 rounded pointer-events-none font-mono">
-        Tilt X: {tilt.x.toFixed(2)}<br/>
-        Tilt Y: {tilt.y.toFixed(2)}<br/>
-        {typeof (DeviceOrientationEvent as any) !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function' ? 'Permisos: Soportado' : 'Permisos: NO Soportado (HTTP)'}
-      </div>
 
       {/* Overlay de advertencia cuando el teléfono se gira a horizontal (Landscape) */}
       {isLandscape && (

@@ -47,7 +47,8 @@ class InvitationController extends Controller
     public function showPublic($idOrSlug)
     {
         // Try to find by slug first, if not found or if it's numeric, find by ID
-        $invitation = Invitation::where('slug', $idOrSlug)
+        $invitation = Invitation::with('event.partner')
+            ->where('slug', $idOrSlug)
             ->orWhere('id', $idOrSlug)
             ->firstOrFail();
 
