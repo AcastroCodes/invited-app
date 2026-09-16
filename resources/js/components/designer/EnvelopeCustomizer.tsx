@@ -114,7 +114,6 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
                 </div>
               </div>
 
-              {/* Franja Derecha 5/7 (Efecto Vidrio Esmerilado) */}
               <div 
                 className="flex-[5] h-full relative z-10 transition-all duration-700"
                 style={{
@@ -125,32 +124,7 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
                   boxShadow: 'inset 5px 0 15px rgba(255,255,255,0.1), -5px 0 15px rgba(0,0,0,0.1)'
                 }}
               >
-                {/* Área de información superior */}
-                <div 
-                  className="absolute top-0 left-0 right-0 pointer-events-none flex flex-col justify-center items-center text-center p-4 sm:p-6"
-                  style={{ height: 'calc(60% - clamp(22px, 3vw, 27px))' }}
-                >
-                  <h1 className="text-xl sm:text-4xl font-serif text-white font-extrabold tracking-widest drop-shadow-[0_4px_10px_rgba(0,0,0,0.4)]">
-                    ¡ESTÁS INVITADO!
-                  </h1>
-                  <p className="text-white/90 text-[9px] sm:text-[11px] mt-1 sm:mt-3 tracking-[0.3em] uppercase whitespace-nowrap drop-shadow-md">
-                    Tenemos algo especial para ti
-                  </p>
-                </div>
-
-                {/* Área de información inferior */}
-                <div 
-                  className="absolute bottom-0 left-0 right-0 pointer-events-none flex flex-col justify-center items-center text-center p-4 sm:p-6"
-                  style={{ top: 'calc(60% + clamp(22px, 3vw, 27px))' }}
-                >
-                  <div className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/80 font-semibold mb-1 drop-shadow-md">
-                    ENTREGAR A:
-                  </div>
-                  <h2 className="text-lg sm:text-3xl font-serif font-extrabold text-white tracking-tight leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)] truncate px-4">
-                    {settings.recipientText || 'Invitado Especial'}
-                  </h2>
-                  <div className="w-12 h-0.5 bg-white/50 mx-auto mt-2 sm:mt-4 rounded-full shadow-sm" />
-                </div>
+                {/* Los textos han sido removidos porque ahora se manejan como capas (elementos) del lienzo */}
               </div>
               
               {/* Franja del Sello (Horizontal - Belly Band) */}
@@ -185,12 +159,8 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
         ) : (
           // --- MODO VERTICAL (Sobre Clásico) ---
           <>
-            {/* Sección Top */}
+            {/* Sección Top (Los textos han sido removidos para manejarse como capas de texto) */}
             <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col justify-center items-center text-center">
-              <h1 className="text-4xl sm:text-5xl font-serif text-amber-100/90 font-extrabold tracking-widest drop-shadow-lg" style={{textShadow: '0 4px 20px rgba(251, 191, 36, 0.2)'}}>
-                ¡ESTÁS INVITADO!
-              </h1>
-              <p className="text-slate-400 text-xs sm:text-sm mt-3 tracking-[0.3em] uppercase whitespace-nowrap">Tenemos algo especial para ti</p>
             </div>
 
             {/* Contenedor principal del Sobre 3D */}
@@ -239,15 +209,8 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
                 style={{ backgroundColor: innerColor }}
               />
 
-              {/* Texto del Destinatario en la base del sobre */}
+              {/* Texto del Destinatario en la base del sobre (Removido para usar capas del lienzo) */}
               <div className="absolute left-2 right-2 top-44 sm:top-48 bottom-2 flex flex-col items-center justify-center rounded-xl">
-                <div className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1 opacity-70">
-                  ENTREGAR A:
-                </div>
-                <h2 className="text-2xl font-serif font-extrabold text-slate-800 tracking-tight leading-snug drop-shadow-xs truncate px-4">
-                  {settings.recipientText || 'Invitado Especial'}
-                </h2>
-                <div className="w-8 h-0.5 bg-slate-400/50 mx-auto mt-3 rounded-full" />
               </div>
             </div>
           </>

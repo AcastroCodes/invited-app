@@ -368,13 +368,85 @@ export interface Scene {
   autoAdvanceDelay?: number;
 }
 
+const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
+  {
+    id: 'env-title-1',
+    type: 'text',
+    content: '¡ESTÁS INVITADO!',
+    x: 140,
+    y: 300,
+    width: 800,
+    height: 120,
+    fontSize: 54,
+    fontFamily: 'Playfair Display',
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    shadowBlur: 10,
+    shadowColor: 'rgba(0,0,0,0.4)',
+    shadowOffsetY: 4,
+    visible: true,
+    locked: false,
+  },
+  {
+    id: 'env-subtitle-1',
+    type: 'text',
+    content: 'Tenemos algo especial para ti',
+    x: 140,
+    y: 430,
+    width: 800,
+    height: 60,
+    fontSize: 22,
+    color: '#F8F8F8',
+    textAlign: 'center',
+    shadowBlur: 5,
+    shadowColor: 'rgba(0,0,0,0.4)',
+    visible: true,
+    locked: false,
+  },
+  {
+    id: 'env-to-label',
+    type: 'text',
+    content: 'ENTREGAR A:',
+    x: 140,
+    y: 1350,
+    width: 800,
+    height: 60,
+    fontSize: 22,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    visible: true,
+    locked: false,
+  },
+  {
+    id: 'env-recipient',
+    type: 'text',
+    content: 'Invitado Especial',
+    x: 140,
+    y: 1420,
+    width: 800,
+    height: 100,
+    fontSize: 48,
+    fontFamily: 'Playfair Display',
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    shadowBlur: 8,
+    shadowColor: 'rgba(0,0,0,0.4)',
+    shadowOffsetY: 2,
+    visible: true,
+    locked: false,
+  }
+];
+
 const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
   const defaultEnv: Scene = {
     id: 'scene-envelope',
     name: 'Sobre ✉️',
     isEnvelope: true,
     envelopeSettings: DEFAULT_ENVELOPE_SETTINGS,
-    elements: [],
+    elements: [...DEFAULT_ENVELOPE_ELEMENTS],
   };
 
   if (!rawScenes || rawScenes.length === 0) {
@@ -389,7 +461,8 @@ const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
       ...rawScenes[0],
       isEnvelope: true,
       name: 'Sobre ✉️',
-      envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(rawScenes[0].envelopeSettings || {}) }
+      envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(rawScenes[0].envelopeSettings || {}) },
+      elements: (!rawScenes[0].elements || rawScenes[0].elements.length === 0) ? [...DEFAULT_ENVELOPE_ELEMENTS] : rawScenes[0].elements
     };
     return [envScene, ...rawScenes.slice(1)];
   }
@@ -401,7 +474,8 @@ const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
     ...existingEnv,
     isEnvelope: true,
     name: 'Sobre ✉️',
-    envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) }
+    envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) },
+    elements: (!existingEnv.elements || existingEnv.elements.length === 0) ? [...DEFAULT_ENVELOPE_ELEMENTS] : existingEnv.elements
   } : defaultEnv;
 
   return [envScene, ...rest];
@@ -2639,7 +2713,9 @@ export default function InvitationDesigner() {
                       isSelected ? 'outline-4 outline-dashed outline-pink-500' : ''
                     }`}
                     style={{
-                      zIndex: elements.length - index,
+                      zIndex: activeScene?.isEnvelope && el.type === 'text' 
+                                ? (elements.length - index) + 100 
+                                : elements.length - index,
                       left: `${el.x}px`,
                       top: `${el.y}px`,
                       width: `${el.width}px`,
@@ -2785,7 +2861,7 @@ export default function InvitationDesigner() {
                 );
               })}
                   {activeScene?.isEnvelope && (
-                    <div className="absolute inset-0 pointer-events-none z-[90] flex items-center justify-center">
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center" style={{ zIndex: 50 }}>
                       <EnvelopeView
                         settings={activeScene.envelopeSettings}
                         isInteractive={false}
