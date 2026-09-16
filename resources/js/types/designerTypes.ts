@@ -109,6 +109,7 @@ export interface EnvelopeSettings {
   recipientText?: string;
   openButtonText?: string;
   patternStyle?: 'classic' | 'floral' | 'stripes' | 'dots' | 'clean';
+  orientation?: 'vertical' | 'horizontal';
 }
 
 export interface FontOption {

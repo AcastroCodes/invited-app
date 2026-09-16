@@ -73,6 +73,7 @@ import {
   Link,
   Unlink,
   Layout,
+  Mail,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Invitation, Event } from '../../types';
@@ -1094,11 +1095,11 @@ export default function InvitationDesigner() {
       id: `el-text-${Date.now()}`,
       type: 'text',
       content: type === 'title' ? 'Nuevo Título' : type === 'subtitle' ? 'Subtítulo' : 'Texto descriptivo...',
-      x: 40,
-      y: 180 + elements.length * 25,
-      width: 280,
-      height: 40,
-      fontSize: type === 'title' ? 24 : type === 'subtitle' ? 16 : 13,
+      x: 150,
+      y: 400 + elements.length * 70,
+      width: 750,
+      height: 120,
+      fontSize: type === 'title' ? 64 : type === 'subtitle' ? 42 : 34,
       fontWeight: type === 'title' ? 'bold' : 'normal',
       color: 'var(--text-main)',
       textAlign: 'center',
@@ -1123,11 +1124,11 @@ export default function InvitationDesigner() {
       id: `el-${elementType}-${Date.now()}`,
       type: elementType,
       content: defaultLabels[elementType] || 'Nuevo Elemento',
-      x: 50,
-      y: 120 + elements.length * 30,
-      width: elementType === 'shape' ? 120 : elementType === '3d' ? 200 : 260,
-      height: elementType === 'shape' ? 120 : elementType === '3d' ? 200 : 45,
-      fontSize: elementType === 'text' ? 18 : undefined,
+      x: 180,
+      y: 350 + elements.length * 80,
+      width: elementType === 'shape' ? 300 : elementType === '3d' ? 500 : 700,
+      height: elementType === 'shape' ? 300 : elementType === '3d' ? 500 : 120,
+      fontSize: elementType === 'text' ? 48 : undefined,
       color: 'var(--text-main)',
       backgroundColor: elementType === 'shape' ? 'var(--primary-accent-light)' : undefined,
       borderRadius: elementType === 'shape' ? 16 : undefined,
@@ -2294,93 +2295,203 @@ export default function InvitationDesigner() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {scenes.map((scene, idx) => {
-                const isActive = activeSceneId === scene.id;
-                const isEditing = editingSceneId === scene.id;
-                
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col">
+              <div className="space-y-2">
+                {scenes.map((scene, idx) => {
+                  if (scene.isEnvelope) return null;
+
+                  const isActive = activeSceneId === scene.id;
+                  const isEditing = editingSceneId === scene.id;
+                  
+                  return (
+                    <div
+                      key={scene.id}
+                      onClick={() => handleSwitchScene(scene.id)}
+                      className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs cursor-pointer"
+                      style={{
+                        backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
+                        borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingSceneName}
+                            onChange={(e) => setEditingSceneName(e.target.value)}
+                            onBlur={() => handleRenameScene(scene.id, editingSceneName)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleRenameScene(scene.id, editingSceneName);
+                              if (e.key === 'Escape') setEditingSceneId(null);
+                            }}
+                            autoFocus
+                            className="flex-1 text-xs font-bold bg-transparent outline-none border-b mr-2"
+                            style={{ borderColor: 'var(--primary-accent)', color: 'var(--text-main)' }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setEditingSceneId(scene.id);
+                              setEditingSceneName(scene.name);
+                            }}
+                            className="text-xs font-bold truncate flex-1"
+                            style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
+                            title="Doble clic para renombrar"
+                          >
+                            {scene.name}
+                          </span>
+                        )}
+
+                        <div className="flex items-center gap-0.5 shrink-0 ml-2 border rounded-md p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveSceneUp(idx);
+                            }}
+                            disabled={idx === 0 || (idx === 1 && scenes[0].isEnvelope)}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Subir"
+                          >
+                            <ChevronUp size={11} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveSceneDown(idx);
+                            }}
+                            disabled={idx === scenes.length - 1}
+                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
+                            style={{ color: 'var(--text-main)' }}
+                            title="Bajar"
+                          >
+                            <ChevronDown size={11} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteScene(scene.id);
+                            }}
+                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ml-0.5"
+                            style={{ color: 'var(--danger)' }}
+                            title="Eliminar Escena"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              </div>
+            </div>
+          </div>
+          {/* 4. SECCIÓN SOBRE (Elemento Fijo) */}
+          <div
+            className="flex flex-col shrink-0 border-t"
+            style={{
+              backgroundColor: 'var(--bg-sidebar)',
+              borderColor: 'var(--border-color)',
+            }}
+          >
+            <div
+              className="flex items-center justify-between p-3 border-b shrink-0"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-color)',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Mail size={15} style={{ color: 'var(--primary-accent)' }} />
+                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                  Sobre
+                </h3>
+              </div>
+            </div>
+
+            <div className="p-3">
+              {(() => {
+                const envelopeScene = scenes.find(s => s.isEnvelope);
+                if (!envelopeScene) return null;
+                const isActive = activeSceneId === envelopeScene.id;
+
                 return (
                   <div
-                    key={scene.id}
-                    onClick={() => handleSwitchScene(scene.id)}
-                    className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs"
+                    key={envelopeScene.id}
+                    onClick={() => handleSwitchScene(envelopeScene.id)}
+                    className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs cursor-pointer"
                     style={{
                       backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
                       borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
                     }}
                   >
-                    <div className="flex items-center justify-between cursor-pointer">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingSceneName}
-                          onChange={(e) => setEditingSceneName(e.target.value)}
-                          onBlur={() => handleRenameScene(scene.id, editingSceneName)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRenameScene(scene.id, editingSceneName);
-                            if (e.key === 'Escape') setEditingSceneId(null);
-                          }}
-                          autoFocus
-                          className="flex-1 text-xs font-bold bg-transparent outline-none border-b mr-2"
-                          style={{ borderColor: 'var(--primary-accent)', color: 'var(--text-main)' }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            setEditingSceneId(scene.id);
-                            setEditingSceneName(scene.name);
-                          }}
-                          className="text-xs font-bold truncate flex-1"
-                          style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
-                          title="Doble clic para renombrar"
-                        >
-                          {scene.name}
-                        </span>
-                      )}
-
-                      <div className="flex items-center gap-0.5 shrink-0 ml-2 border rounded-md p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="text-xs font-bold truncate flex-1"
+                        style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
+                      >
+                        {envelopeScene.name}
+                      </span>
+                      
+                      <div className="flex bg-black/10 dark:bg-white/5 rounded-md border border-black/10 dark:border-white/10 p-0.5" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMoveSceneUp(idx);
+                          onClick={() => {
+                            const newScenes = [...scenes];
+                            const envIdx = newScenes.findIndex(s => s.isEnvelope);
+                            newScenes[envIdx] = {
+                              ...newScenes[envIdx],
+                              envelopeSettings: { ...newScenes[envIdx].envelopeSettings, orientation: 'vertical' }
+                            };
+                            setScenes(newScenes);
                           }}
-                          disabled={idx === 0}
-                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
-                          style={{ color: 'var(--text-main)' }}
-                          title="Subir"
+                          className="px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all"
+                          style={{
+                            backgroundColor: (!envelopeScene.envelopeSettings?.orientation || envelopeScene.envelopeSettings.orientation === 'vertical') 
+                              ? 'var(--primary-accent)' 
+                              : 'transparent',
+                            color: (!envelopeScene.envelopeSettings?.orientation || envelopeScene.envelopeSettings.orientation === 'vertical') 
+                              ? '#ffffff' 
+                              : 'var(--text-muted)',
+                            boxShadow: (!envelopeScene.envelopeSettings?.orientation || envelopeScene.envelopeSettings.orientation === 'vertical') 
+                              ? '0 1px 2px rgba(0,0,0,0.1)' 
+                              : 'none',
+                          }}
                         >
-                          <ChevronUp size={11} />
+                          VERT
                         </button>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMoveSceneDown(idx);
+                          onClick={() => {
+                            const newScenes = [...scenes];
+                            const envIdx = newScenes.findIndex(s => s.isEnvelope);
+                            newScenes[envIdx] = {
+                              ...newScenes[envIdx],
+                              envelopeSettings: { ...newScenes[envIdx].envelopeSettings, orientation: 'horizontal' }
+                            };
+                            setScenes(newScenes);
                           }}
-                          disabled={idx === scenes.length - 1}
-                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
-                          style={{ color: 'var(--text-main)' }}
-                          title="Bajar"
-                        >
-                          <ChevronDown size={11} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteScene(scene.id);
+                          className="px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all"
+                          style={{
+                            backgroundColor: (envelopeScene.envelopeSettings?.orientation === 'horizontal') 
+                              ? 'var(--primary-accent)' 
+                              : 'transparent',
+                            color: (envelopeScene.envelopeSettings?.orientation === 'horizontal') 
+                              ? '#ffffff' 
+                              : 'var(--text-muted)',
+                            boxShadow: (envelopeScene.envelopeSettings?.orientation === 'horizontal') 
+                              ? '0 1px 2px rgba(0,0,0,0.1)' 
+                              : 'none',
                           }}
-                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ml-0.5"
-                          style={{ color: 'var(--danger)' }}
-                          title="Eliminar Escena"
                         >
-                          <Trash2 size={11} />
+                          HORIZ
                         </button>
                       </div>
                     </div>
                   </div>
                 );
-              })}
+              })()}
             </div>
           </div>
         </aside>
@@ -2499,21 +2610,15 @@ export default function InvitationDesigner() {
                   }
                 }}
               >
-                {activeScene?.isEnvelope ? (
-                  <EnvelopeView
-                    settings={activeScene.envelopeSettings}
-                    isInteractive={false}
-                    preloadProgress={100}
+                {/* Siempre renderizamos la máscara y los elementos */}
+                <>
+                  {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
+                  <div
+                    className="absolute inset-0 pointer-events-none z-[80] border-2 border-pink-500/50"
+                    style={{
+                      boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.72)',
+                    }}
                   />
-                ) : (
-                  <>
-                    {/* Mascara de atenuación/opacidad para elementos fuera de los bordes (1080x1920) */}
-                    <div
-                      className="absolute inset-0 pointer-events-none z-[80] border-2 border-pink-500/50"
-                      style={{
-                        boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.72)',
-                      }}
-                    />
 
               {/* Canvas Elements */}
               {elements.map((el, index) => {
@@ -2679,12 +2784,22 @@ export default function InvitationDesigner() {
                   </div>
                 );
               })}
-                  </>
-                )}
+                  {activeScene?.isEnvelope && (
+                    <div className="absolute inset-0 pointer-events-none z-[90] flex items-center justify-center">
+                      <EnvelopeView
+                        settings={activeScene.envelopeSettings}
+                        isInteractive={false}
+                        preloadProgress={100}
+                        scale={2.7}
+                        partner={event?.partner}
+                      />
+                    </div>
+                  )}
+                </>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
 
         {/* Right Panel: Inspector de Propiedades estilo Jitter */}
         <aside

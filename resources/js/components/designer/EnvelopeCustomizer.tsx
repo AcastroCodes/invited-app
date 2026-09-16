@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Sparkles, Heart, Award, Gift, Music } from 'lucide-react';
+import { Mail, Sparkles, Heart, Award, Gift, Music, ChevronRight } from 'lucide-react';
 import { EnvelopeSettings } from '../../types/designerTypes';
 
 export const DEFAULT_ENVELOPE_SETTINGS: EnvelopeSettings = {
@@ -13,6 +13,7 @@ export const DEFAULT_ENVELOPE_SETTINGS: EnvelopeSettings = {
   recipientText: '¡Estás Invitado!',
   openButtonText: 'Toca para abrir 💌',
   patternStyle: 'classic',
+  orientation: 'vertical',
 };
 
 interface EnvelopeViewProps {
@@ -23,6 +24,7 @@ interface EnvelopeViewProps {
   isPreloading?: boolean;
   isInteractive?: boolean;
   partner?: any;
+  scale?: number;
 }
 
 export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
@@ -33,6 +35,7 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
   isPreloading = false,
   isInteractive = true,
   partner,
+  scale = 1,
 }) => {
   const envColor = settings.color || DEFAULT_ENVELOPE_SETTINGS.color;
   const flapColor = settings.flapColor || DEFAULT_ENVELOPE_SETTINGS.flapColor;
@@ -43,97 +46,251 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
   const isReady = preloadProgress >= 100;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-between relative overflow-hidden bg-slate-950 p-6 select-none font-sans">
-      {/* Fondo ambiental sutil */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-black opacity-90 pointer-events-none" />
-      <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#ec4899_1px,transparent_1px)] [background-size:24px_24px]" />
-
-      {/* Sección Top */}
-      <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col justify-center items-center text-center px-4 mt-8">
-        <h1 className="text-4xl sm:text-5xl font-serif text-amber-100/90 font-extrabold tracking-widest drop-shadow-lg" style={{textShadow: '0 4px 20px rgba(251, 191, 36, 0.2)'}}>
-          ¡ESTÁS INVITADO!
-        </h1>
-        <p className="text-slate-400 text-xs sm:text-sm mt-3 tracking-[0.3em] uppercase whitespace-nowrap">Tenemos algo especial para ti</p>
-      </div>
-
-      {/* Contenedor principal del Sobre 3D */}
+    <div className="w-full h-full relative overflow-hidden bg-slate-950 select-none font-sans">
       <div 
-        onClick={() => {
-          if (isInteractive && isReady && onOpen) {
-            onOpen();
-          }
+        className="absolute top-1/2 left-1/2 flex flex-col items-center justify-between"
+        style={{
+          width: `${100 / scale}%`,
+          height: `${100 / scale}%`,
+          transform: `translate(-50%, -50%) scale(${scale})`
         }}
-        className={`relative w-[340px] sm:w-[400px] h-[280px] sm:h-[320px] rounded-xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-700 flex flex-col items-center justify-center p-6 border border-white/10 shrink-0 ${
-          isInteractive && isReady ? 'cursor-pointer hover:scale-[1.02] active:scale-95 group' : ''
-        }`}
-        style={{ backgroundColor: envColor }}
       >
-        {/* Solapa Superior del Sobre (Flap) */}
-        <div 
-          className="absolute top-0 left-0 right-0 h-36 sm:h-40 rounded-t-2xl transition-transform duration-700 origin-top shadow-md flex items-end justify-center pb-2 z-10"
-          style={{ 
-            backgroundColor: flapColor,
-            clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
-            transform: isOpen ? 'rotateX(180deg)' : 'rotateX(0deg)',
-          }}
-        >
-          {/* Sombra de plegado */}
-          <div className="w-full h-full bg-black/5 pointer-events-none" />
-          <div className="absolute left-1/2 bottom-0 w-3 h-3 bg-blue-500 transform -translate-x-1/2 translate-y-1/2"></div>
-        </div>
+        {/* Fondo ambiental sutil */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-black opacity-90 pointer-events-none" />
+        <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#ec4899_1px,transparent_1px)] [background-size:24px_24px]" />
 
-        {/* Interior visible del Sobre */}
-        <div 
-          className="absolute inset-2 rounded-xl pointer-events-none opacity-40 border border-black/10"
-          style={{ backgroundColor: innerColor }}
-        />
-
-        {/* Texto del Destinatario en la base del sobre */}
-        <div className="absolute left-2 right-2 top-[36px] sm:top-[40px] bottom-2 flex flex-col items-center justify-center border border-red-500 rounded-xl">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1 opacity-70">
-            ENTREGAR A:
-          </div>
-          <h2 className="text-2xl font-serif font-extrabold text-slate-800 tracking-tight leading-snug drop-shadow-xs truncate px-4">
-            {settings.recipientText || 'Invitado Especial'}
-          </h2>
-          <div className="w-8 h-0.5 bg-slate-400/50 mx-auto mt-3 rounded-full" />
-        </div>
-
-      </div>
-
-      {/* Sección Partner (Footer) */}
-      <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col items-center justify-center pb-4">
-        {!isReady ? (
-          <div className="w-full max-w-[220px] flex flex-col items-center gap-2">
-            <div className="w-full bg-black/30 rounded-full h-1.5 overflow-hidden border border-white/10 p-0.5">
+        {settings.orientation === 'horizontal' ? (
+          // --- MODO HORIZONTAL ---
+          <div className="z-20 w-full h-full flex flex-col justify-center items-center text-center">
+            {/* Contenedor principal del Sobre Horizontal (Pantalla Completa) */}
+            <div 
+              className="relative w-full h-full overflow-hidden flex"
+              style={{ 
+                backgroundColor: 'transparent'
+              }}
+            >
+              {/* Franja Izquierda 2/7 (Efecto Vidrio Esmerilado) */}
               <div 
-                className="h-full bg-pink-500 rounded-full transition-all duration-300 shadow-xs"
-                style={{ width: `${Math.min(100, Math.max(5, preloadProgress))}%` }}
-              />
+                className="flex-[2] h-full relative flex flex-col justify-end items-center pb-6 sm:pb-8 z-10 transition-all duration-700"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.5)',
+                  boxShadow: 'inset -5px 0 15px rgba(255,255,255,0.1), 5px 0 15px rgba(0,0,0,0.1)'
+                }}
+              >
+                {/* Partner Logo centrado en la parte inferior */}
+                <div className="flex flex-col items-center gap-1.5 opacity-80 text-center drop-shadow-md">
+                  <span className="text-[9px] uppercase tracking-widest text-white font-semibold">
+                    Powered By
+                  </span>
+                  {partner && partner.logo ? (
+                    <img src={`/storage/${partner.logo}`} alt={partner.business_name} className="h-5 sm:h-6 object-contain grayscale hover:grayscale-0 transition-all duration-500 brightness-0 invert" />
+                  ) : (
+                    <div className="text-xs font-bold text-white uppercase tracking-widest">{partner?.business_name || 'Invited Pro'}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divisor exacto para anclar el sello entre ambas columnas */}
+              <div className="relative w-0 h-full z-50">
+                {/* Sello de Cera (Wax Seal) */}
+                <div 
+                  className="absolute w-[72px] sm:w-[88px] h-[72px] sm:h-[88px] rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.6)] border border-black/20 transition-all duration-700"
+                  style={{ 
+                    top: '60%',
+                    left: '0',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: sealColor,
+                    backgroundImage: 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.25) 0%, rgba(0,0,0,0.3) 100%)'
+                  }}
+                >
+                  <div className="absolute inset-1.5 sm:inset-2 rounded-full border border-white/20 shadow-[inset_0_3px_6px_rgba(0,0,0,0.5)] flex items-center justify-center">
+                    {sealDesign === 'wax_heart' && <Heart size={24} className="text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:w-8 sm:h-8" fill="currentColor" />}
+                    {sealDesign === 'wax_rings' && <Gift size={24} className="text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:w-8 sm:h-8" />}
+                    {sealDesign === 'gold_seal' && <Award size={26} className="text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:w-10 sm:h-10" />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Franja Derecha 5/7 (Efecto Vidrio Esmerilado) */}
+              <div 
+                className="flex-[5] h-full relative z-10 transition-all duration-700"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  borderLeft: '1px solid rgba(255, 255, 255, 0.5)',
+                  boxShadow: 'inset 5px 0 15px rgba(255,255,255,0.1), -5px 0 15px rgba(0,0,0,0.1)'
+                }}
+              >
+                {/* Área de información superior */}
+                <div 
+                  className="absolute top-0 left-0 right-0 pointer-events-none flex flex-col justify-center items-center text-center p-4 sm:p-6"
+                  style={{ height: 'calc(60% - clamp(22px, 3vw, 27px))' }}
+                >
+                  <h1 className="text-xl sm:text-4xl font-serif text-white font-extrabold tracking-widest drop-shadow-[0_4px_10px_rgba(0,0,0,0.4)]">
+                    ¡ESTÁS INVITADO!
+                  </h1>
+                  <p className="text-white/90 text-[9px] sm:text-[11px] mt-1 sm:mt-3 tracking-[0.3em] uppercase whitespace-nowrap drop-shadow-md">
+                    Tenemos algo especial para ti
+                  </p>
+                </div>
+
+                {/* Área de información inferior */}
+                <div 
+                  className="absolute bottom-0 left-0 right-0 pointer-events-none flex flex-col justify-center items-center text-center p-4 sm:p-6"
+                  style={{ top: 'calc(60% + clamp(22px, 3vw, 27px))' }}
+                >
+                  <div className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/80 font-semibold mb-1 drop-shadow-md">
+                    ENTREGAR A:
+                  </div>
+                  <h2 className="text-lg sm:text-3xl font-serif font-extrabold text-white tracking-tight leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)] truncate px-4">
+                    {settings.recipientText || 'Invitado Especial'}
+                  </h2>
+                  <div className="w-12 h-0.5 bg-white/50 mx-auto mt-2 sm:mt-4 rounded-full shadow-sm" />
+                </div>
+              </div>
+              
+              {/* Franja del Sello (Horizontal - Belly Band) */}
+              <div 
+                className="absolute left-0 right-0 pointer-events-none z-40 flex items-center justify-end pr-4 sm:pr-6 shadow-[0_4px_15px_rgba(0,0,0,0.2)]"
+                style={{ 
+                  top: '60%', 
+                  height: 'clamp(45px, 6vw, 55px)',
+                  transform: 'translateY(-50%)',
+                  backgroundColor: settings.color || '#fbf9f5', // Color principal del sobre
+                  borderTop: '1px solid rgba(255,255,255,0.8)',
+                  borderBottom: '1px solid rgba(0,0,0,0.1)'
+                }}
+              >
+                {/* Botón de Abrir (Derecha de la Franja) */}
+                <div 
+                  className="flex items-center gap-2 sm:gap-3 pointer-events-auto cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
+                  onClick={() => {
+                    if (isInteractive && isReady && onOpen) onOpen();
+                  }}
+                >
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-slate-800 drop-shadow-xs">
+                    {settings.openButtonText || 'Toca para abrir 💌'}
+                  </span>
+                  <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-slate-800 flex items-center justify-center text-white shadow-sm border border-white/20">
+                    <ChevronRight size={14} strokeWidth={3} />
+                  </div>
+                </div>
+              </div>
             </div>
-            <span className="text-[10px] font-bold text-slate-400/80 tracking-widest">
-              CARGANDO INVITACIÓN... {preloadProgress}%
-            </span>
           </div>
         ) : (
-          <div className="flex flex-col items-center animate-fadeIn">
-            <span className="px-6 py-3 rounded-full bg-white/5 backdrop-blur-md text-amber-50 font-bold text-xs tracking-widest uppercase shadow-xl border border-white/10 flex items-center gap-2 transition-all">
-              <Sparkles size={16} className="text-amber-300 animate-pulse" />
-              {settings.openButtonText || 'Toca para abrir 💌'}
-            </span>
-          </div>
+          // --- MODO VERTICAL (Sobre Clásico) ---
+          <>
+            {/* Sección Top */}
+            <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col justify-center items-center text-center">
+              <h1 className="text-4xl sm:text-5xl font-serif text-amber-100/90 font-extrabold tracking-widest drop-shadow-lg" style={{textShadow: '0 4px 20px rgba(251, 191, 36, 0.2)'}}>
+                ¡ESTÁS INVITADO!
+              </h1>
+              <p className="text-slate-400 text-xs sm:text-sm mt-3 tracking-[0.3em] uppercase whitespace-nowrap">Tenemos algo especial para ti</p>
+            </div>
+
+            {/* Contenedor principal del Sobre 3D */}
+            <div 
+              onClick={() => {
+                if (isInteractive && isReady && onOpen) {
+                  onOpen();
+                }
+              }}
+              className={`relative w-[340px] sm:w-[400px] h-[280px] sm:h-[320px] rounded-xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] transition-all duration-700 flex flex-col items-center justify-center p-6 border border-white/10 shrink-0 ${
+                isInteractive && isReady ? 'cursor-pointer hover:scale-[1.02] active:scale-95 group' : ''
+              }`}
+              style={{ backgroundColor: envColor }}
+            >
+              {/* Solapa Superior del Sobre (Flap) */}
+              <div 
+                className="absolute top-0 left-0 right-0 h-36 sm:h-40 rounded-t-2xl transition-transform duration-700 origin-top shadow-md flex items-end justify-center pb-2 z-40"
+                style={{ 
+                  backgroundColor: flapColor,
+                  clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+                  transform: isOpen ? 'rotateX(180deg)' : 'rotateX(0deg)',
+                }}
+              >
+                <div className="w-full h-full bg-black/5 pointer-events-none" />
+              </div>
+
+              {/* Sello de cera (Wax Seal) */}
+              <div 
+                className={`absolute left-1/2 top-36 sm:top-40 w-[72px] sm:w-[88px] h-[72px] sm:h-[88px] rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.6)] border border-black/20 z-[60] transition-all duration-700 ${isOpen ? 'opacity-0 scale-150 pointer-events-none' : 'opacity-100 scale-100'}`}
+                style={{ 
+                  transform: 'translate(-50%, -65%)',
+                  backgroundColor: sealColor,
+                  backgroundImage: 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.25) 0%, rgba(0,0,0,0.3) 100%)'
+                }}
+              >
+                <div className="absolute inset-1.5 sm:inset-2 rounded-full border border-white/20 shadow-[inset_0_3px_6px_rgba(0,0,0,0.5)] flex items-center justify-center">
+                  {sealDesign === 'wax_heart' && <Heart size={24} className="text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:w-8 sm:h-8" fill="currentColor" />}
+                  {sealDesign === 'wax_rings' && <Gift size={24} className="text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:w-8 sm:h-8" />}
+                  {sealDesign === 'gold_seal' && <Award size={26} className="text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:w-10 sm:h-10" />}
+                </div>
+              </div>
+
+              {/* Interior visible del Sobre */}
+              <div 
+                className="absolute inset-2 rounded-xl pointer-events-none opacity-40 border border-black/10"
+                style={{ backgroundColor: innerColor }}
+              />
+
+              {/* Texto del Destinatario en la base del sobre */}
+              <div className="absolute left-2 right-2 top-44 sm:top-48 bottom-2 flex flex-col items-center justify-center rounded-xl">
+                <div className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1 opacity-70">
+                  ENTREGAR A:
+                </div>
+                <h2 className="text-2xl font-serif font-extrabold text-slate-800 tracking-tight leading-snug drop-shadow-xs truncate px-4">
+                  {settings.recipientText || 'Invitado Especial'}
+                </h2>
+                <div className="w-8 h-0.5 bg-slate-400/50 mx-auto mt-3 rounded-full" />
+              </div>
+            </div>
+          </>
         )}
 
-        <div className="flex flex-col items-center justify-center mt-8 gap-2">
-           <span className="text-[9px] uppercase tracking-widest text-slate-500/60 font-semibold">
-             Powered By
-           </span>
-           {partner && partner.logo ? (
-             <img src={`/storage/${partner.logo}`} alt={partner.business_name} className="h-6 object-contain opacity-70 grayscale hover:grayscale-0 transition-all duration-500" />
-           ) : (
-             <div className="text-sm font-bold text-slate-400/80 uppercase tracking-widest opacity-70">{partner?.business_name || 'Invited Pro'}</div>
-           )}
+      {/* Sección Partner (Footer) */}
+      <div className="z-20 w-full flex-1 basis-0 min-h-0 flex flex-col items-center pb-2">
+        <div className="flex-1 flex flex-col items-center justify-center w-full">
+          {!isReady ? (
+            <div className="w-full max-w-[220px] flex flex-col items-center gap-2">
+              <div className="w-full bg-black/30 rounded-full h-1.5 overflow-hidden border border-white/10 p-0.5">
+                <div 
+                  className="h-full bg-pink-500 rounded-full transition-all duration-300 shadow-xs"
+                  style={{ width: `${Math.min(100, Math.max(5, preloadProgress))}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400/80 tracking-widest">
+                CARGANDO INVITACIÓN... {preloadProgress}%
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center animate-fadeIn">
+              <span className="px-6 py-3 rounded-full bg-white/5 backdrop-blur-md text-amber-50 font-bold text-xs tracking-widest uppercase shadow-xl border border-white/10 flex items-center gap-2 transition-all">
+                <Sparkles size={16} className="text-amber-300 animate-pulse" />
+                {settings.openButtonText || 'Toca para abrir 💌'}
+              </span>
+            </div>
+          )}
         </div>
+
+        {settings.orientation !== 'horizontal' && (
+          <div className="flex flex-col items-center justify-center mt-auto mb-2 gap-1.5">
+             <span className="text-[9px] uppercase tracking-widest text-slate-500/60 font-semibold">
+               Powered By
+             </span>
+             {partner && partner.logo ? (
+               <img src={`/storage/${partner.logo}`} alt={partner.business_name} className="h-6 object-contain opacity-70 grayscale hover:grayscale-0 transition-all duration-500" />
+             ) : (
+               <div className="text-sm font-bold text-slate-400/80 uppercase tracking-widest opacity-70">{partner?.business_name || 'Invited Pro'}</div>
+             )}
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );
@@ -180,7 +337,9 @@ export const EnvelopeInspector: React.FC<EnvelopeInspectorProps> = ({
         <span>Personalización del Sobre ✉️</span>
       </div>
 
-      {/* Preset de Colores del Sobre */}
+      {(!settings.orientation || settings.orientation === 'vertical') ? (
+        <>
+          {/* Preset de Colores del Sobre */}
       <div className="space-y-2">
         <label className="font-bold opacity-80 block">Estilo y Color del Sobre</label>
         <div className="grid grid-cols-3 gap-2">
@@ -293,6 +452,14 @@ export const EnvelopeInspector: React.FC<EnvelopeInspectorProps> = ({
           style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
         />
       </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center p-6 text-center opacity-60 border border-dashed border-white/20 rounded-xl bg-white/5">
+          <Mail size={24} className="mb-2" />
+          <p className="font-bold">Modo Horizontal</p>
+          <p className="text-[10px] mt-1">Controles pendientes de configuración.</p>
+        </div>
+      )}
     </div>
   );
 };

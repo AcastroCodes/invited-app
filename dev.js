@@ -55,6 +55,6 @@ concurrently([
     { command: `php artisan serve --host=0.0.0.0 --port=8081`, name: 'laravel', prefixColor: '#93c5fd' },
     { command: `npx vite --host`, name: 'vite', prefixColor: '#c4b5fd' }
 ], {
-    killOthers: ['failure', 'success'],
+    killOthersOn: ['failure', 'success'],
 });
 
