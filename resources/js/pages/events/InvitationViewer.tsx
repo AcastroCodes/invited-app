@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Smartphone, RotateCcw } from 'lucide-react';
 import api from '../../lib/api';
-import { EnvelopeView, DEFAULT_ENVELOPE_SETTINGS } from '../../components/designer/EnvelopeCustomizer';
+import { DEFAULT_ENVELOPE_ELEMENTS } from './InvitationDesigner'; // We need to export this or copy it
+
 import { TextElementItem } from '../../components/designer/TextElementItem';
 import { 
   ImageElementItem, 
@@ -17,8 +18,7 @@ const ensureEnvelopeScene = (rawScenes: any[]): any[] => {
     id: 'scene-envelope',
     name: 'Sobre ✉️',
     isEnvelope: true,
-    envelopeSettings: DEFAULT_ENVELOPE_SETTINGS,
-    elements: [],
+    elements: [...DEFAULT_ENVELOPE_ELEMENTS],
   };
 
   if (!rawScenes || rawScenes.length === 0) {
@@ -26,13 +26,29 @@ const ensureEnvelopeScene = (rawScenes: any[]): any[] => {
   }
 
   if (rawScenes[0].isEnvelope || rawScenes[0].id === 'scene-envelope') {
-    return [{ ...rawScenes[0], isEnvelope: true, name: 'Sobre ✉️', envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(rawScenes[0].envelopeSettings || {}) } }, ...rawScenes.slice(1)];
+    const scene = { ...rawScenes[0], isEnvelope: true, name: 'Sobre ✉️' };
+    if (!scene.elements || scene.elements.length === 0) {
+      scene.elements = [...DEFAULT_ENVELOPE_ELEMENTS];
+    } else if (!scene.elements.find((el: any) => el.id === 'env-background')) {
+       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.id.startsWith('env-') && !scene.elements.find((se: any) => se.id === e.id));
+       scene.elements = [...structural, ...scene.elements];
+    }
+    return [scene, ...rawScenes.slice(1)];
   }
 
   const existingEnv = rawScenes.find(s => s.isEnvelope || s.id === 'scene-envelope');
   const rest = rawScenes.filter(s => s !== existingEnv);
 
-  const envScene = existingEnv ? { ...existingEnv, isEnvelope: true, name: 'Sobre ✉️', envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) } } : defaultEnv;
+  let envScene = defaultEnv;
+  if (existingEnv) {
+    envScene = { ...existingEnv, isEnvelope: true, name: 'Sobre ✉️' };
+    if (!envScene.elements || envScene.elements.length === 0) {
+      envScene.elements = [...DEFAULT_ENVELOPE_ELEMENTS];
+    } else if (!envScene.elements.find((el: any) => el.id === 'env-background')) {
+       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.id.startsWith('env-') && !envScene.elements.find((se: any) => se.id === e.id));
+       envScene.elements = [...structural, ...envScene.elements];
+    }
+  }
 
   return [envScene, ...rest];
 };
@@ -384,23 +400,8 @@ export default function InvitationViewer() {
     if (!scene) return null;
     if (!isPrev && !isCurrent) return null; // Solo renderizamos la actual y la saliente
 
-    if (scene.isEnvelope) {
-      return (
-        <div key={scene.id} className="w-full h-full absolute inset-0 z-40 bg-black">
-          <EnvelopeView
-            settings={scene.envelopeSettings}
-            preloadProgress={envelopePreloadProgress}
-            isPreloading={isPreloadingEnvelope}
-            isInteractive={true}
-            partner={invitation?.event?.partner}
-            onOpen={() => {
-              handleEnter();
-              goToScene(1);
-            }}
-          />
-        </div>
-      );
-    }
+    // Ya no usamos EnvelopeView. Todas las escenas (incluyendo el Sobre)
+    // se renderizan a través de capas (elements).
 
     // Configuración de animación basada en la escena de salida
     const leavingScene = isPrev ? scene : scenes[prevSceneIndex];
@@ -499,8 +500,25 @@ export default function InvitationViewer() {
             );
           }
 
+          // Botón de abrir en el sobre o el sello
+          const isOpenTrigger = scene.isEnvelope && (el.id === 'env-open-button' || el.id === 'env-seal');
+          if (isOpenTrigger) {
+            innerElement = (
+              <div 
+                className="w-full h-full block cursor-pointer pointer-events-auto"
+                style={{ zIndex: 50 }}
+                onClick={() => {
+                  handleEnter();
+                  goToScene(1);
+                }}
+              >
+                {innerElement}
+              </div>
+            );
+          }
+
           // Para todos los elementos desactivamos pointer events excepto botones u otros interactivos
-          const isInteractive = el.type === 'button' || el.type === 'audio';
+          const isInteractive = el.type === 'button' || el.type === 'audio' || isOpenTrigger;
 
           let adjustedY = el.y;
           let adjustedHeight = el.height;
@@ -547,7 +565,9 @@ export default function InvitationViewer() {
                 fontFamily: el.fontFamily ? `'${el.fontFamily}', sans-serif` : undefined,
                 // Fondo y borde heredados del diseñador
                 background: el.backgroundColor && el.backgroundColor.includes('gradient') ? el.backgroundColor : undefined,
-                backgroundColor: el.backgroundColor && !el.backgroundColor.includes('gradient') ? (el.backgroundColor === 'transparent' ? 'transparent' : el.backgroundColor) : 'transparent',
+                backgroundColor: el.backgroundColor && !el.backgroundColor.includes('gradient') && el.backgroundColor !== 'transparent'
+                  ? (el.backdropBlurEnabled ? `color-mix(in srgb, ${el.backgroundColor} ${el.backdropOpacity ?? 30}%, transparent)` : el.backgroundColor)
+                  : 'transparent',
                 borderRadius: (el.containerBorderRadius ?? el.borderRadius) ? `${el.containerBorderRadius ?? el.borderRadius}px` : undefined,
                 borderWidth: (el.containerBorderWidth ?? el.borderWidth) ? `${el.containerBorderWidth ?? el.borderWidth}px` : undefined,
                 borderColor: (el.containerBorderWidth ?? el.borderWidth) ? (el.containerBorderColor || el.borderColor || 'transparent') : undefined,
@@ -556,6 +576,8 @@ export default function InvitationViewer() {
                 boxShadow: (el.type !== 'text' && (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY || el.shadowBlur || el.shadowOffsetX || el.shadowOffsetY)) || (el.type === 'text' && (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY))
                   ? `${el.containerShadowOffsetX ?? (el.type !== 'text' ? el.shadowOffsetX : 0) ?? 0}px ${el.containerShadowOffsetY ?? (el.type !== 'text' ? el.shadowOffsetY : 0) ?? 0}px ${el.containerShadowBlur ?? (el.type !== 'text' ? el.shadowBlur : 0) ?? 0}px ${el.containerShadowColor || (el.type !== 'text' ? el.shadowColor : undefined) || 'rgba(0,0,0,0.5)'}`
                   : undefined,
+                backdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
+                WebkitBackdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
                 textAlign: el.textAlign || 'left',
                 display: 'flex',
                 alignItems: 'center',

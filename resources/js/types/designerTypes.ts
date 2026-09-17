@@ -50,6 +50,9 @@ export interface CanvasElement {
   containerShadowOffsetX?: number;
   containerShadowOffsetY?: number;
   boxShadow?: string;
+  backdropBlurEnabled?: boolean;
+  backdropBlurAmount?: number;
+  backdropOpacity?: number;
   textAlign?: 'left' | 'center' | 'right';
   animation?: 'fade' | 'slideUp' | 'zoomIn' | 'bounce';
   animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'zoomIn' | 'bounceIn' | 'spinIn';

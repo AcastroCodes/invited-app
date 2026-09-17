@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import {
@@ -91,6 +92,7 @@ interface NumberInputProps {
   step?: number;
   prefix?: string;
   isFloat?: boolean;
+  canvasDimension?: number;
 }
 
 const InspectorNumberInput: React.FC<NumberInputProps> = ({
@@ -101,7 +103,14 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
   step = 1,
   prefix,
   isFloat = false,
+  canvasDimension,
 }) => {
+  const [inputValue, setInputValue] = useState<string>(value.toString());
+
+  useEffect(() => {
+    setInputValue(value.toString());
+  }, [value]);
+
   const handleDecrement = () => {
     const nextVal = value - step;
     const clamped = min !== undefined ? Math.max(min, nextVal) : nextVal;
@@ -115,17 +124,42 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
+    setInputValue(e.target.value);
+  };
+
+  const evaluate = () => {
+    let raw = inputValue.trim();
     if (raw === '') {
       onChange(min !== undefined ? min : 0);
       return;
     }
+    
+    if (raw.endsWith('%') && canvasDimension) {
+      const percentage = parseFloat(raw.replace('%', ''));
+      if (!isNaN(percentage)) {
+         let parsed = (percentage / 100) * canvasDimension;
+         if (min !== undefined) parsed = Math.max(min, parsed);
+         if (max !== undefined) parsed = Math.min(max, parsed);
+         onChange(isFloat ? parseFloat(parsed.toFixed(2)) : Math.round(parsed));
+         return;
+      }
+    }
+
     let parsed = isFloat ? parseFloat(raw) : parseInt(raw, 10);
-    if (isNaN(parsed)) parsed = 0;
+    if (isNaN(parsed)) {
+      setInputValue(value.toString());
+      return;
+    }
     if (min !== undefined) parsed = Math.max(min, parsed);
     if (max !== undefined) parsed = Math.min(max, parsed);
     onChange(isFloat ? parseFloat(parsed.toFixed(2)) : Math.round(parsed));
   };
+
+  const handleBlur = () => evaluate();
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') e.currentTarget.blur();
+  };
+
 
   return (
     <div
@@ -154,12 +188,11 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
         </span>
       )}
       <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
+        type="text"
+        value={inputValue}
         onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         className="w-full h-full text-center bg-transparent outline-none font-mono text-xs font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1"
         style={{ color: 'var(--text-main)' }}
       />
@@ -368,7 +401,90 @@ export interface Scene {
   autoAdvanceDelay?: number;
 }
 
-const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
+export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
+  {
+    id: 'env-background',
+    type: 'image',
+    content: '',
+    x: 0,
+    y: 0,
+    width: 1080,
+    height: 1920,
+    backgroundColor: '#020617', // slate-950
+    locked: true,
+    visible: true,
+  },
+  {
+    id: 'env-left-strip',
+    type: 'image',
+    content: '',
+    x: 0,
+    y: 0,
+    width: 308,
+    height: 1920,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderStyle: 'solid',
+    locked: true,
+    visible: true,
+  },
+  {
+    id: 'env-right-strip',
+    type: 'image',
+    content: '',
+    x: 308,
+    y: 0,
+    width: 772,
+    height: 1920,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    locked: true,
+    visible: true,
+  },
+  {
+    id: 'env-middle-strip',
+    type: 'image',
+    content: '',
+    x: 0,
+    y: 1100,
+    width: 1080,
+    height: 90,
+    backgroundColor: '#fbf9f5', // color del sobre
+    locked: true,
+    visible: true,
+  },
+  {
+    id: 'env-seal',
+    type: 'image',
+    content: '',
+    x: 228,
+    y: 1065,
+    width: 160,
+    height: 160,
+    backgroundColor: '#b91c1c', // Seal color
+    borderRadius: 80,
+    shadowBlur: 20,
+    shadowColor: 'rgba(0,0,0,0.6)',
+    locked: true,
+    visible: true,
+  },
+  {
+    id: 'env-open-button',
+    type: 'button',
+    content: 'Toca para abrir 💌',
+    x: 400,
+    y: 1125,
+    width: 250,
+    height: 40,
+    fontSize: 18,
+    fontFamily: 'Inter',
+    fontWeight: 'bold',
+    color: '#333333',
+    backgroundColor: 'transparent',
+    textAlign: 'left',
+    locked: false,
+    visible: true,
+  },
   {
     id: 'env-title-1',
     type: 'text',
@@ -457,26 +573,38 @@ const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
   }
 
   if (rawScenes[0].isEnvelope || rawScenes[0].id === 'scene-envelope') {
-    const envScene: Scene = {
-      ...rawScenes[0],
-      isEnvelope: true,
-      name: 'Sobre ✉️',
+    const scene = { 
+      ...rawScenes[0], 
+      isEnvelope: true, 
+      name: 'Sobre ✉️', 
       envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(rawScenes[0].envelopeSettings || {}) },
-      elements: (!rawScenes[0].elements || rawScenes[0].elements.length === 0) ? [...DEFAULT_ENVELOPE_ELEMENTS] : rawScenes[0].elements
+      elements: rawScenes[0].elements || []
     };
-    return [envScene, ...rawScenes.slice(1)];
+    if (!scene.elements.find(el => el.id === 'env-background')) {
+       // Merge missing structural elements for backward compatibility
+       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.id.startsWith('env-') && !scene.elements.find(se => se.id === e.id));
+       scene.elements = [...structural, ...scene.elements];
+    }
+    return [scene, ...rawScenes.slice(1)];
   }
 
   const existingEnv = rawScenes.find(s => s.isEnvelope || s.id === 'scene-envelope');
   const rest = rawScenes.filter(s => s !== existingEnv);
 
-  const envScene: Scene = existingEnv ? {
-    ...existingEnv,
-    isEnvelope: true,
-    name: 'Sobre ✉️',
-    envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) },
-    elements: (!existingEnv.elements || existingEnv.elements.length === 0) ? [...DEFAULT_ENVELOPE_ELEMENTS] : existingEnv.elements
-  } : defaultEnv;
+  let envScene = defaultEnv;
+  if (existingEnv) {
+    envScene = { 
+      ...existingEnv, 
+      isEnvelope: true, 
+      name: 'Sobre ✉️', 
+      envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) },
+      elements: existingEnv.elements || []
+    };
+    if (!envScene.elements.find(el => el.id === 'env-background')) {
+       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.id.startsWith('env-') && !envScene.elements.find(se => se.id === e.id));
+       envScene.elements = [...structural, ...envScene.elements];
+    }
+  }
 
   return [envScene, ...rest];
 };
@@ -985,7 +1113,6 @@ export default function InvitationDesigner() {
     let updatedScenes = scenes;
     if (activeSceneId) {
       updatedScenes = scenes.map((s) => (s.id === activeSceneId ? { ...s, elements } : s));
-      setScenes(updatedScenes);
     }
 
     let previewUrl: string | undefined = invitation?.content?.preview;
@@ -995,8 +1122,17 @@ export default function InvitationDesigner() {
     const needsSwitchForPreview = firstScene && firstScene.id !== originalSceneId;
 
     if (needsSwitchForPreview) {
-      setActiveSceneId(firstScene.id);
-      setElements(firstScene.elements);
+      flushSync(() => {
+        setScenes(updatedScenes);
+        setActiveSceneId(firstScene.id);
+        setElements(firstScene.elements);
+        setZoom(100);
+      });
+    } else {
+      flushSync(() => {
+        setScenes(updatedScenes);
+        setZoom(100);
+      });
     }
 
     if (stageCanvasRef.current) {
@@ -1005,7 +1141,6 @@ export default function InvitationDesigner() {
         const currentZoom = zoom;
 
         // Wait long enough for React to render the first scene and the browser to reflow the zoom.
-        setZoom(100);
         await new Promise((r) => setTimeout(r, 600));
 
         const canvas = await html2canvas(stageNode, {
@@ -1019,18 +1154,19 @@ export default function InvitationDesigner() {
 
         previewUrl = canvas.toDataURL('image/jpeg', 0.7);
 
-        // Restaurar zoom
-        setZoom(currentZoom);
+        // Restaurar zoom y escena original de manera sincronizada
+        flushSync(() => {
+          setZoom(currentZoom);
+          if (needsSwitchForPreview && originalSceneId) {
+            const originalScene = updatedScenes.find(s => s.id === originalSceneId);
+            if (originalScene) {
+              setActiveSceneId(originalScene.id);
+              setElements(originalScene.elements);
+            }
+          }
+        });
       } catch (err) {
         console.error('Error generando vista previa:', err);
-      }
-    }
-
-    if (needsSwitchForPreview && originalSceneId) {
-      const originalScene = updatedScenes.find(s => s.id === originalSceneId);
-      if (originalScene) {
-        setActiveSceneId(originalScene.id);
-        setElements(originalScene.elements);
       }
     }
 
@@ -2713,6 +2849,7 @@ export default function InvitationDesigner() {
                       isSelected ? 'outline-4 outline-dashed outline-pink-500' : ''
                     }`}
                     style={{
+                      outlineOffset: isSelected ? '-4px' : undefined,
                       zIndex: activeScene?.isEnvelope && el.type === 'text' 
                                 ? (elements.length - index) + 100 
                                 : elements.length - index,
@@ -2731,7 +2868,9 @@ export default function InvitationDesigner() {
                       fontFamily: el.fontFamily ? `'${el.fontFamily}', sans-serif` : undefined,
                       // Fondo / Relleno del contenedor
                       background: el.backgroundColor && el.backgroundColor.includes('gradient') ? el.backgroundColor : undefined,
-                      backgroundColor: el.backgroundColor && !el.backgroundColor.includes('gradient') ? (el.backgroundColor === 'transparent' ? 'transparent' : el.backgroundColor) : 'transparent',
+                      backgroundColor: el.backgroundColor && !el.backgroundColor.includes('gradient') && el.backgroundColor !== 'transparent'
+                        ? (el.backdropBlurEnabled ? `color-mix(in srgb, ${el.backgroundColor} ${el.backdropOpacity ?? 30}%, transparent)` : el.backgroundColor)
+                        : 'transparent',
                       // Borde del contenedor
                       borderRadius: (el.containerBorderRadius ?? el.borderRadius) ? `${el.containerBorderRadius ?? el.borderRadius}px` : undefined,
                       borderWidth: (el.containerBorderWidth ?? el.borderWidth) ? `${el.containerBorderWidth ?? el.borderWidth}px` : undefined,
@@ -2741,6 +2880,8 @@ export default function InvitationDesigner() {
                       boxShadow: (el.type !== 'text' && (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY || el.shadowBlur || el.shadowOffsetX || el.shadowOffsetY)) || (el.type === 'text' && (el.containerShadowBlur || el.containerShadowOffsetX || el.containerShadowOffsetY))
                         ? `${el.containerShadowOffsetX ?? (el.type !== 'text' ? el.shadowOffsetX : 0) ?? 0}px ${el.containerShadowOffsetY ?? (el.type !== 'text' ? el.shadowOffsetY : 0) ?? 0}px ${el.containerShadowBlur ?? (el.type !== 'text' ? el.shadowBlur : 0) ?? 0}px ${el.containerShadowColor || (el.type !== 'text' ? el.shadowColor : undefined) || 'rgba(0,0,0,0.5)'}`
                         : undefined,
+                      backdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
+                      WebkitBackdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
                       textAlign: el.textAlign || 'left',
                       display: 'flex',
                       alignItems: 'center',
@@ -2860,17 +3001,6 @@ export default function InvitationDesigner() {
                   </div>
                 );
               })}
-                  {activeScene?.isEnvelope && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center" style={{ zIndex: 50 }}>
-                      <EnvelopeView
-                        settings={activeScene.envelopeSettings}
-                        isInteractive={false}
-                        preloadProgress={100}
-                        scale={2.7}
-                        partner={event?.partner}
-                      />
-                    </div>
-                  )}
                 </>
               </div>
             </div>
@@ -2923,17 +3053,7 @@ export default function InvitationDesigner() {
 
           {/* Body del Inspector */}
           <div className="flex-1 overflow-y-auto">
-            {activeScene?.isEnvelope ? (
-              <EnvelopeInspector
-                settings={activeScene.envelopeSettings}
-                onChange={(updated) => {
-                  setScenes((prev) =>
-                    prev.map((s) => (s.id === activeScene.id ? { ...s, envelopeSettings: updated } : s))
-                  );
-                  setHasUnsavedChanges(true);
-                }}
-              />
-            ) : !selectedElement ? (
+            {!selectedElement ? (
               <div className="flex flex-col pb-6">
                 <div className="p-3 m-3 rounded-xl border flex items-center gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
                   <Layout size={18} style={{ color: 'var(--primary-accent)' }} />
@@ -3480,6 +3600,7 @@ export default function InvitationDesigner() {
                           </label>
                           <InspectorNumberInput
                             value={selectedElement.x}
+                            canvasDimension={1080}
                             onChange={(val) => updateSelectedElement('x', val)}
                           />
                         </div>
@@ -3489,6 +3610,7 @@ export default function InvitationDesigner() {
                           </label>
                           <InspectorNumberInput
                             value={selectedElement.y}
+                            canvasDimension={1920}
                             onChange={(val) => updateSelectedElement('y', val)}
                           />
                         </div>
@@ -3499,6 +3621,7 @@ export default function InvitationDesigner() {
                           <InspectorNumberInput
                             value={selectedElement.width}
                             min={10}
+                            canvasDimension={1080}
                             onChange={(val) => updateSelectedElement('width', val)}
                           />
                         </div>
@@ -3509,6 +3632,7 @@ export default function InvitationDesigner() {
                           <InspectorNumberInput
                             value={selectedElement.height}
                             min={10}
+                            canvasDimension={1920}
                             onChange={(val) => updateSelectedElement('height', val)}
                           />
                         </div>
@@ -4526,6 +4650,54 @@ export default function InvitationDesigner() {
                             updateSelectedElement('borderRadius', val);
                           }}
                         />
+                      </div>
+                    {/* Efecto Esmerilado (Glassmorphism) */}
+                      <div className="pt-2 border-t mt-2" style={{ borderColor: 'var(--border-color)' }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="font-bold text-[10px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            Efecto Esmerilado (Glass)
+                          </label>
+                          <button
+                            onClick={() => updateSelectedElement('backdropBlurEnabled', !selectedElement.backdropBlurEnabled)}
+                            className={`w-8 h-4 rounded-full flex items-center transition-colors px-0.5 ${
+                              selectedElement.backdropBlurEnabled ? 'bg-pink-500 justify-end' : 'bg-zinc-700 justify-start'
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
+                          </button>
+                        </div>
+                        {selectedElement.backdropBlurEnabled && (
+                          <div className="flex gap-3 pl-1 pr-1 mt-2">
+                            <div className="flex-1">
+                              <label className="block font-bold mb-1 text-[9px] text-zinc-500">
+                                Desenfoque: {selectedElement.backdropBlurAmount ?? 10}px
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="40"
+                                step="1"
+                                value={selectedElement.backdropBlurAmount ?? 10}
+                                onChange={(e) => updateSelectedElement('backdropBlurAmount', Number(e.target.value))}
+                                className="w-full accent-pink-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block font-bold mb-1 text-[9px] text-zinc-500">
+                                Opacidad (Color): {selectedElement.backdropOpacity ?? 30}%
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={selectedElement.backdropOpacity ?? 30}
+                                onChange={(e) => updateSelectedElement('backdropOpacity', Number(e.target.value))}
+                                className="w-full accent-pink-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
