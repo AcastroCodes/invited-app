@@ -2526,7 +2526,7 @@ export default function InvitationDesigner() {
                     color: 'var(--text-muted)',
                   }}
                 >
-                  {scenes.length}
+                  {scenes.filter((s) => !s.isEnvelope).length}
                 </span>
                 <button
                   onClick={handleAddScene}
