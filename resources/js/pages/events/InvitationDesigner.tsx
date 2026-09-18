@@ -1044,23 +1044,29 @@ export default function InvitationDesigner() {
   useEffect(() => {
     if (!isResizingScenes) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Calculate new height based on window height and mouse Y
-      const newHeight = window.innerHeight - e.clientY;
-      // Clamp between 100px and 600px
-      setScenesPanelHeight(Math.max(100, Math.min(newHeight, 600)));
+    const handlePointerMove = (e: PointerEvent) => {
+      // Calcular nueva altura basada en la distancia del ratón a la parte inferior de la ventana
+      const newHeight = window.innerHeight - e.clientY - 90;
+      setScenesPanelHeight(Math.max(100, Math.min(newHeight, 500)));
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsResizingScenes(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
     
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
   }, [isResizingScenes]);
 
@@ -2490,11 +2496,11 @@ export default function InvitationDesigner() {
 
           {/* Resizer */}
           <div
-            onMouseDown={(e) => {
+            onPointerDown={(e) => {
               e.preventDefault();
               setIsResizingScenes(true);
             }}
-            className="h-1 w-full cursor-row-resize shrink-0 transition-colors hover:bg-amber-500/50"
+            className="h-1.5 w-full cursor-row-resize shrink-0 transition-colors hover:bg-amber-500/50 touch-none"
             style={{ backgroundColor: 'var(--border-color)' }}
           />
 
