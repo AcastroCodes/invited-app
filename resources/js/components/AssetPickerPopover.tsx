@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle, Crop } from 'lucide-react';
 import api from '../lib/api';
+import { ImageCropModal } from './ImageCropModal';
 
 export interface AssetItem {
   id: number;
@@ -140,6 +141,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
   );
 
   const isVideoType = type === 'video' || (typeof value === 'string' && (value.endsWith('.mp4') || value.endsWith('.webm') || value.endsWith('.ogg') || value.startsWith('data:video/')));
+  const [showCropModal, setShowCropModal] = useState<boolean>(false);
 
   return (
     <div className="space-y-3">
@@ -159,25 +161,22 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
         </span>
       )}
 
-      {/* VISTA PREVIA SUPERIOR (PREVIEW BOX) */}
-      <div className="flex items-stretch gap-2">
-        {/* Contenedor Preview */}
+      {/* CONTENEDOR PRINCIPAL VISTA PREVIA Y BOTONES */}
+      <div className="flex items-center gap-2">
+        {/* VISTA PREVIA GRANDE DEL RECURSO */}
         <div
-          className="flex-1 h-24 rounded-xl border border-dashed flex items-center justify-center relative overflow-hidden transition-all shadow-inner"
+          className="flex-1 h-28 rounded-xl border flex items-center justify-center overflow-hidden relative shadow-2xs transition-all group"
           style={{
             backgroundColor: 'var(--bg-app)',
-            borderColor: isImgValid ? 'var(--primary-accent)' : 'var(--border-color)',
+            borderColor: 'var(--border-color)',
           }}
         >
           {isImgValid ? (
             isVideoType ? (
               <video
                 src={value}
+                controls
                 muted
-                loop
-                autoPlay
-                playsInline
-                onError={() => setHasImgError(true)}
                 className="max-h-full max-w-full object-contain p-1 rounded-lg"
               />
             ) : (
@@ -212,8 +211,8 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
           )}
         </div>
 
-        {/* BOTONES LADO DERECHO: AGREGAR Y BORRAR DE ELEMENTO */}
-        <div className="flex flex-col justify-between gap-1.5 w-9 shrink-0">
+        {/* BOTONES LADO DERECHO: AGREGAR, CORTAR Y QUITAR DE ELEMENTO */}
+        <div className="flex flex-col justify-between gap-1 w-9 shrink-0 h-28">
           {/* Botón Agregar / Subir */}
           <button
             type="button"
@@ -228,13 +227,30 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             title="Subir o reemplazar recurso desde tu dispositivo"
           >
             {uploading ? (
-              <LoaderCircle size={15} className="animate-spin" />
+              <LoaderCircle size={13} className="animate-spin" />
             ) : justAdded ? (
-              <Check size={16} className="animate-in zoom-in-50 duration-150" />
+              <Check size={14} className="animate-in zoom-in-50 duration-150" />
             ) : (
-              <Plus size={16} className="transition-transform group-hover:scale-110" />
+              <Plus size={14} className="transition-transform group-hover:scale-110" />
             )}
             <span className="text-[7px] font-extrabold uppercase leading-none">Cargar</span>
+          </button>
+
+          {/* Botón Cortar Imagen (sólo para imágenes válidas) */}
+          <button
+            type="button"
+            onClick={() => setShowCropModal(true)}
+            disabled={!value || isVideoType || !isImgValid}
+            className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group"
+            style={{
+              backgroundColor: 'var(--bg-app)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--primary-accent)',
+            }}
+            title="Cortar y encuadrar esta imagen"
+          >
+            <Crop size={13} className="transition-transform group-hover:scale-110" />
+            <span className="text-[7px] font-extrabold uppercase leading-none">Cortar</span>
           </button>
 
           {/* Botón Quitar de Elemento */}
@@ -250,11 +266,24 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             }}
             title="Quitar de este elemento (mantiene el recurso en el banco)"
           >
-            <Trash2 size={15} className="transition-transform group-hover:scale-110" />
+            <Trash2 size={13} className="transition-transform group-hover:scale-110" />
             <span className="text-[7px] font-extrabold uppercase leading-none">Quitar</span>
           </button>
         </div>
       </div>
+
+      {/* MODAL CROPPER DE IMAGEN */}
+      {showCropModal && value && (
+        <ImageCropModal
+          isOpen={showCropModal}
+          imageSrc={value}
+          onClose={() => setShowCropModal(false)}
+          onCropComplete={(croppedUrl) => {
+            onChange(croppedUrl);
+            setShowCropModal(false);
+          }}
+        />
+      )}
 
       {/* SECCIÓN INFERIOR: LISTADO HORIZONTAL DEL BANCO DE RECURSOS DE LA BASE DE DATOS */}
       <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
