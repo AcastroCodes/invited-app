@@ -1,3 +1,12 @@
+export interface ElementPermissions {
+  transform?: boolean;  // Posición, Tamaño, Rotación, Opacidad
+  typography?: boolean; // Fuente, Tamaño de texto, Alineación, Estilo
+  appearance?: boolean; // Colores, Fondo, Filtros de imagen/video
+  container?: boolean;  // Bordes, Sombras, Fondo de contenedor
+  animation?: boolean;  // Animaciones de entrada/salida
+  content?: boolean;    // Editar texto o cambiar medio/recurso
+}
+
 export interface CanvasElement {
   id: string;
   type: 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
@@ -16,6 +25,8 @@ export interface CanvasElement {
   fontSize?: number;
   fontWeight?: string;
   fontFamily?: string;
+  // Permisos de Edición por Rol (Superadmin Lock)
+  lockedSections?: ElementPermissions;
   // Estilo de Texto & WordArt
   color?: string;
   textBorderWidth?: number;

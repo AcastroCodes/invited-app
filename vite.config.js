@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
             proxy: {
                 '/api': `http://127.0.0.1:8081`,
                 '/sanctum': `http://127.0.0.1:8081`,
+                '/storage': `http://127.0.0.1:8081`,
                 '^/(?!(resources|node_modules|@vite|@react-refresh|vendor))': {
                     target: `http://127.0.0.1:8081`,
                     changeOrigin: true,

@@ -77,6 +77,7 @@ import {
   Mail,
 } from 'lucide-react';
 import api from '../../lib/api';
+import { useAuth } from '../../hooks/useAuth';
 import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
@@ -309,6 +310,15 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
   );
 };
 
+export interface ElementPermissions {
+  transform?: boolean;  // Posición, Tamaño, Rotación, Opacidad
+  typography?: boolean; // Fuente, Tamaño de texto, Alineación, Estilo
+  appearance?: boolean; // Colores, Fondo, Filtros de imagen/video
+  container?: boolean;  // Bordes, Sombras, Fondo de contenedor
+  animation?: boolean;  // Animaciones de entrada/salida
+  content?: boolean;    // Editar texto o cambiar medio/recurso
+}
+
 interface CanvasElement {
   id: string;
   type: 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
@@ -325,6 +335,8 @@ interface CanvasElement {
   fontSize?: number;
   fontWeight?: string;
   fontFamily?: string;
+  // Permisos de Edición por Rol (Superadmin Lock)
+  lockedSections?: ElementPermissions;
   // Estilo de Texto & WordArt
   color?: string;
   textBorderWidth?: number;
@@ -678,6 +690,9 @@ const loadFontIntoDOM = (fontName: string, isCustom = false, fontUrl?: string) =
 };
 
 export default function InvitationDesigner() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'superadmin';
+
   const { id: eventId, invitationId } = useParams<{ id: string; invitationId: string }>();
   const navigate = useNavigate();
 
@@ -1530,6 +1545,9 @@ export default function InvitationDesigner() {
     const el = elements.find((item) => item.id === id);
     if (!el || el.locked) return;
 
+    // Si el usuario no es superadmin y la sección transform está bloqueada por el superadmin, impedir drag/resize/rotación
+    if (!isSuperAdmin && el.lockedSections?.transform) return;
+
     setSelectedElementId(id);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
@@ -1715,6 +1733,22 @@ export default function InvitationDesigner() {
     if (!selectedElementId) return;
     setElements((prev) =>
       prev.map((el) => (el.id === selectedElementId ? { ...el, ...updates } : el))
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const toggleSectionLock = (sectionKey: keyof ElementPermissions) => {
+    if (!selectedElementId) return;
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id !== selectedElementId) return el;
+        const currentLocks = el.lockedSections || {};
+        const updatedLocks = {
+          ...currentLocks,
+          [sectionKey]: !currentLocks[sectionKey],
+        };
+        return { ...el, lockedSections: updatedLocks };
+      })
     );
     setHasUnsavedChanges(true);
   };
@@ -3152,18 +3186,54 @@ export default function InvitationDesigner() {
 
                 {/* 1. ACORDEÓN: CONTENIDO */}
                 <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('content')}
-                    className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
-                    style={{ color: openSections.content ? 'var(--primary-accent)' : 'var(--text-muted)' }}
-                  >
-                    <span>Contenido</span>
-                    {openSections.content ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </button>
+                  <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection('content')}
+                      className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                      style={{ color: openSections.content ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>Contenido</span>
+                        {!isSuperAdmin && selectedElement.lockedSections?.content && (
+                          <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                        )}
+                      </span>
+                      {openSections.content ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+
+                    {isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSectionLock('content');
+                        }}
+                        className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                          selectedElement.lockedSections?.content
+                            ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                            : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                        }`}
+                        title={
+                          selectedElement.lockedSections?.content
+                            ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                            : 'Permitido para otros roles (Clic para bloquear edición)'
+                        }
+                      >
+                        {selectedElement.lockedSections?.content ? <Lock size={13} /> : <Unlock size={13} />}
+                      </button>
+                    )}
+                  </div>
 
                   {openSections.content && (
-                    <div className="px-4 pb-3 pt-0 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                    <div
+                      className={`px-4 pb-3 pt-0 border-t space-y-3 transition-opacity ${
+                        !isSuperAdmin && selectedElement.lockedSections?.content
+                          ? 'opacity-60 pointer-events-none select-none'
+                          : ''
+                      }`}
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
                       {selectedElement.type === 'image' ? (
                         <div className="pt-2">
                           <AssetPickerPopover
@@ -3446,18 +3516,54 @@ export default function InvitationDesigner() {
 
                 {/* 2. ACORDEÓN: POSICIÓN & TAMAÑO */}
                 <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('transform')}
-                    className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
-                    style={{ color: openSections.transform ? 'var(--primary-accent)' : 'var(--text-muted)' }}
-                  >
-                    <span>Posición & Tamaño</span>
-                    {openSections.transform ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </button>
+                  <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection('transform')}
+                      className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                      style={{ color: openSections.transform ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>Posición & Tamaño</span>
+                        {!isSuperAdmin && selectedElement.lockedSections?.transform && (
+                          <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                        )}
+                      </span>
+                      {openSections.transform ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+
+                    {isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSectionLock('transform');
+                        }}
+                        className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                          selectedElement.lockedSections?.transform
+                            ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                            : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                        }`}
+                        title={
+                          selectedElement.lockedSections?.transform
+                            ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                            : 'Permitido para otros roles (Clic para bloquear edición)'
+                        }
+                      >
+                        {selectedElement.lockedSections?.transform ? <Lock size={13} /> : <Unlock size={13} />}
+                      </button>
+                    )}
+                  </div>
 
                   {openSections.transform && (
-                    <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                    <div
+                      className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
+                        !isSuperAdmin && selectedElement.lockedSections?.transform
+                          ? 'opacity-60 pointer-events-none select-none'
+                          : ''
+                      }`}
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
                       {/* Botones de Alineación, Volteo & Aspect Ratio */}
                       <div className="flex items-center justify-between gap-0.5 p-0.5 rounded-lg border shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                         {/* Grupo 1: Alineación Horizontal */}
@@ -3710,18 +3816,54 @@ export default function InvitationDesigner() {
                 {/* 2.5 ACORDEÓN: AJUSTE & FILTROS (Imagen y Video) */}
                 {(selectedElement.type === 'image' || selectedElement.type === 'video') && (
                   <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                    <button
-                      type="button"
-                      onClick={() => toggleSection('imageFit')}
-                      className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
-                      style={{ color: openSections.imageFit ? 'var(--primary-accent)' : 'var(--text-muted)' }}
-                    >
-                      <span>Ajuste & Filtros de {selectedElement.type === 'video' ? 'Video' : 'Imagen'}</span>
-                      {openSections.imageFit ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
+                    <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection('imageFit')}
+                        className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                        style={{ color: openSections.imageFit ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>Ajuste & Filtros de {selectedElement.type === 'video' ? 'Video' : 'Imagen'}</span>
+                          {!isSuperAdmin && selectedElement.lockedSections?.appearance && (
+                            <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                          )}
+                        </span>
+                        {openSections.imageFit ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSectionLock('appearance');
+                          }}
+                          className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                            selectedElement.lockedSections?.appearance
+                              ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                              : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                          }`}
+                          title={
+                            selectedElement.lockedSections?.appearance
+                              ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                              : 'Permitido para otros roles (Clic para bloquear edición)'
+                          }
+                        >
+                          {selectedElement.lockedSections?.appearance ? <Lock size={13} /> : <Unlock size={13} />}
+                        </button>
+                      )}
+                    </div>
 
                     {openSections.imageFit && (
-                      <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                      <div
+                        className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
+                          !isSuperAdmin && selectedElement.lockedSections?.appearance
+                            ? 'opacity-60 pointer-events-none select-none'
+                            : ''
+                        }`}
+                        style={{ borderColor: 'var(--border-color)' }}
+                      >
                         {/* 1. MODO DE ENCUADRE Y REPETICIÓN */}
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
@@ -4303,18 +4445,54 @@ export default function InvitationDesigner() {
                 {/* 3. ACORDEÓN: TIPOGRAFÍA & ESTILO (solo si aplica a Texto o Botones) */}
                 {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
                   <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                    <button
-                      type="button"
-                      onClick={() => toggleSection('typography')}
-                      className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
-                      style={{ color: openSections.typography ? 'var(--primary-accent)' : 'var(--text-muted)' }}
-                    >
-                      <span>Tipografía & Estilo</span>
-                      {openSections.typography ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
+                    <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection('typography')}
+                        className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                        style={{ color: openSections.typography ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>Tipografía & Estilo</span>
+                          {!isSuperAdmin && selectedElement.lockedSections?.typography && (
+                            <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                          )}
+                        </span>
+                        {openSections.typography ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSectionLock('typography');
+                          }}
+                          className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                            selectedElement.lockedSections?.typography
+                              ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                              : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                          }`}
+                          title={
+                            selectedElement.lockedSections?.typography
+                              ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                              : 'Permitido para otros roles (Clic para bloquear edición)'
+                          }
+                        >
+                          {selectedElement.lockedSections?.typography ? <Lock size={13} /> : <Unlock size={13} />}
+                        </button>
+                      )}
+                    </div>
 
                     {openSections.typography && (
-                      <div className="px-4 pb-3 pt-2 border-t space-y-3" style={{ borderColor: 'var(--border-color)' }}>
+                      <div
+                        className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
+                          !isSuperAdmin && selectedElement.lockedSections?.typography
+                            ? 'opacity-60 pointer-events-none select-none'
+                            : ''
+                        }`}
+                        style={{ borderColor: 'var(--border-color)' }}
+                      >
                         {/* Fuente */}
                         <div>
                           <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -4591,18 +4769,54 @@ export default function InvitationDesigner() {
 
                 {/* 5. ACORDEÓN: CONTENEDOR & ESTILO */}
                 <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('container')}
-                    className="w-full flex items-center justify-between px-4 py-3 font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none"
-                    style={{ color: openSections.container ? 'var(--primary-accent)' : 'var(--text-muted)' }}
-                  >
-                    <span>Contenedor & Estilo</span>
-                    {openSections.container ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </button>
+                  <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection('container')}
+                      className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                      style={{ color: openSections.container ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>Contenedor & Estilo</span>
+                        {!isSuperAdmin && selectedElement.lockedSections?.container && (
+                          <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                        )}
+                      </span>
+                      {openSections.container ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+
+                    {isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSectionLock('container');
+                        }}
+                        className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                          selectedElement.lockedSections?.container
+                            ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                            : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                        }`}
+                        title={
+                          selectedElement.lockedSections?.container
+                            ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                            : 'Permitido para otros roles (Clic para bloquear edición)'
+                        }
+                      >
+                        {selectedElement.lockedSections?.container ? <Lock size={13} /> : <Unlock size={13} />}
+                      </button>
+                    )}
+                  </div>
 
                   {openSections.container && (
-                    <div className="px-4 pb-3 pt-2 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
+                    <div
+                      className={`px-4 pb-3 pt-2 border-t space-y-2 transition-opacity ${
+                        !isSuperAdmin && selectedElement.lockedSections?.container
+                          ? 'opacity-60 pointer-events-none select-none'
+                          : ''
+                      }`}
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
                       <StylePickerPopover
                         label="Estilo del contenedor"
                         elementType="container"
@@ -4706,13 +4920,36 @@ export default function InvitationDesigner() {
             ) : (
               /* TAB: ANIMACIÓN ESTILO JITTER */
               <div className="p-3 space-y-4 text-xs">
-                <div className="p-3 rounded-xl border flex items-center gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
-                  <Zap size={18} style={{ color: 'var(--primary-accent)' }} />
-                  <div>
-                    <p className="font-extrabold" style={{ color: 'var(--primary-accent)' }}>Jitter Motion Engine</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-main)' }}>Configura la animación de entrada y salida del elemento.</p>
+                <div className="p-3 rounded-xl border flex items-center justify-between gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
+                  <div className="flex items-center gap-2">
+                    <Zap size={18} style={{ color: 'var(--primary-accent)' }} />
+                    <div>
+                      <p className="font-extrabold" style={{ color: 'var(--primary-accent)' }}>Jitter Motion Engine</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-main)' }}>Configura la animación de entrada y salida del elemento.</p>
+                    </div>
                   </div>
+
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => toggleSectionLock('animation')}
+                      className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                        selectedElement.lockedSections?.animation
+                          ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                          : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                      }`}
+                      title={
+                        selectedElement.lockedSections?.animation
+                          ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                          : 'Permitido para otros roles (Clic para bloquear edición)'
+                      }
+                    >
+                      {selectedElement.lockedSections?.animation ? <Lock size={13} /> : <Unlock size={13} />}
+                    </button>
+                  )}
                 </div>
+
+                <div className={`space-y-4 transition-opacity ${!isSuperAdmin && selectedElement.lockedSections?.animation ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
                 {/* Animación de Entrada (In) */}
                 <div>
@@ -4827,8 +5064,9 @@ export default function InvitationDesigner() {
                   </select>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
         </aside>
       </div>
 
