@@ -2469,12 +2469,36 @@ export default function InvitationDesigner() {
                               <span className="truncate text-[11px] font-extrabold text-amber-500">
                                 {el.componentName || 'Componente'}
                               </span>
-                              <span className="px-1.5 py-0.2 text-[9px] font-mono rounded bg-amber-500/10 text-amber-600 font-extrabold border border-amber-500/20">
-                                Componente Padre
-                              </span>
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
+                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveLayerUp(idx);
+                                  }}
+                                  disabled={idx === 0}
+                                  className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                  title="Subir posición de la capa"
+                                >
+                                  <ChevronUp size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveLayerDown(idx);
+                                  }}
+                                  disabled={idx === elements.length - 1}
+                                  className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                  title="Bajar posición de la capa"
+                                >
+                                  <ChevronDown size={11} />
+                                </button>
+                              </div>
+
                               <button
                                 type="button"
                                 onClick={(e) => {
