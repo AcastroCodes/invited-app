@@ -1767,6 +1767,20 @@ export default function InvitationDesigner() {
 
     const img = new window.Image();
     img.onload = () => {
+      const currentWidth = selectedElement?.width;
+      const currentHeight = selectedElement?.height;
+      const hasExistingImage = Boolean(selectedElement?.content);
+
+      if (hasExistingImage && currentWidth && currentHeight) {
+        // Conservar las dimensiones fijadas previamente por el usuario
+        updateSelectedElementBatch({
+          content: newVal,
+          naturalWidth: img.naturalWidth || currentWidth,
+          naturalHeight: img.naturalHeight || currentHeight,
+        });
+        return;
+      }
+
       let newW = img.naturalWidth || 300;
       let newH = img.naturalHeight || 200;
 
