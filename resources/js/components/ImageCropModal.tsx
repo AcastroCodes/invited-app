@@ -283,11 +283,63 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
               <span>Rotar</span>
             </button>
 
+            <div className="h-4 w-px mx-1 bg-[var(--border-color)]" />
+
+            {/* Seleccion de Aspect Ratio */}
+            <div className="flex items-center gap-1">
+              {(
+                [
+                  { label: 'Libre', value: 'free' },
+                  { label: '1:1', value: '1:1', ratio: 1 },
+                  { label: '9:16', value: '9:16', ratio: 9 / 16 },
+                  { label: '16:9', value: '16:9', ratio: 16 / 9 },
+                ] as const
+              ).map((item) => {
+                const isActive = aspectRatio === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => {
+                      setAspectRatio(item.value);
+                      if (item.value === 'free') return;
+                      
+                      const ratio = item.ratio;
+                      let newW = crop.width;
+                      let newH = crop.width / ratio;
+
+                      if (newH > 90) {
+                        newH = 80;
+                        newW = newH * ratio;
+                      }
+                      if (newW > 90) {
+                        newW = 80;
+                        newH = newW / ratio;
+                      }
+
+                      const newX = Math.max(0, Math.min(100 - newW, crop.x));
+                      const newY = Math.max(0, Math.min(100 - newH, crop.y));
+                      setCrop({ x: newX, y: newY, width: newW, height: newH });
+                    }}
+                    className={`px-2 py-1 text-[11px] font-bold rounded-md border transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-[var(--primary-accent-light)] border-[var(--primary-accent)] text-[var(--primary-accent)]'
+                        : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80'
+                    }`}
+                    style={!isActive ? { borderColor: 'var(--border-color)' } : undefined}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={() => {
                 setZoom(1);
                 setRotation(0);
+                setAspectRatio('free');
                 setCrop({ x: 10, y: 10, width: 80, height: 80 });
               }}
               className="p-1.5 rounded-lg border hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-1 text-xs font-bold cursor-pointer opacity-70 hover:opacity-100"
