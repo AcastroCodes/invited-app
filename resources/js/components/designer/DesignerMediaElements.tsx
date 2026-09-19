@@ -158,12 +158,16 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
             backgroundImage: `url(${element.content})`,
             backgroundRepeat: element.objectFit,
             backgroundSize: element.repeatTileSize ? `${element.repeatTileSize}px auto` : 'auto',
-            backgroundPosition: 'top left',
+            backgroundPosition: `${element.mediaX || 0}px ${element.mediaY || 0}px`,
+            transform: `scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`,
             filter: `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim(),
           }}
         />
       );
     }
+
+    const hasMediaTransforms = Boolean(element.mediaX || element.mediaY || (element.mediaScale && element.mediaScale !== 100) || element.mediaRotation);
+
     return (
       <img
         src={element.content}
@@ -171,6 +175,9 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
         className="w-full h-full pointer-events-none select-none transition-all"
         style={{
           objectFit: (element.objectFit as any) || 'contain',
+          transform: hasMediaTransforms
+            ? `translate(${element.mediaX || 0}px, ${element.mediaY || 0}px) scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`
+            : undefined,
           filter: `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim(),
         }}
       />

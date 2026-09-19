@@ -32,6 +32,11 @@ export interface CanvasElement {
   componentName?: string;         // Nombre legible del componente (ej: "Componente Fondo Base", "Componente Franja Izquierda")
   lockTransform?: boolean;        // Bloquea mover y escalar la máscara/contenedor (pero permite cambiar contenido interno)
   clipContent?: boolean;          // Aplica máscara de recorte (overflow hidden) al contenido interno
+  // Transformación del Medio Interno (DENTRO de la Máscara)
+  mediaX?: number;        // Desplazamiento X del contenido dentro del componente
+  mediaY?: number;        // Desplazamiento Y del contenido dentro del componente
+  mediaScale?: number;    // Escala/Zoom del contenido dentro del componente (ej: 100%)
+  mediaRotation?: number; // Rotación interna del contenido dentro del componente
   // Estilo de Texto & WordArt
   color?: string;
   textBorderWidth?: number;

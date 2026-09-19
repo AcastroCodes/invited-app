@@ -2399,6 +2399,69 @@ export default function InvitationDesigner() {
                       );
                     }
 
+                    // Renderizado de Componente Contenedor / Máscara (Estructura Anidada con Hijo)
+                    if (el.isComponentContainer) {
+                      return (
+                        <div
+                          key={el.id}
+                          className="flex flex-col rounded-lg border overflow-hidden transition-all"
+                          style={{
+                            backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-app)',
+                            borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                          }}
+                        >
+                          {/* Cabecera del Componente Máscara (Fijo) */}
+                          <div
+                            onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                            className="flex items-center justify-between p-2 cursor-pointer border-b"
+                            style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Box size={13} className="shrink-0 text-amber-500" />
+                              <span className="truncate text-[11px] font-bold text-amber-500">
+                                {el.componentName || 'Componente Contenedor'}
+                              </span>
+                              <span className="px-1.5 py-0.2 text-[9px] font-mono rounded bg-amber-500/10 text-amber-600 font-extrabold border border-amber-500/20">
+                                Máscara Fija
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleElementVisibility(el.id);
+                                }}
+                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                title="Mostrar/Ocultar Componente"
+                              >
+                                {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Elemento de Contenido Interno (Sub-capa Modificable) */}
+                          <div className="pl-4 p-1.5 flex items-center justify-between bg-black/5 dark:bg-white/5 border-l-2 border-amber-400/60 ml-2 my-1 mr-1 rounded-r-md">
+                            <div
+                              onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                              className="flex items-center gap-1.5 min-w-0 cursor-pointer"
+                            >
+                              {el.type === 'image' && <ImageIcon size={12} className="shrink-0 text-blue-400" />}
+                              {el.type === 'video' && <Video size={12} className="shrink-0 text-purple-400" />}
+                              {el.type === 'shape' && <Square size={12} className="shrink-0 text-emerald-400" />}
+                              <span className="truncate text-[10.5px] font-medium opacity-90">
+                                🖼️ Elemento Interno ({el.content ? 'Cargado' : 'Vacío'})
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-semibold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                              Modificable
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     // Renderizado de Elemento Independiente (Sin Grupo)
                     return (
                       <div
@@ -2414,19 +2477,13 @@ export default function InvitationDesigner() {
                         }}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
-                          {el.isComponentContainer ? (
-                            <Box size={13} className="shrink-0 text-amber-400 animate-pulse" />
-                          ) : (
-                            <>
-                              {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                              {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
-                              {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
-                              {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
-                              {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
-                              {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
-                              {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
-                            </>
-                          )}
+                          {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                          {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
+                          {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
+                          {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
+                          {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
+                          {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
+                          {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
 
                           <span className={`truncate text-[11px] ${isSelected ? 'font-black' : 'font-medium'}`}>
                             {el.componentName || el.content || (el.type === 'image' ? 'Imagen' : el.type)}
@@ -2961,7 +3018,7 @@ export default function InvitationDesigner() {
                         : undefined,
                       backdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
                       WebkitBackdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
-                      textAlign: el.textAlign || 'left',
+                      overflow: el.clipContent ? 'hidden' : undefined,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: el.textAlign === 'center' ? 'center' : el.textAlign === 'right' ? 'flex-end' : 'flex-start',
@@ -4086,6 +4143,66 @@ export default function InvitationDesigner() {
                               />
                             </div>
                           )}
+
+                          {/* CONTROLES DE POSICIONAMIENTO E ENCUADRE INTERNO DE LA IMAGEN DENTRO DE LA MÁSCARA/CONTENEDOR */}
+                          <div className="pt-2 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
+                            <span className="block font-extrabold uppercase text-[9px] tracking-wider text-amber-500">
+                              Ajuste Interno dentro de la Máscara
+                            </span>
+                            <div className="grid grid-cols-2 gap-2 font-mono">
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Mover X (px)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.mediaX || 0}
+                                  min={-1000}
+                                  max={1000}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('mediaX', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Mover Y (px)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.mediaY || 0}
+                                  min={-1000}
+                                  max={1000}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('mediaY', val)}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 font-mono">
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Zoom Interno (%)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.mediaScale ?? 100}
+                                  min={10}
+                                  max={500}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('mediaScale', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Rotación Interna (°)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.mediaRotation || 0}
+                                  min={-360}
+                                  max={360}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('mediaRotation', val)}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         {/* 2. FILTROS VISUALES DE IMAGEN */}
