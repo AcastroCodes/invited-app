@@ -657,10 +657,11 @@ const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
       envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(rawScenes[0].envelopeSettings || {}) },
       elements: rawScenes[0].elements || []
     };
-    if (!scene.elements.find(el => el.id === 'env-background')) {
-       // Merge missing structural elements for backward compatibility
-       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.id.startsWith('env-') && !scene.elements.find(se => se.id === e.id));
-       scene.elements = [...structural, ...scene.elements];
+    if (!scene.elements.find(el => el.id === 'comp-env-background' || el.isComponentParent)) {
+       // Reemplazar o fusionar los componentes estructurales actualizados
+       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.isComponentParent);
+       const otherElements = scene.elements.filter(e => !e.id.startsWith('env-') && !e.id.startsWith('comp-env-'));
+       scene.elements = [...structural, ...otherElements];
     }
     return [scene, ...rawScenes.slice(1)];
   }
@@ -677,9 +678,10 @@ const ensureEnvelopeScene = (rawScenes: Scene[]): Scene[] => {
       envelopeSettings: { ...DEFAULT_ENVELOPE_SETTINGS, ...(existingEnv.envelopeSettings || {}) },
       elements: existingEnv.elements || []
     };
-    if (!envScene.elements.find(el => el.id === 'env-background')) {
-       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.id.startsWith('env-') && !envScene.elements.find(se => se.id === e.id));
-       envScene.elements = [...structural, ...envScene.elements];
+    if (!envScene.elements.find(el => el.id === 'comp-env-background' || el.isComponentParent)) {
+       const structural = DEFAULT_ENVELOPE_ELEMENTS.filter(e => e.isComponentParent);
+       const otherElements = envScene.elements.filter(e => !e.id.startsWith('env-') && !e.id.startsWith('comp-env-'));
+       envScene.elements = [...structural, ...otherElements];
     }
   }
 
