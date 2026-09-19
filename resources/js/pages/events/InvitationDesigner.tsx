@@ -415,90 +415,135 @@ export interface Scene {
 
 export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
   {
-    id: 'env-background',
-    type: 'image',
-    content: '',
+    id: 'comp-env-background',
+    isComponentParent: true,
+    componentName: 'Componente Fondo Base (Sobre)',
     x: 0,
     y: 0,
     width: 1080,
     height: 1920,
-    backgroundColor: '#020617', // slate-950
     locked: true,
     visible: true,
-    isComponentContainer: true,
-    componentName: 'Componente Fondo Base (Sobre)',
-    lockTransform: true,
     clipContent: true,
+    children: [
+      {
+        id: 'env-bg-image',
+        type: 'image',
+        content: '',
+        x: 0,
+        y: 0,
+        width: 1080,
+        height: 1920,
+        backgroundColor: '#020617', // slate-950
+        visible: true,
+      },
+    ],
   },
   {
-    id: 'env-left-strip',
-    type: 'image',
-    content: '',
+    id: 'comp-env-left-strip',
+    isComponentParent: true,
+    componentName: 'Componente Franja Izquierda',
     x: 0,
     y: 0,
     width: 308,
     height: 1920,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    borderStyle: 'solid',
     locked: true,
     visible: true,
-    isComponentContainer: true,
-    componentName: 'Componente Franja Izquierda',
-    lockTransform: true,
     clipContent: true,
+    children: [
+      {
+        id: 'env-left-image',
+        type: 'image',
+        content: '',
+        x: 0,
+        y: 0,
+        width: 308,
+        height: 1920,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        borderStyle: 'solid',
+        visible: true,
+      },
+    ],
   },
   {
-    id: 'env-right-strip',
-    type: 'image',
-    content: '',
+    id: 'comp-env-right-strip',
+    isComponentParent: true,
+    componentName: 'Componente Franja Derecha',
     x: 308,
     y: 0,
     width: 772,
     height: 1920,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     locked: true,
     visible: true,
-    isComponentContainer: true,
-    componentName: 'Componente Franja Derecha',
-    lockTransform: true,
     clipContent: true,
+    children: [
+      {
+        id: 'env-right-image',
+        type: 'image',
+        content: '',
+        x: 0,
+        y: 0,
+        width: 772,
+        height: 1920,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        visible: true,
+      },
+    ],
   },
   {
-    id: 'env-middle-strip',
-    type: 'image',
-    content: '',
+    id: 'comp-env-middle-strip',
+    isComponentParent: true,
+    componentName: 'Componente Cintura Central',
     x: 0,
     y: 1100,
     width: 1080,
     height: 90,
-    backgroundColor: '#fbf9f5', // color del sobre
     locked: true,
     visible: true,
-    isComponentContainer: true,
-    componentName: 'Componente Cintura Central',
-    lockTransform: true,
     clipContent: true,
+    children: [
+      {
+        id: 'env-middle-image',
+        type: 'image',
+        content: '',
+        x: 0,
+        y: 0,
+        width: 1080,
+        height: 90,
+        backgroundColor: '#fbf9f5', // color del sobre
+        visible: true,
+      },
+    ],
   },
   {
-    id: 'env-seal',
-    type: 'image',
-    content: '',
+    id: 'comp-env-seal',
+    isComponentParent: true,
+    componentName: 'Componente Sello de Cera',
     x: 228,
     y: 1065,
     width: 160,
     height: 160,
-    backgroundColor: '#b91c1c', // Seal color
-    borderRadius: 80,
-    shadowBlur: 20,
-    shadowColor: 'rgba(0,0,0,0.6)',
     locked: true,
     visible: true,
-    isComponentContainer: true,
-    componentName: 'Componente Sello de Cera',
-    lockTransform: true,
     clipContent: true,
+    children: [
+      {
+        id: 'env-seal-image',
+        type: 'image',
+        content: '',
+        x: 0,
+        y: 0,
+        width: 160,
+        height: 160,
+        backgroundColor: '#b91c1c', // Seal color
+        borderRadius: 80,
+        shadowBlur: 20,
+        shadowColor: 'rgba(0,0,0,0.6)',
+        visible: true,
+      },
+    ],
   },
   {
     id: 'env-open-button',
@@ -2399,18 +2444,19 @@ export default function InvitationDesigner() {
                       );
                     }
 
-                    // Renderizado de Componente Contenedor / Máscara (Estructura Anidada con Hijo)
-                    if (el.isComponentContainer) {
+                    // Renderizado de Componente Padre (Exclusivo del Sobre) con Elementos Hijos Anidados
+                    if (el.isComponentParent) {
+                      const childElements = el.children || [];
                       return (
                         <div
                           key={el.id}
-                          className="flex flex-col rounded-lg border overflow-hidden transition-all"
+                          className="flex flex-col rounded-lg border overflow-hidden transition-all shadow-2xs"
                           style={{
                             backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-app)',
                             borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
                           }}
                         >
-                          {/* Cabecera del Componente Máscara (Fijo) */}
+                          {/* Cabecera del Componente Padre (Marco Rígido) */}
                           <div
                             onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
                             className="flex items-center justify-between p-2 cursor-pointer border-b"
@@ -2418,11 +2464,11 @@ export default function InvitationDesigner() {
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <Box size={13} className="shrink-0 text-amber-500" />
-                              <span className="truncate text-[11px] font-bold text-amber-500">
-                                {el.componentName || 'Componente Contenedor'}
+                              <span className="truncate text-[11px] font-extrabold text-amber-500">
+                                {el.componentName || 'Componente'}
                               </span>
                               <span className="px-1.5 py-0.2 text-[9px] font-mono rounded bg-amber-500/10 text-amber-600 font-extrabold border border-amber-500/20">
-                                Máscara Fija
+                                Componente Padre
                               </span>
                             </div>
 
@@ -2441,22 +2487,38 @@ export default function InvitationDesigner() {
                             </div>
                           </div>
 
-                          {/* Elemento de Contenido Interno (Sub-capa Modificable) */}
-                          <div className="pl-4 p-1.5 flex items-center justify-between bg-black/5 dark:bg-white/5 border-l-2 border-amber-400/60 ml-2 my-1 mr-1 rounded-r-md">
-                            <div
-                              onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
-                              className="flex items-center gap-1.5 min-w-0 cursor-pointer"
-                            >
-                              {el.type === 'image' && <ImageIcon size={12} className="shrink-0 text-blue-400" />}
-                              {el.type === 'video' && <Video size={12} className="shrink-0 text-purple-400" />}
-                              {el.type === 'shape' && <Square size={12} className="shrink-0 text-emerald-400" />}
-                              <span className="truncate text-[10.5px] font-medium opacity-90">
-                                🖼️ Elemento Interno ({el.content ? 'Cargado' : 'Vacío'})
-                              </span>
-                            </div>
-                            <span className="text-[9px] font-semibold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                              Modificable
-                            </span>
+                          {/* Lista de Elementos Hijos (Imagenes, Video, Texto, etc.) seleccionables y editables */}
+                          <div className="p-1.5 space-y-1 bg-black/5 dark:bg-white/5">
+                            {childElements.map((childEl: CanvasElement) => {
+                              const isChildSelected = selectedElementId === childEl.id;
+                              return (
+                                <div
+                                  key={childEl.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey);
+                                  }}
+                                  className={`flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ${
+                                    isChildSelected ? 'shadow-xs border-amber-500 bg-amber-500/15 text-amber-600 font-bold' : 'hover:bg-black/5 dark:hover:bg-white/5 border-transparent opacity-90'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    {childEl.type === 'image' && <ImageIcon size={12} className="shrink-0 text-blue-500" />}
+                                    {childEl.type === 'video' && <Video size={12} className="shrink-0 text-purple-500" />}
+                                    {childEl.type === 'text' && <Type size={12} className="shrink-0 text-emerald-500" />}
+                                    {childEl.type === 'shape' && <Square size={12} className="shrink-0 text-amber-500" />}
+
+                                    <span className="truncate text-[10.5px]">
+                                      {childEl.content ? `🖼️ ${childEl.content.substring(0, 20)}` : `Elemento ${childEl.type}`}
+                                    </span>
+                                  </div>
+
+                                  <span className="text-[9px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                                    Elemento
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -2969,6 +3031,109 @@ export default function InvitationDesigner() {
               {/* Canvas Elements */}
               {elements.map((el, index) => {
                 if (el.visible === false) return null;
+
+                // Soporte para Componente Padre con Elementos Hijos anidados (Exclusivo para el Sobre)
+                if (el.isComponentParent && el.children) {
+                  const isParentSelected = selectedElementId === el.id;
+                  return (
+                    <div
+                      key={el.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedElementId(el.id);
+                      }}
+                      className={`absolute select-none pointer-events-auto ${
+                        isParentSelected ? 'outline-2 outline-dashed outline-amber-400' : ''
+                      }`}
+                      style={{
+                        left: `${el.x}px`,
+                        top: `${el.y}px`,
+                        width: `${el.width}px`,
+                        height: `${el.height}px`,
+                        overflow: el.clipContent ? 'hidden' : 'visible',
+                        zIndex: elements.length - index,
+                      }}
+                    >
+                      {/* Renderizado de los Elementos Hijos anidados (Modificables) */}
+                      {el.children.map((childEl) => {
+                        const isChildSelected = selectedElementId === childEl.id;
+
+                        return (
+                          <div
+                            key={childEl.id}
+                            onPointerDown={(e) => handlePointerDown(e, childEl.id, 'move')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedElementId(childEl.id);
+                            }}
+                            className={`absolute transition-shadow select-none cursor-move ${
+                              isChildSelected ? 'outline-4 outline-dashed outline-pink-500' : ''
+                            }`}
+                            style={{
+                              left: `${childEl.x}px`,
+                              top: `${childEl.y}px`,
+                              width: `${childEl.width}px`,
+                              height: `${childEl.height}px`,
+                              transform: [
+                                childEl.rotation ? `rotate(${childEl.rotation}deg)` : '',
+                                childEl.flipH ? 'scaleX(-1)' : '',
+                                childEl.flipV ? 'scaleY(-1)' : '',
+                              ].filter(Boolean).join(' ') || undefined,
+                              opacity: childEl.opacity !== undefined ? childEl.opacity / 100 : 1,
+                              background: childEl.backgroundColor && childEl.backgroundColor.includes('gradient') ? childEl.backgroundColor : undefined,
+                              backgroundColor: childEl.backgroundColor && !childEl.backgroundColor.includes('gradient') && childEl.backgroundColor !== 'transparent'
+                                ? childEl.backgroundColor
+                                : 'transparent',
+                              borderRadius: childEl.borderRadius ? `${childEl.borderRadius}px` : undefined,
+                              borderWidth: childEl.borderWidth ? `${childEl.borderWidth}px` : undefined,
+                              borderColor: childEl.borderColor || undefined,
+                              borderStyle: childEl.borderStyle || 'solid',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: childEl.textAlign === 'center' ? 'center' : childEl.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                            }}
+                          >
+                            {childEl.type === 'text' ? (
+                              <TextElementItem element={childEl} />
+                            ) : childEl.type === 'image' ? (
+                              <ImageElementItem element={childEl} />
+                            ) : childEl.type === 'video' ? (
+                              <VideoElementItem element={childEl} />
+                            ) : childEl.type === 'button' ? (
+                              <ButtonElementItem element={childEl} />
+                            ) : childEl.type === 'shape' ? (
+                              <ShapeElementItem element={childEl} />
+                            ) : (
+                              childEl.content
+                            )}
+
+                            {/* Handles de transformación para el Elemento Hijo DENTRO del Componente Padre */}
+                            {isChildSelected && (() => {
+                              const rot = (childEl.rotation || 0) % 360;
+                              return (
+                                <>
+                                  <div
+                                    onPointerDown={(e) => handlePointerDown(e, childEl.id, 'rotate')}
+                                    className="absolute -top-10 left-1/2 -translate-x-1/2 h-7 w-7 rounded-full bg-pink-500 border-2 border-white text-white flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing z-40"
+                                    title="Girar elemento dentro del componente"
+                                  >
+                                    <RotateCw size={13} />
+                                  </div>
+
+                                  <div
+                                    onPointerDown={(e) => handlePointerDown(e, childEl.id, 'resize', 'se')}
+                                    className="absolute -bottom-2 -right-2 h-4 w-4 bg-pink-500 border-2 border-white rounded-full cursor-nwse-resize z-40"
+                                  />
+                                </>
+                              );
+                            })()}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
                 const isSelected = selectedElementId === el.id;
 
                 return (

@@ -27,16 +27,17 @@ export interface CanvasElement {
   fontFamily?: string;
   // Permisos de Edición por Rol (Superadmin Lock)
   lockedSections?: ElementPermissions;
-  // Componente Contenedor / Máscara
-  isComponentContainer?: boolean;  // Indica si es una estructura/máscara rígida
-  componentName?: string;         // Nombre legible del componente (ej: "Componente Fondo Base", "Componente Franja Izquierda")
-  lockTransform?: boolean;        // Bloquea mover y escalar la máscara/contenedor (pero permite cambiar contenido interno)
-  clipContent?: boolean;          // Aplica máscara de recorte (overflow hidden) al contenido interno
-  // Transformación del Medio Interno (DENTRO de la Máscara)
-  mediaX?: number;        // Desplazamiento X del contenido dentro del componente
-  mediaY?: number;        // Desplazamiento Y del contenido dentro del componente
-  mediaScale?: number;    // Escala/Zoom del contenido dentro del componente (ej: 100%)
-  mediaRotation?: number; // Rotación interna del contenido dentro del componente
+  // Estructura de Componente con Elementos Hijos (Exclusivo para el Sobre)
+  isComponentParent?: boolean;     // Es el Componente Contenedor Padre
+  parentComponentId?: string;      // ID del Componente Padre al que pertenece el elemento hijo
+  componentName?: string;          // Nombre del Componente (ej: "Componente Franja Izquierda")
+  children?: CanvasElement[];      // Lista de elementos hijos reales dentro del componente
+  clipContent?: boolean;           // Aplica recorte overflow: hidden a los elementos hijos
+  // Transformación interna/relativa de los elementos dentro del componente
+  mediaX?: number;
+  mediaY?: number;
+  mediaScale?: number;
+  mediaRotation?: number;
   // Estilo de Texto & WordArt
   color?: string;
   textBorderWidth?: number;
