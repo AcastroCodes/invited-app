@@ -1769,10 +1769,9 @@ export default function InvitationDesigner() {
     img.onload = () => {
       const currentWidth = selectedElement?.width;
       const currentHeight = selectedElement?.height;
-      const hasExistingImage = Boolean(selectedElement?.content);
 
-      if (hasExistingImage && currentWidth && currentHeight) {
-        // Conservar las dimensiones fijadas previamente por el usuario
+      // Si el elemento ya tiene dimensiones fijadas (ancho y alto), conservarlas SIEMPRE
+      if (currentWidth && currentHeight) {
         updateSelectedElementBatch({
           content: newVal,
           naturalWidth: img.naturalWidth || currentWidth,
