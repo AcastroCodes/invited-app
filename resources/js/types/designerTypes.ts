@@ -27,6 +27,11 @@ export interface CanvasElement {
   fontFamily?: string;
   // Permisos de Edición por Rol (Superadmin Lock)
   lockedSections?: ElementPermissions;
+  // Componente Contenedor / Máscara
+  isComponentContainer?: boolean;  // Indica si es una estructura/máscara rígida
+  componentName?: string;         // Nombre legible del componente (ej: "Componente Fondo Base", "Componente Franja Izquierda")
+  lockTransform?: boolean;        // Bloquea mover y escalar la máscara/contenedor (pero permite cambiar contenido interno)
+  clipContent?: boolean;          // Aplica máscara de recorte (overflow hidden) al contenido interno
   // Estilo de Texto & WordArt
   color?: string;
   textBorderWidth?: number;

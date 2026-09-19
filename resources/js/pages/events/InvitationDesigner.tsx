@@ -425,6 +425,10 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     backgroundColor: '#020617', // slate-950
     locked: true,
     visible: true,
+    isComponentContainer: true,
+    componentName: 'Componente Fondo Base (Sobre)',
+    lockTransform: true,
+    clipContent: true,
   },
   {
     id: 'env-left-strip',
@@ -440,6 +444,10 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     borderStyle: 'solid',
     locked: true,
     visible: true,
+    isComponentContainer: true,
+    componentName: 'Componente Franja Izquierda',
+    lockTransform: true,
+    clipContent: true,
   },
   {
     id: 'env-right-strip',
@@ -452,6 +460,10 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     locked: true,
     visible: true,
+    isComponentContainer: true,
+    componentName: 'Componente Franja Derecha',
+    lockTransform: true,
+    clipContent: true,
   },
   {
     id: 'env-middle-strip',
@@ -464,6 +476,10 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     backgroundColor: '#fbf9f5', // color del sobre
     locked: true,
     visible: true,
+    isComponentContainer: true,
+    componentName: 'Componente Cintura Central',
+    lockTransform: true,
+    clipContent: true,
   },
   {
     id: 'env-seal',
@@ -479,6 +495,10 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     shadowColor: 'rgba(0,0,0,0.6)',
     locked: true,
     visible: true,
+    isComponentContainer: true,
+    componentName: 'Componente Sello de Cera',
+    lockTransform: true,
+    clipContent: true,
   },
   {
     id: 'env-open-button',
@@ -2394,16 +2414,22 @@ export default function InvitationDesigner() {
                         }}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
-                          {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                          {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
-                          {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
-                          {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
-                          {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
-                          {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
-                          {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                          {el.isComponentContainer ? (
+                            <Box size={13} className="shrink-0 text-amber-400 animate-pulse" />
+                          ) : (
+                            <>
+                              {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                              {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
+                              {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
+                              {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
+                              {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
+                              {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
+                              {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                            </>
+                          )}
 
                           <span className={`truncate text-[11px] ${isSelected ? 'font-black' : 'font-medium'}`}>
-                            {el.content}
+                            {el.componentName || el.content || (el.type === 'image' ? 'Imagen' : el.type)}
                           </span>
                         </div>
 
@@ -2962,7 +2988,7 @@ export default function InvitationDesigner() {
                     )}
 
                     {/* Transform Handles (Transformar, Escalar, Rotar) */}
-                    {isSelected && !el.locked && (() => {
+                    {isSelected && !el.locked && !el.lockTransform && (() => {
                       const rot = (el.rotation || 0) % 360;
                       const getRotatedCursor = (handle: string) => {
                         const baseAngles: Record<string, number> = {
