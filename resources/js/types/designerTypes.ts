@@ -9,7 +9,7 @@ export interface ElementPermissions {
 
 export interface CanvasElement {
   id: string;
-  type: 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
+  type: 'component' | 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
   content: string;
   x: number;
   y: number;
@@ -75,6 +75,7 @@ export interface CanvasElement {
   backdropBlurEnabled?: boolean;
   backdropBlurAmount?: number;
   backdropOpacity?: number;
+  backdropColor?: string;
   textAlign?: 'left' | 'center' | 'right';
   animation?: 'fade' | 'slideUp' | 'zoomIn' | 'bounce';
   animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'zoomIn' | 'bounceIn' | 'spinIn';

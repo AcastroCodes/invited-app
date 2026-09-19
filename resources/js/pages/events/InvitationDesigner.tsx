@@ -75,11 +75,13 @@ import {
   Unlink,
   Layout,
   Mail,
+  Copy,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
+import { ColorPickerPopover } from '../../components/ColorPickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
 import AppSelect from '../../components/AppSelect';
 import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem } from '../../components/designer/DesignerMediaElements';
@@ -425,19 +427,7 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     locked: true,
     visible: true,
     clipContent: true,
-    children: [
-      {
-        id: 'env-bg-image',
-        type: 'image',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 1080,
-        height: 1920,
-        backgroundColor: '#020617', // slate-950
-        visible: true,
-      },
-    ],
+    children: [],
   },
   {
     id: 'comp-env-left-strip',
@@ -450,22 +440,7 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     locked: true,
     visible: true,
     clipContent: true,
-    children: [
-      {
-        id: 'env-left-image',
-        type: 'image',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 308,
-        height: 1920,
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.5)',
-        borderStyle: 'solid',
-        visible: true,
-      },
-    ],
+    children: [],
   },
   {
     id: 'comp-env-right-strip',
@@ -478,19 +453,7 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     locked: true,
     visible: true,
     clipContent: true,
-    children: [
-      {
-        id: 'env-right-image',
-        type: 'image',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 772,
-        height: 1920,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        visible: true,
-      },
-    ],
+    children: [],
   },
   {
     id: 'comp-env-middle-strip',
@@ -503,19 +466,7 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     locked: true,
     visible: true,
     clipContent: true,
-    children: [
-      {
-        id: 'env-middle-image',
-        type: 'image',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 1080,
-        height: 90,
-        backgroundColor: '#fbf9f5', // color del sobre
-        visible: true,
-      },
-    ],
+    children: [],
   },
   {
     id: 'comp-env-seal',
@@ -528,22 +479,7 @@ export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
     locked: true,
     visible: true,
     clipContent: true,
-    children: [
-      {
-        id: 'env-seal-image',
-        type: 'image',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 160,
-        height: 160,
-        backgroundColor: '#b91c1c', // Seal color
-        borderRadius: 80,
-        shadowBlur: 20,
-        shadowColor: 'rgba(0,0,0,0.6)',
-        visible: true,
-      },
-    ],
+    children: [],
   },
   {
     id: 'env-open-button',
@@ -1101,6 +1037,37 @@ export default function InvitationDesigner() {
         e.preventDefault();
         handleGroupSelected();
       }
+
+      // Flechas de dirección: Mover elementos (1px por defecto, 10px con Shift)
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(keyLower)) {
+        const targetIds = selectedElementIds.length > 0 ? selectedElementIds : selectedElementId ? [selectedElementId] : [];
+        if (targetIds.length > 0) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
+          let deltaX = 0;
+          let deltaY = 0;
+
+          if (keyLower === 'arrowup') deltaY = -step;
+          if (keyLower === 'arrowdown') deltaY = step;
+          if (keyLower === 'arrowleft') deltaX = -step;
+          if (keyLower === 'arrowright') deltaX = step;
+
+          setElements((prev) => {
+            let updated = [...prev];
+            targetIds.forEach((id) => {
+              const targetEl = getSelectedElementRecursive(updated, id);
+              if (targetEl && !targetEl.locked) {
+                updated = updateElementRecursive(updated, id, {
+                  x: Math.round(targetEl.x + deltaX),
+                  y: Math.round(targetEl.y + deltaY),
+                });
+              }
+            });
+            return updated;
+          });
+          setHasUnsavedChanges(true);
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1388,27 +1355,54 @@ export default function InvitationDesigner() {
     setScenes((prev) => prev.map((s) => (s.id === sceneId ? { ...s, name: newName || s.name } : s)));
     setEditingSceneId(null);
   };
-  const handleAddText = (type: 'title' | 'subtitle' | 'body') => {
-    const newEl: CanvasElement = {
+
+  const handleAddText = (type: 'title' | 'subtitle' | 'paragraph') => {
+    const selectedComp = elements.find(el => el.id === selectedElementId && el.isComponentParent);
+
+    const newChild: CanvasElement = {
       id: `el-text-${Date.now()}`,
       type: 'text',
-      content: type === 'title' ? 'Nuevo Título' : type === 'subtitle' ? 'Subtítulo' : 'Texto descriptivo...',
-      x: 150,
-      y: 400 + elements.length * 70,
-      width: 750,
-      height: 120,
-      fontSize: type === 'title' ? 64 : type === 'subtitle' ? 42 : 34,
+      content: type === 'title' ? 'Título Principal' : type === 'subtitle' ? 'Subtítulo Elegante' : 'Párrafo de Texto',
+      x: 20,
+      y: 20,
+      width: selectedComp ? Math.max(100, selectedComp.width - 40) : 750,
+      height: type === 'title' ? 120 : type === 'subtitle' ? 60 : 40,
+      fontSize: type === 'title' ? 48 : type === 'subtitle' ? 24 : 18,
       fontWeight: type === 'title' ? 'bold' : 'normal',
       color: 'var(--text-main)',
       textAlign: 'center',
+      parentComponentId: selectedComp?.id,
+    };
+
+    if (selectedComp && activeScene?.isEnvelope) {
+      const updatedElements = elements.map(el => {
+        if (el.id === selectedComp.id) {
+          return {
+            ...el,
+            children: [...(el.children || []), newChild]
+          };
+        }
+        return el;
+      });
+      pushHistorySnapshot(updatedElements);
+      setSelectedElementId(newChild.id);
+      setSelectedElementIds([newChild.id]);
+      return;
+    }
+
+    const newEl: CanvasElement = {
+      ...newChild,
+      x: 150,
+      y: 400 + elements.length * 70,
     };
     pushHistorySnapshot([newEl, ...elements]);
     setSelectedElementId(newEl.id);
     setSelectedElementIds([newEl.id]);
   };
 
-  const handleAddElementType = (elementType: 'text' | 'image' | 'video' | 'shape' | '3d' | 'button' | 'audio') => {
+  const handleAddElementType = (elementType: 'component' | 'text' | 'image' | 'video' | 'shape' | '3d' | 'button' | 'audio') => {
     const defaultLabels: Record<string, string> = {
+      component: 'Nuevo Componente',
       text: 'Nuevo Texto',
       image: '',
       video: '',
@@ -1418,21 +1412,95 @@ export default function InvitationDesigner() {
       audio: 'Música de Fondo',
     };
 
-    const newEl: CanvasElement = {
+    const selectedComp = elements.find(el => el.id === selectedElementId && el.isComponentParent);
+
+    if (elementType === 'component') {
+      const newComponent: CanvasElement = {
+        id: `el-component-${Date.now()}`,
+        type: 'component',
+        content: 'Nuevo Componente',
+        componentName: 'Nuevo Componente',
+        isComponentParent: true,
+        children: [],
+        clipContent: true,
+        x: 180,
+        y: 200 + elements.length * 50,
+        width: 400,
+        height: 300,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderStyle: 'dashed',
+        borderRadius: 8,
+        visible: true,
+        locked: false,
+      };
+
+      pushHistorySnapshot([newComponent, ...elements]);
+      setSelectedElementId(newComponent.id);
+      setSelectedElementIds([newComponent.id]);
+      return;
+    }
+
+    const defaultWidth = elementType === 'image'
+      ? (selectedComp ? Math.min(250, selectedComp.width - 20) : 350)
+      : elementType === 'shape' || elementType === 'video'
+      ? 200
+      : elementType === '3d'
+      ? 350
+      : elementType === 'text'
+      ? (selectedComp ? Math.min(250, selectedComp.width - 20) : 400)
+      : 250;
+
+    const defaultHeight = elementType === 'image'
+      ? 200
+      : elementType === 'shape' || elementType === 'video'
+      ? 200
+      : elementType === '3d'
+      ? 350
+      : elementType === 'text'
+      ? 60
+      : 80;
+
+    const newChild: CanvasElement = {
       id: `el-${elementType}-${Date.now()}`,
       type: elementType,
       content: defaultLabels[elementType] || 'Nuevo Elemento',
-      x: 180,
-      y: 350 + elements.length * 80,
-      width: elementType === 'shape' ? 300 : elementType === '3d' ? 500 : 700,
-      height: elementType === 'shape' ? 300 : elementType === '3d' ? 500 : 120,
-      fontSize: elementType === 'text' ? 48 : undefined,
+      x: 10,
+      y: 10,
+      width: defaultWidth,
+      height: defaultHeight,
+      keepAspectRatio: elementType === 'image' ? true : undefined,
+      fontSize: elementType === 'text' ? 32 : undefined,
       color: 'var(--text-main)',
       backgroundColor: elementType === 'shape' ? 'var(--primary-accent-light)' : undefined,
       borderRadius: elementType === 'shape' ? 16 : undefined,
       textAlign: 'center',
       visible: true,
       locked: false,
+      parentComponentId: selectedComp?.id,
+    };
+
+    if (selectedComp) {
+      const updatedElements = elements.map(el => {
+        if (el.id === selectedComp.id) {
+          return {
+            ...el,
+            children: [...(el.children || []), newChild]
+          };
+        }
+        return el;
+      });
+      pushHistorySnapshot(updatedElements);
+      setSelectedElementId(newChild.id);
+      setSelectedElementIds([newChild.id]);
+      return;
+    }
+
+    const newEl: CanvasElement = {
+      ...newChild,
+      x: 180,
+      y: 350 + elements.length * 80,
     };
 
     pushHistorySnapshot([newEl, ...elements]);
@@ -1450,6 +1518,59 @@ export default function InvitationDesigner() {
   const toggleElementLock = (id: string) => {
     setElements(
       elements.map((el) => (el.id === id ? { ...el, locked: !el.locked } : el))
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const handleMoveComponentChildUp = (parentId: string, childId: string) => {
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === parentId && el.children) {
+          const idx = el.children.findIndex((c) => c.id === childId);
+          if (idx <= 0) return el;
+          const nextChildren = [...el.children];
+          const temp = nextChildren[idx];
+          nextChildren[idx] = nextChildren[idx - 1];
+          nextChildren[idx - 1] = temp;
+          return { ...el, children: nextChildren };
+        }
+        return el;
+      })
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const handleMoveComponentChildDown = (parentId: string, childId: string) => {
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === parentId && el.children) {
+          const idx = el.children.findIndex((c) => c.id === childId);
+          if (idx < 0 || idx >= el.children.length - 1) return el;
+          const nextChildren = [...el.children];
+          const temp = nextChildren[idx];
+          nextChildren[idx] = nextChildren[idx + 1];
+          nextChildren[idx + 1] = temp;
+          return { ...el, children: nextChildren };
+        }
+        return el;
+      })
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const toggleComponentChildVisibility = (parentId: string, childId: string) => {
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id === parentId && el.children) {
+          return {
+            ...el,
+            children: el.children.map((c) =>
+              c.id === childId ? { ...c, visible: c.visible === false ? true : false } : c
+            ),
+          };
+        }
+        return el;
+      })
     );
     setHasUnsavedChanges(true);
   };
@@ -1477,8 +1598,58 @@ export default function InvitationDesigner() {
     setSelectedElementIds([newEl.id]);
   };
 
+  const handleDuplicateElement = (id: string) => {
+    let duplicatedNewId: string | null = null;
+
+    const cloneWithNewId = (el: CanvasElement): CanvasElement => {
+      const newId = `el-${el.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      if (!duplicatedNewId) duplicatedNewId = newId;
+
+      return {
+        ...el,
+        id: newId,
+        x: el.x + 20,
+        y: el.y + 20,
+        children: el.children ? el.children.map((child) => cloneWithNewId(child)) : undefined,
+      };
+    };
+
+    const duplicateRecursive = (elList: CanvasElement[]): CanvasElement[] => {
+      const result: CanvasElement[] = [];
+      for (const el of elList) {
+        result.push(el);
+        if (el.id === id) {
+          result.push(cloneWithNewId(el));
+        } else if (el.children && el.children.length > 0) {
+          const updatedChildren = duplicateRecursive(el.children);
+          result[result.length - 1] = { ...el, children: updatedChildren };
+        }
+      }
+      return result;
+    };
+
+    const nextElements = duplicateRecursive(elements);
+    pushHistorySnapshot(nextElements);
+
+    if (duplicatedNewId) {
+      setSelectedElementId(duplicatedNewId);
+      setSelectedElementIds([duplicatedNewId]);
+    }
+  };
+
   const handleDeleteElement = (id: string) => {
-    pushHistorySnapshot(elements.filter((el) => el.id !== id));
+    const deleteRecursive = (elList: CanvasElement[]): CanvasElement[] => {
+      return elList
+        .filter((el) => el.id !== id)
+        .map((el) => {
+          if (el.children && el.children.length > 0) {
+            return { ...el, children: deleteRecursive(el.children) };
+          }
+          return el;
+        });
+    };
+
+    pushHistorySnapshot(deleteRecursive(elements));
     if (selectedElementId === id) setSelectedElementId(null);
   };
 
@@ -1615,7 +1786,7 @@ export default function InvitationDesigner() {
     handle?: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
   ) => {
     e.stopPropagation();
-    const el = elements.find((item) => item.id === id);
+    const el = getSelectedElementRecursive(elements, id);
     if (!el || el.locked) return;
 
     // Si el usuario no es superadmin y la sección transform está bloqueada por el superadmin, impedir drag/resize/rotación
@@ -1649,31 +1820,31 @@ export default function InvitationDesigner() {
     const { x, y, width, height, rotation } = dragState.elementInitial;
 
     if (dragState.mode === 'move') {
-      const activeEl = elements.find((item) => item.id === selectedElementId);
+      const activeEl = getSelectedElementRecursive(elements, selectedElementId);
       const activeGroupId = activeEl?.groupId;
 
-      setElements((prev) =>
-        prev.map((el) => {
-          if (activeGroupId && el.groupId === activeGroupId) {
-            // Si pertenece al mismo grupo, mover relativamente
-            const initialForEl = prev.find((item) => item.id === el.id);
-            if (!initialForEl) return el;
-            return {
-              ...el,
-              x: Math.round(el.x + (deltaX - (dragState as any).lastDeltaX || 0)),
-              y: Math.round(el.y + (deltaY - (dragState as any).lastDeltaY || 0)),
-            };
-          }
-          if (el.id === selectedElementId) {
-            return { ...el, x: Math.round(x + deltaX), y: Math.round(y + deltaY) };
-          }
-          return el;
-        })
-      );
+      setElements((prev) => {
+        if (activeGroupId) {
+          return prev.map((el) => {
+            if (el.groupId === activeGroupId) {
+              return {
+                ...el,
+                x: Math.round(el.x + (deltaX - ((dragState as any).lastDeltaX || 0))),
+                y: Math.round(el.y + (deltaY - ((dragState as any).lastDeltaY || 0))),
+              };
+            }
+            return el;
+          });
+        }
+        return updateElementRecursive(prev, selectedElementId, {
+          x: Math.round(x + deltaX),
+          y: Math.round(y + deltaY),
+        });
+      });
       setDragState((prev) => (prev ? { ...prev, lastDeltaX: deltaX, lastDeltaY: deltaY } as any : null));
       setHasUnsavedChanges(true);
     } else if (dragState.mode === 'resize' && dragState.handle) {
-      const currentEl = elements.find((item) => item.id === selectedElementId);
+      const currentEl = getSelectedElementRecursive(elements, selectedElementId);
       const keepRatio = currentEl?.keepAspectRatio;
       const h = dragState.handle;
 
@@ -1742,21 +1913,16 @@ export default function InvitationDesigner() {
       const newY = initAnchorY - (newWidth / 2 + anchorLocalX * newWidth) * sinRot - (newHeight / 2 + anchorLocalY * newHeight) * cosRot;
 
       setElements((prev) =>
-        prev.map((el) =>
-          el.id === selectedElementId
-            ? {
-                ...el,
-                x: Math.round(newX),
-                y: Math.round(newY),
-                width: Math.round(newWidth),
-                height: Math.round(newHeight),
-              }
-            : el
-        )
+        updateElementRecursive(prev, selectedElementId, {
+          x: Math.round(newX),
+          y: Math.round(newY),
+          width: Math.round(newWidth),
+          height: Math.round(newHeight),
+        })
       );
       setHasUnsavedChanges(true);
     } else if (dragState.mode === 'rotate') {
-      const currentEl = elements.find((el) => el.id === selectedElementId);
+      const currentEl = getSelectedElementRecursive(elements, selectedElementId);
       if (!currentEl) return;
 
       const centerX = x + width / 2;
@@ -1768,7 +1934,7 @@ export default function InvitationDesigner() {
       const newRot = (rotation + deg + 360) % 360;
 
       setElements((prev) =>
-        prev.map((el) => (el.id === selectedElementId ? { ...el, rotation: newRot } : el))
+        updateElementRecursive(prev, selectedElementId, { rotation: newRot })
       );
       setHasUnsavedChanges(true);
     }
@@ -1783,7 +1949,20 @@ export default function InvitationDesigner() {
     }
   };
 
-  const selectedElement = elements.find((el) => el.id === selectedElementId);
+  // Búsqueda recursiva del elemento seleccionado (Soporta elementos hijos dentro de Componentes Padres)
+  const getSelectedElementRecursive = (elList: CanvasElement[], targetId: string | null): CanvasElement | undefined => {
+    if (!targetId) return undefined;
+    for (const el of elList) {
+      if (el.id === targetId) return el;
+      if (el.children && el.children.length > 0) {
+        const foundChild = getSelectedElementRecursive(el.children, targetId);
+        if (foundChild) return foundChild;
+      }
+    }
+    return undefined;
+  };
+
+  const selectedElement = getSelectedElementRecursive(elements, selectedElementId);
   const activeScene = scenes.find((s) => s.id === activeSceneId);
 
   const updateActiveScene = (key: keyof Scene, val: any) => {
@@ -1794,36 +1973,46 @@ export default function InvitationDesigner() {
     setHasUnsavedChanges(true);
   };
 
+  // Actualización recursiva de un elemento (nivel superior o hijo dentro de componente)
+  const updateElementRecursive = (
+    elList: CanvasElement[],
+    targetId: string,
+    updates: Partial<CanvasElement>
+  ): CanvasElement[] => {
+    return elList.map((el) => {
+      if (el.id === targetId) {
+        return { ...el, ...updates };
+      }
+      if (el.children && el.children.length > 0) {
+        return {
+          ...el,
+          children: updateElementRecursive(el.children, targetId, updates),
+        };
+      }
+      return el;
+    });
+  };
+
   const updateSelectedElement = (key: keyof CanvasElement, val: any) => {
     if (!selectedElementId) return;
-    setElements((prev) =>
-      prev.map((el) => (el.id === selectedElementId ? { ...el, [key]: val } : el))
-    );
+    setElements((prev) => updateElementRecursive(prev, selectedElementId, { [key]: val }));
     setHasUnsavedChanges(true);
   };
 
   const updateSelectedElementBatch = (updates: Partial<CanvasElement>) => {
     if (!selectedElementId) return;
-    setElements((prev) =>
-      prev.map((el) => (el.id === selectedElementId ? { ...el, ...updates } : el))
-    );
+    setElements((prev) => updateElementRecursive(prev, selectedElementId, updates));
     setHasUnsavedChanges(true);
   };
 
   const toggleSectionLock = (sectionKey: keyof ElementPermissions) => {
-    if (!selectedElementId) return;
-    setElements((prev) =>
-      prev.map((el) => {
-        if (el.id !== selectedElementId) return el;
-        const currentLocks = el.lockedSections || {};
-        const updatedLocks = {
-          ...currentLocks,
-          [sectionKey]: !currentLocks[sectionKey],
-        };
-        return { ...el, lockedSections: updatedLocks };
-      })
-    );
-    setHasUnsavedChanges(true);
+    if (!selectedElementId || !selectedElement) return;
+    const currentLocks = selectedElement.lockedSections || {};
+    const updatedLocks = {
+      ...currentLocks,
+      [sectionKey]: !currentLocks[sectionKey],
+    };
+    updateSelectedElement('lockedSections', updatedLocks);
   };
 
   const handleImageContentChange = (newVal: string) => {
@@ -1834,27 +2023,17 @@ export default function InvitationDesigner() {
 
     const img = new window.Image();
     img.onload = () => {
-      const currentWidth = selectedElement?.width;
-      const currentHeight = selectedElement?.height;
+      const parentComp = selectedElement?.parentComponentId
+        ? elements.find((el) => el.id === selectedElement?.parentComponentId)
+        : undefined;
 
-      // Si el elemento ya tiene dimensiones fijadas (ancho y alto), conservarlas SIEMPRE
-      if (currentWidth && currentHeight) {
-        updateSelectedElementBatch({
-          content: newVal,
-          naturalWidth: img.naturalWidth || currentWidth,
-          naturalHeight: img.naturalHeight || currentHeight,
-        });
-        return;
-      }
-
+      const maxLimitW = parentComp ? Math.min(350, parentComp.width - 20) : 550;
       let newW = img.naturalWidth || 300;
       let newH = img.naturalHeight || 200;
 
-      // Escalar si excede un tamaño máximo inicial para encajar en el canvas manteniendo aspect ratio
-      const maxCanvasW = 550;
-      if (newW > maxCanvasW) {
-        const ratio = maxCanvasW / newW;
-        newW = Math.round(maxCanvasW);
+      if (newW > maxLimitW) {
+        const ratio = maxLimitW / newW;
+        newW = Math.round(maxLimitW);
         newH = Math.round(newH * ratio);
       }
 
@@ -2020,137 +2199,154 @@ export default function InvitationDesigner() {
         >
           {/* 1. SECCIÓN SUPERIOR: Icon-only Tool Bar con Tooltips (Texto, Imagen, Video, Shape, 3D, Audio) */}
           <div
-            className="p-3 border-b"
+            className="p-2 border-b"
             style={{
               backgroundColor: 'var(--bg-app)',
               borderColor: 'var(--border-color)',
             }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                Insertar Elemento
-              </span>
-            </div>
+            <div className="flex items-center gap-2">
+              {/* Columna Izquierda: Componente */}
+              <div className="flex items-center shrink-0 pr-2 border-r" style={{ borderColor: 'var(--border-color)' }}>
+                <button
+                  onClick={() => handleAddElementType('component')}
+                  className="group relative flex h-10 w-10 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95 shadow-xs"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-main)',
+                  }}
+                >
+                  <Folder size={20} className="text-amber-400 fill-amber-400/20" />
+                  {/* Tooltip */}
+                  <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                    Componente
+                  </span>
+                </button>
+              </div>
 
-            <div className="grid grid-cols-7 gap-1">
-              {/* Texto */}
-              <button
-                onClick={() => handleAddElementType('text')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Type size={15} style={{ color: 'var(--primary-accent)' }} />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  Texto
-                </span>
-              </button>
+              {/* Columna Derecha: Título + Elementos más pequeños y compactos */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                    Insertar Elementos
+                  </span>
+                </div>
 
-              {/* Imagen */}
-              <button
-                onClick={() => handleAddElementType('image')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <ImageIcon size={15} className="text-blue-500" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  Imagen
-                </span>
-              </button>
+                <div className="flex items-center gap-0.5 flex-wrap">
+                  {/* Texto */}
+                  <button
+                    onClick={() => handleAddElementType('text')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Type size={11} style={{ color: 'var(--primary-accent)' }} />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Texto
+                    </span>
+                  </button>
 
-              {/* Video */}
-              <button
-                onClick={() => handleAddElementType('video')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Video size={15} className="text-purple-500" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  Video
-                </span>
-              </button>
+                  {/* Imagen */}
+                  <button
+                    onClick={() => handleAddElementType('image')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <ImageIcon size={11} className="text-blue-500" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Imagen
+                    </span>
+                  </button>
 
-              {/* Shape / Figuras */}
-              <button
-                onClick={() => handleAddElementType('shape')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Square size={15} className="text-emerald-500" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  Shape
-                </span>
-              </button>
+                  {/* Video */}
+                  <button
+                    onClick={() => handleAddElementType('video')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Video size={11} className="text-purple-500" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Video
+                    </span>
+                  </button>
 
-              {/* 3D */}
-              <button
-                onClick={() => handleAddElementType('3d')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Box size={15} className="text-amber-500" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  3D
-                </span>
-              </button>
+                  {/* Shape / Figuras */}
+                  <button
+                    onClick={() => handleAddElementType('shape')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Square size={11} className="text-emerald-500" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Shape
+                    </span>
+                  </button>
 
-              {/* Botón */}
-              <button
-                onClick={() => handleAddElementType('button')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Smartphone size={15} className="text-teal-500" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  Botón
-                </span>
-              </button>
+                  {/* 3D */}
+                  <button
+                    onClick={() => handleAddElementType('3d')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Box size={11} className="text-amber-500" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      3D
+                    </span>
+                  </button>
 
-              {/* Audio */}
-              <button
-                onClick={() => handleAddElementType('audio')}
-                className="group relative flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Music size={15} className="text-rose-500" />
-                {/* Tooltip */}
-                <span className="pointer-events-none absolute left-1/2 -bottom-8 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
-                  Audio
-                </span>
-              </button>
+                  {/* Botón */}
+                  <button
+                    onClick={() => handleAddElementType('button')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Smartphone size={11} className="text-teal-500" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Botón
+                    </span>
+                  </button>
+
+                  {/* Audio */}
+                  <button
+                    onClick={() => handleAddElementType('audio')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Music size={11} className="text-rose-500" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Audio
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2424,7 +2620,18 @@ export default function InvitationDesigner() {
                                         </button>
                                       </div>
 
-                                      <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDuplicateElement(childEl.id);
+                                          }}
+                                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                                          title="Duplicar elemento"
+                                        >
+                                          <Copy size={10} />
+                                        </button>
                                         <button
                                           type="button"
                                           onClick={(e) => {
@@ -2432,6 +2639,7 @@ export default function InvitationDesigner() {
                                             handleDeleteElement(childEl.id);
                                           }}
                                           className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                          title="Eliminar elemento"
                                         >
                                           <Trash2 size={10} />
                                         </button>
@@ -2499,23 +2707,36 @@ export default function InvitationDesigner() {
                                 </button>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleElementVisibility(el.id);
-                                }}
-                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                title="Mostrar/Ocultar Componente"
-                              >
-                                {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
-                              </button>
+                              <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleElementVisibility(el.id);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  title="Mostrar/Ocultar Componente"
+                                >
+                                  {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDuplicateElement(el.id);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                                  title="Duplicar Componente"
+                                >
+                                  <Copy size={11} />
+                                </button>
+                              </div>
                             </div>
                           </div>
 
                           {/* Lista de Elementos Hijos (Imagenes, Video, Texto, etc.) seleccionables y editables */}
                           <div className="p-1.5 space-y-1 bg-black/5 dark:bg-white/5">
-                            {childElements.map((childEl: CanvasElement) => {
+                            {childElements.map((childEl: CanvasElement, childIdx: number) => {
                               const isChildSelected = selectedElementId === childEl.id;
                               return (
                                 <div
@@ -2535,13 +2756,81 @@ export default function InvitationDesigner() {
                                     {childEl.type === 'shape' && <Square size={12} className="shrink-0 text-amber-500" />}
 
                                     <span className="truncate text-[10.5px]">
-                                      {childEl.content ? `🖼️ ${childEl.content.substring(0, 20)}` : `Elemento ${childEl.type}`}
+                                      {childEl.content ? childEl.content.substring(0, 20) : `Elemento ${childEl.type}`}
                                     </span>
                                   </div>
 
-                                  <span className="text-[9px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                                    Elemento
-                                  </span>
+                                  {/* Controles del Elemento Hijo dentro del Componente */}
+                                  <div className="flex items-center gap-0.5 shrink-0 ml-1">
+                                    {/* Flechas Subir / Bajar dentro del Componente */}
+                                    <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleMoveComponentChildUp(el.id, childEl.id);
+                                        }}
+                                        disabled={childIdx === 0}
+                                        className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                        title="Subir posición dentro del componente"
+                                      >
+                                        <ChevronUp size={10} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleMoveComponentChildDown(el.id, childEl.id);
+                                        }}
+                                        disabled={childIdx === childElements.length - 1}
+                                        className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                        title="Bajar posición dentro del componente"
+                                      >
+                                        <ChevronDown size={10} />
+                                      </button>
+                                    </div>
+
+                                    {/* Ojo & Candado */}
+                                    <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleComponentChildVisibility(el.id, childEl.id);
+                                        }}
+                                        className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                        title="Mostrar/Ocultar elemento"
+                                      >
+                                        {childEl.visible === false ? <EyeOff size={10} /> : <Eye size={10} />}
+                                      </button>
+                                    </div>
+
+                                    {/* Duplicar & Eliminar Elemento Hijo */}
+                                    <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDuplicateElement(childEl.id);
+                                        }}
+                                        className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                                        title="Duplicar elemento del componente"
+                                      >
+                                        <Copy size={10} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteElement(childEl.id);
+                                        }}
+                                        className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                        title="Eliminar elemento del componente"
+                                      >
+                                        <Trash2 size={10} />
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -2656,7 +2945,18 @@ export default function InvitationDesigner() {
                             </button>
                           </div>
 
-                          <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDuplicateElement(el.id);
+                              }}
+                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                              title="Duplicar elemento"
+                            >
+                              <Copy size={11} />
+                            </button>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2665,6 +2965,7 @@ export default function InvitationDesigner() {
                               }}
                               className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                               style={{ color: 'var(--danger)' }}
+                              title="Eliminar elemento"
                             >
                               <Trash2 size={11} />
                             </button>
@@ -3058,31 +3359,61 @@ export default function InvitationDesigner() {
               {elements.map((el, index) => {
                 if (el.visible === false) return null;
 
-                // Soporte para Componente Padre con Elementos Hijos anidados (Exclusivo para el Sobre)
+                // Soporte para Componente Padre con Elementos Hijos anidados
                 if (el.isComponentParent && el.children) {
                   const isParentSelected = selectedElementId === el.id;
+                  const isAnyChildSelected = el.children.some((child) => child.id === selectedElementId);
+                  const isComponentActive = isParentSelected || isAnyChildSelected;
+                  const componentZIndex = elements.length - index;
+
                   return (
                     <div
                       key={el.id}
+                      onPointerDown={(e) => handlePointerDown(e, el.id, 'move')}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedElementId(el.id);
                       }}
-                      className={`absolute select-none pointer-events-auto ${
-                        isParentSelected ? 'outline-2 outline-dashed outline-amber-400' : ''
+                      className={`absolute select-none pointer-events-auto transition-all ${
+                        el.locked ? 'cursor-not-allowed opacity-80' : 'cursor-move'
+                      } ${
+                        isParentSelected
+                          ? 'ring-4 ring-amber-400 border-2 border-amber-500 bg-amber-400/20 shadow-[0_0_20px_rgba(245,158,11,0.5)]'
+                          : isAnyChildSelected
+                          ? 'ring-2 ring-amber-400/80 border-2 border-dashed border-amber-400 bg-amber-400/10 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                          : ''
                       }`}
                       style={{
                         left: `${el.x}px`,
                         top: `${el.y}px`,
                         width: `${el.width}px`,
                         height: `${el.height}px`,
+                        transform: [
+                          el.rotation ? `rotate(${el.rotation}deg)` : '',
+                          el.flipH ? 'scaleX(-1)' : '',
+                          el.flipV ? 'scaleY(-1)' : '',
+                        ].filter(Boolean).join(' ') || undefined,
+                        backgroundColor: el.backdropBlurEnabled
+                          ? (el.backdropColor || el.backgroundColor) && (el.backdropColor || el.backgroundColor) !== 'transparent'
+                              ? `color-mix(in srgb, ${el.backdropColor || el.backgroundColor} ${el.backdropOpacity ?? 30}%, transparent)`
+                              : `rgba(255, 255, 255, ${(el.backdropOpacity ?? 30) / 100})`
+                          : (isComponentActive
+                              ? (el.backgroundColor || 'rgba(245, 158, 11, 0.12)')
+                              : el.backgroundColor),
+                        backdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
+                        WebkitBackdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
+                        borderRadius: (el.containerBorderRadius ?? el.borderRadius) ? `${el.containerBorderRadius ?? el.borderRadius}px` : undefined,
+                        borderWidth: (el.containerBorderWidth ?? el.borderWidth) ? `${el.containerBorderWidth ?? el.borderWidth}px` : undefined,
+                        borderColor: (el.containerBorderWidth ?? el.borderWidth) ? (el.containerBorderColor || el.borderColor || 'transparent') : undefined,
+                        borderStyle: (el.containerBorderWidth ?? el.borderWidth) ? (el.containerBorderStyle || el.borderStyle || 'solid') : undefined,
                         overflow: el.clipContent ? 'hidden' : 'visible',
-                        zIndex: elements.length - index,
+                        zIndex: componentZIndex,
                       }}
                     >
                       {/* Renderizado de los Elementos Hijos anidados (Modificables) */}
-                      {el.children.map((childEl) => {
+                      {el.children.map((childEl, childIdx) => {
                         const isChildSelected = selectedElementId === childEl.id;
+                        const childZIndex = el.children!.length - childIdx;
 
                         return (
                           <div
@@ -3100,6 +3431,7 @@ export default function InvitationDesigner() {
                               top: `${childEl.y}px`,
                               width: `${childEl.width}px`,
                               height: `${childEl.height}px`,
+                              zIndex: childZIndex,
                               transform: [
                                 childEl.rotation ? `rotate(${childEl.rotation}deg)` : '',
                                 childEl.flipH ? 'scaleX(-1)' : '',
@@ -3107,9 +3439,7 @@ export default function InvitationDesigner() {
                               ].filter(Boolean).join(' ') || undefined,
                               opacity: childEl.opacity !== undefined ? childEl.opacity / 100 : 1,
                               background: childEl.backgroundColor && childEl.backgroundColor.includes('gradient') ? childEl.backgroundColor : undefined,
-                              backgroundColor: childEl.backgroundColor && !childEl.backgroundColor.includes('gradient') && childEl.backgroundColor !== 'transparent'
-                                ? childEl.backgroundColor
-                                : 'transparent',
+                              backgroundColor: childEl.backgroundColor && !childEl.backgroundColor.includes('gradient') ? childEl.backgroundColor : 'transparent',
                               borderRadius: childEl.borderRadius ? `${childEl.borderRadius}px` : undefined,
                               borderWidth: childEl.borderWidth ? `${childEl.borderWidth}px` : undefined,
                               borderColor: childEl.borderColor || undefined,
@@ -3156,6 +3486,74 @@ export default function InvitationDesigner() {
                           </div>
                         );
                       })}
+
+                      {/* Handles de transformación para el Componente Padre completo */}
+                      {isParentSelected && (() => {
+                        const getRotatedCursor = (dir: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w') => {
+                          const cursors = ['ns-resize', 'nesw-resize', 'ew-resize', 'nwse-resize'];
+                          const baseAngles: Record<string, number> = { n: 0, ne: 45, e: 90, se: 135, s: 180, sw: 225, w: 270, nw: 315 };
+                          const currentAngle = ((el.rotation || 0) + (baseAngles[dir] || 0)) % 360;
+                          const normalized = (currentAngle + 360) % 360;
+                          const index = Math.floor((normalized + 22.5) / 45) % 8;
+                          return cursors[index % 4];
+                        };
+
+                        return (
+                          <>
+                            {/* Tirador de Rotación */}
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'rotate')}
+                              className="absolute -top-12 left-1/2 -translate-x-1/2 h-8 w-8 rounded-full bg-amber-500 border-2 border-white text-white flex items-center justify-center shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 z-40"
+                              title="Girar componente"
+                            >
+                              <RotateCw size={16} />
+                            </div>
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-[2px] h-4 bg-amber-500 z-30" />
+
+                            {/* 8 Tiradores de Escala */}
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'nw')}
+                              className="absolute -top-3 -left-3 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('nw') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'n')}
+                              className="absolute -top-3 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('n') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'ne')}
+                              className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('ne') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'e')}
+                              className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('e') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'se')}
+                              className="absolute -bottom-3 -right-3 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('se') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 's')}
+                              className="absolute -bottom-3 left-1/2 -translate-x-1/2 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('s') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'sw')}
+                              className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('sw') }}
+                            />
+                            <div
+                              onPointerDown={(e) => handlePointerDown(e, el.id, 'resize', 'w')}
+                              className="absolute top-1/2 -left-3 -translate-y-1/2 h-6 w-6 rounded-full bg-white border-3 border-amber-500 shadow-md hover:scale-125 z-40"
+                              style={{ cursor: getRotatedCursor('w') }}
+                            />
+                          </>
+                        );
+                      })()}
                     </div>
                   );
                 }
@@ -3195,9 +3593,11 @@ export default function InvitationDesigner() {
                       fontFamily: el.fontFamily ? `'${el.fontFamily}', sans-serif` : undefined,
                       // Fondo / Relleno del contenedor
                       background: el.backgroundColor && el.backgroundColor.includes('gradient') ? el.backgroundColor : undefined,
-                      backgroundColor: el.backgroundColor && !el.backgroundColor.includes('gradient') && el.backgroundColor !== 'transparent'
-                        ? (el.backdropBlurEnabled ? `color-mix(in srgb, ${el.backgroundColor} ${el.backdropOpacity ?? 30}%, transparent)` : el.backgroundColor)
-                        : 'transparent',
+                      backgroundColor: el.backdropBlurEnabled
+                        ? (el.backdropColor || el.backgroundColor) && (el.backdropColor || el.backgroundColor) !== 'transparent'
+                            ? `color-mix(in srgb, ${el.backdropColor || el.backgroundColor} ${el.backdropOpacity ?? 30}%, transparent)`
+                            : `rgba(255, 255, 255, ${(el.backdropOpacity ?? 30) / 100})`
+                        : (el.backgroundColor && !el.backgroundColor.includes('gradient') ? el.backgroundColor : 'transparent'),
                       // Borde del contenedor
                       borderRadius: (el.containerBorderRadius ?? el.borderRadius) ? `${el.containerBorderRadius ?? el.borderRadius}px` : undefined,
                       borderWidth: (el.containerBorderWidth ?? el.borderWidth) ? `${el.containerBorderWidth ?? el.borderWidth}px` : undefined,
@@ -3790,6 +4190,30 @@ export default function InvitationDesigner() {
                             </label>
                           </div>
                         </div>
+                      ) : selectedElement.isComponentParent || selectedElement.type === 'component' ? (
+                        <div className="pt-2 space-y-2">
+                          <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                            Nombre del Componente
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedElement.componentName || selectedElement.content || 'Componente'}
+                            onChange={(e) => {
+                              const newName = e.target.value;
+                              updateSelectedElementBatch({
+                                componentName: newName,
+                                content: newName,
+                              });
+                            }}
+                            placeholder="Nombre del componente"
+                            className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                            style={{
+                              backgroundColor: 'var(--bg-card)',
+                              borderColor: 'var(--border-color)',
+                              color: 'var(--text-main)',
+                            }}
+                          />
+                        </div>
                       ) : (
                         <textarea
                           rows={3}
@@ -3848,7 +4272,14 @@ export default function InvitationDesigner() {
                     )}
                   </div>
 
-                  {openSections.transform && (
+                  {openSections.transform && (() => {
+                    const parentComp = selectedElement.parentComponentId
+                      ? elements.find((el) => el.id === selectedElement.parentComponentId)
+                      : undefined;
+                    const parentWidth = parentComp ? parentComp.width : 1080;
+                    const parentHeight = parentComp ? parentComp.height : 1920;
+
+                    return (
                     <div
                       className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
                         !isSuperAdmin && selectedElement.lockedSections?.transform
@@ -3872,15 +4303,15 @@ export default function InvitationDesigner() {
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
-                            title="Alinear a la izquierda"
+                            title="Alinear a la izquierda del contenedor"
                           >
                             <AlignStartVertical size={13} />
                           </button>
                           <button
-                            onClick={() => updateSelectedElement('x', Math.round((1080 - selectedElement.width) / 2))}
+                            onClick={() => updateSelectedElement('x', Math.round((parentWidth - selectedElement.width) / 2))}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
-                            title="Alinear al centro horizontal"
+                            title="Alinear al centro horizontal del contenedor"
                           >
                             <AlignCenterVertical size={13} />
                           </button>
@@ -3890,12 +4321,12 @@ export default function InvitationDesigner() {
                               const cos = Math.abs(Math.cos(rad));
                               const sin = Math.abs(Math.sin(rad));
                               const bboxW = selectedElement.width * cos + selectedElement.height * sin;
-                              const targetX = 1080 - bboxW + (bboxW - selectedElement.width) / 2;
+                              const targetX = parentWidth - bboxW + (bboxW - selectedElement.width) / 2;
                               updateSelectedElement('x', Math.round(targetX));
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
-                            title="Alinear a la derecha"
+                            title="Alinear a la derecha del contenedor"
                           >
                             <AlignEndVertical size={13} />
                           </button>
@@ -3916,15 +4347,15 @@ export default function InvitationDesigner() {
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
-                            title="Alinear arriba"
+                            title="Alinear arriba del contenedor"
                           >
                             <AlignStartHorizontal size={13} />
                           </button>
                           <button
-                            onClick={() => updateSelectedElement('y', Math.round((1920 - selectedElement.height) / 2))}
+                            onClick={() => updateSelectedElement('y', Math.round((parentHeight - selectedElement.height) / 2))}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
-                            title="Alinear al centro vertical"
+                            title="Alinear al centro vertical del contenedor"
                           >
                             <AlignCenterHorizontal size={13} />
                           </button>
@@ -3934,12 +4365,12 @@ export default function InvitationDesigner() {
                               const cos = Math.abs(Math.cos(rad));
                               const sin = Math.abs(Math.sin(rad));
                               const bboxH = selectedElement.width * sin + selectedElement.height * cos;
-                              const targetY = 1920 - bboxH + (bboxH - selectedElement.height) / 2;
+                              const targetY = parentHeight - bboxH + (bboxH - selectedElement.height) / 2;
                               updateSelectedElement('y', Math.round(targetY));
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
-                            title="Alinear abajo"
+                            title="Alinear abajo del contenedor"
                           >
                             <AlignEndHorizontal size={13} />
                           </button>
@@ -3987,6 +4418,22 @@ export default function InvitationDesigner() {
                             title={selectedElement.keepAspectRatio ? "Aspect Ratio Bloqueado (Proporcional)" : "Aspect Ratio Libre"}
                           >
                             <Ratio size={13} />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              updateSelectedElementBatch({
+                                x: 0,
+                                y: 0,
+                                width: parentWidth,
+                                height: parentHeight,
+                              });
+                            }}
+                            className="p-1 rounded-md transition-colors hover:bg-black/10 dark:hover:bg-white/10 border border-transparent"
+                            style={{ color: 'var(--primary-accent)' }}
+                            title={parentComp ? `Ajustar al componente padre (${parentWidth}x${parentHeight})` : `Ajustar al lienzo principal (${parentWidth}x${parentHeight})`}
+                          >
+                            <Maximize size={13} />
                           </button>
                         </div>
                       </div>
@@ -4103,7 +4550,8 @@ export default function InvitationDesigner() {
                         )}
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* 2.5 ACORDEÓN: AJUSTE & FILTROS (Imagen y Video) */}
@@ -5234,34 +5682,53 @@ export default function InvitationDesigner() {
                           </button>
                         </div>
                         {selectedElement.backdropBlurEnabled && (
-                          <div className="flex gap-3 pl-1 pr-1 mt-2">
-                            <div className="flex-1">
-                              <label className="block font-bold mb-1 text-[9px] text-zinc-500">
-                                Desenfoque: {selectedElement.backdropBlurAmount ?? 10}px
+                          <div className="space-y-2.5 mt-2.5 p-2 rounded-lg border bg-black/5 dark:bg-white/5" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <label className="font-bold text-[9.5px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                Tinta Glass
                               </label>
-                              <input
-                                type="range"
-                                min="0"
-                                max="40"
-                                step="1"
-                                value={selectedElement.backdropBlurAmount ?? 10}
-                                onChange={(e) => updateSelectedElement('backdropBlurAmount', Number(e.target.value))}
-                                className="w-full accent-pink-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-                              />
+                              <div className="w-28">
+                                <ColorPickerPopover
+                                  value={selectedElement.backdropColor || selectedElement.backgroundColor || '#FFFFFF'}
+                                  onChange={(val) => {
+                                    updateSelectedElement('backdropColor', val);
+                                    updateSelectedElement('backgroundColor', val);
+                                  }}
+                                  allowGradient={false}
+                                  allowTransparent={true}
+                                />
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <label className="block font-bold mb-1 text-[9px] text-zinc-500">
-                                Opacidad (Color): {selectedElement.backdropOpacity ?? 30}%
-                              </label>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="1"
-                                value={selectedElement.backdropOpacity ?? 30}
-                                onChange={(e) => updateSelectedElement('backdropOpacity', Number(e.target.value))}
-                                className="w-full accent-pink-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-                              />
+
+                            <div className="grid grid-cols-2 gap-2 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                              <div>
+                                <label className="block font-bold mb-1 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Blur: {selectedElement.backdropBlurAmount ?? 10}px
+                                </label>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="40"
+                                  step="1"
+                                  value={selectedElement.backdropBlurAmount ?? 10}
+                                  onChange={(e) => updateSelectedElement('backdropBlurAmount', Number(e.target.value))}
+                                  className="w-full accent-pink-500 h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-bold mb-1 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Opacidad: {selectedElement.backdropOpacity ?? 30}%
+                                </label>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={selectedElement.backdropOpacity ?? 30}
+                                  onChange={(e) => updateSelectedElement('backdropOpacity', Number(e.target.value))}
+                                  className="w-full accent-pink-500 h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                />
+                              </div>
                             </div>
                           </div>
                         )}
