@@ -3238,14 +3238,14 @@ export default function InvitationDesigner() {
         {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema) */}
         <main
           ref={mainContainerRef}
-          className="flex-1 flex flex-col items-center justify-center relative p-6 overflow-auto"
+          className="flex-1 relative overflow-auto"
           style={{ backgroundColor: 'var(--bg-app)' }}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
           {/* Controls Zoom flotantes (Esquina superior izquierda del área del diseñador) */}
           <div
-            className="absolute top-4 left-4 z-30 flex items-center gap-1.5 rounded-xl p-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold"
+            className="sticky top-4 left-4 z-30 inline-flex items-center gap-1.5 rounded-xl p-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold ml-4 mt-4 pointer-events-auto"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border-color)',
@@ -3317,14 +3317,16 @@ export default function InvitationDesigner() {
             </button>
           </div>
 
-          {/* Canvas stage outer layout container (Dimensiones físicas exactas según el zoom) */}
-          <div
-            className="flex items-center justify-center shrink-0 transition-all duration-150 my-auto"
-            style={{
-              width: `${1080 * (zoom / 100)}px`,
-              height: `${1920 * (zoom / 100)}px`,
-            }}
-          >
+          {/* Wrapper flexible con m-auto para permitir centrado cuando cabe y scroll completo (sin recortar la parte superior) cuando es más grande */}
+          <div className="min-w-full min-h-full flex items-center justify-center p-12 m-auto w-max h-max">
+            {/* Canvas stage outer layout container (Dimensiones físicas exactas según el zoom) */}
+            <div
+              className="flex items-center justify-center shrink-0 transition-all duration-150 m-auto"
+              style={{
+                width: `${1080 * (zoom / 100)}px`,
+                height: `${1920 * (zoom / 100)}px`,
+              }}
+            >
             {/* Canvas stage transform container */}
             <div
               className="transition-transform duration-150 relative shrink-0 origin-center"
@@ -3736,7 +3738,8 @@ export default function InvitationDesigner() {
               </div>
             </div>
           </div>
-        </main>
+        </div>
+      </main>
 
         {/* Right Panel: Inspector de Propiedades estilo Jitter */}
         <aside
