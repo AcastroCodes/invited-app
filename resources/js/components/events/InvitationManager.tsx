@@ -48,16 +48,38 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
     setLoading(true);
     try {
       const res = await api.get(`/events/${eventId}/invitations`);
-      setInvitations(res.data.data || []);
-    } catch {
-      // Ignore error
+      let rawList: any[] = [];
+      if (Array.isArray(res.data)) {
+        rawList = res.data;
+      } else if (Array.isArray(res.data?.data)) {
+        rawList = res.data.data;
+      } else if (Array.isArray(res.data?.invitations)) {
+        rawList = res.data.invitations;
+      } else if (Array.isArray(res.data?.data?.data)) {
+        rawList = res.data.data.data;
+      }
+      
+      const parsedList = rawList.map((inv: any) => {
+        if (typeof inv.content === 'string') {
+          try {
+            inv.content = JSON.parse(inv.content);
+          } catch {
+            // keep as is
+          }
+        }
+        return inv;
+      });
+
+      setInvitations(parsedList);
+    } catch (err) {
+      console.error('Error fetching invitations:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (eventId) {
+    if (eventId !== undefined && eventId !== null) {
       fetchInvitations();
     }
   }, [eventId]);
@@ -125,7 +147,6 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
   return (
     <div className="space-y-6">
 
-
       {/* Loading state */}
       {loading && (
         <div className="flex justify-center py-12">
@@ -136,36 +157,29 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty state indicativo */}
       {!loading && invitations.length === 0 && (
         <div
-          className="text-center py-12 px-4 rounded-xl border border-dashed"
+          className="text-center py-6 px-4 border border-dashed mb-4"
           style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
         >
-          <Mail size={40} className="mx-auto mb-3 opacity-40" style={{ color: 'var(--text-muted)' }} />
-          <h3 className="text-base font-bold" style={{ color: 'var(--text-main)' }}>
+          <Mail size={32} className="mx-auto mb-2 opacity-40" style={{ color: 'var(--text-muted)' }} />
+          <h3 className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>
             No hay invitaciones creadas aún
           </h3>
-          <p className="text-xs max-w-md mx-auto mt-1 mb-4" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs max-w-md mx-auto mt-0.5 mb-3" style={{ color: 'var(--text-muted)' }}>
             Empieza creando la primera invitación digital para tu evento.
           </p>
-          <button
-            onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white shadow-sm hover:opacity-90"
-            style={{ backgroundColor: 'var(--primary-accent)' }}
-          >
-            <Plus size={16} /> Crear Invitación
-          </button>
         </div>
       )}
 
-      {/* Invitations Grid (Estilo idéntico a Partner / Event List con 3 cols en mediano y 4 en pantallas grandes) */}
+      {/* Invitations Grid */}
       {!loading && (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {/* Tarjeta Botón de Agregar Invitación (Igual a PartnerList / EventList) */}
           <button
             onClick={handleOpenCreate}
-            className="flex min-h-[140px] flex-col items-center justify-center gap-3 p-4 transition-opacity hover:opacity-80 rounded-xl"
+            className="flex min-h-[140px] flex-col items-center justify-center gap-3 p-4 transition-opacity hover:opacity-80"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderTop: '2px solid var(--primary-accent)',
@@ -186,12 +200,21 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
           </button>
 
           {invitations.map((inv) => {
-            const typeConfig = INVITATION_TYPES.find((t) => t.id === (inv.template || 'interactive')) || INVITATION_TYPES[0];
+            if (!inv) return null;
+            const templateId = typeof inv.template === 'string' ? inv.template : (typeof inv.type === 'string' ? inv.type : 'interactive');
+            const typeConfig = INVITATION_TYPES.find((t) => t.id === templateId) || INVITATION_TYPES[0];
             const TypeIcon = typeConfig.icon;
+            
+            let previewUrl = null;
+            if (inv.content && typeof inv.content === 'object' && inv.content.preview) {
+              previewUrl = inv.content.preview;
+            }
+
+            const displayTitle = inv.title || (inv as any).name || 'Invitación';
 
             return (
               <div
-                key={inv.id}
+                key={inv.id || Math.random()}
                 className="flex items-stretch overflow-hidden transition-all hover:shadow-md relative"
                 style={{
                   backgroundColor: 'var(--bg-card)',
@@ -204,21 +227,21 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
                 {/* Lado Izquierdo: Preview 9:16 con pequeño margen elegante */}
                 <div className="p-1.5 shrink-0 flex items-center">
                   <div
-                    className="aspect-[9/16] w-22 overflow-hidden flex flex-col items-center justify-center relative border shadow-xs"
+                    className="aspect-[9/16] w-20 overflow-hidden flex flex-col items-center justify-center relative border shadow-xs"
                     style={{
                       backgroundColor: 'var(--bg-app)',
                       borderColor: 'var(--border-color)',
                     }}
                   >
-                    {inv.content?.preview ? (
+                    {previewUrl ? (
                       <img
-                        src={inv.content.preview}
-                        alt={inv.title}
+                        src={previewUrl}
+                        alt={displayTitle}
                         className="h-full w-full object-contain bg-white"
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center p-2 text-center">
-                        <TypeIcon size={26} style={{ color: 'var(--primary-accent)' }} />
+                        <TypeIcon size={24} style={{ color: 'var(--primary-accent)' }} />
                         <span className="text-[10px] font-black uppercase tracking-wider mt-1" style={{ color: 'var(--text-muted)' }}>
                           {typeConfig.name}
                         </span>
@@ -244,7 +267,7 @@ export default function InvitationManager({ eventId }: InvitationManagerProps) {
                   {/* Middle Info */}
                   <div className="px-4 py-2">
                     <h3 className="truncate font-extrabold text-base" style={{ color: 'var(--text-main)' }}>
-                      {inv.title}
+                      {displayTitle}
                     </h3>
                     <p className="text-xs font-extrabold uppercase tracking-wider mt-1" style={{ color: 'var(--primary-accent)' }}>
                       INVITACIÓN {typeConfig.name}

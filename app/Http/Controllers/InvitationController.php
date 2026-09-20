@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\Guest;
 use App\Models\Invitation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class InvitationController extends Controller
@@ -15,16 +16,17 @@ class InvitationController extends Controller
      */
     public function index($eventId)
     {
-        $event = Event::findOrFail($eventId);
-        $invitations = $event->invitations()
+        $invitations = Invitation::where('event_id', $eventId)
             ->withCount('guests')
             ->with('guests')
-            ->latest()
-            ->get();
+            ->get()
+            ->sortByDesc('created_at')
+            ->values();
 
         return response()->json([
             'status' => 'success',
             'data' => $invitations,
+            'invitations' => $invitations,
         ]);
     }
 
@@ -119,6 +121,24 @@ class InvitationController extends Controller
             'content' => 'nullable|array',
             'is_active' => 'nullable|boolean',
         ]);
+
+        if (isset($validated['content']) && is_array($validated['content'])) {
+            $content = $validated['content'];
+            if (!empty($content['preview']) && is_string($content['preview']) && str_starts_with($content['preview'], 'data:image/')) {
+                try {
+                    $parts = explode(',', $content['preview'], 2);
+                    if (count($parts) === 2) {
+                        $imageBuffer = base64_decode($parts[1]);
+                        $fileName = "invitations/previews/preview_{$invitation->id}.jpg";
+                        Storage::disk('public')->put($fileName, $imageBuffer);
+                        $content['preview'] = "/storage/" . $fileName . "?v=" . time();
+                        $validated['content'] = $content;
+                    }
+                } catch (\Throwable $e) {
+                    // Ignore preview processing failure if any
+                }
+            }
+        }
 
         $invitation->update($validated);
 

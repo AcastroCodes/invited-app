@@ -1173,14 +1173,14 @@ export default function InvitationDesigner() {
     let previewUrl: string | undefined = invitation?.content?.preview;
     
     const originalSceneId = activeSceneId;
-    const firstScene = updatedScenes.length > 0 ? updatedScenes[0] : null;
-    const needsSwitchForPreview = firstScene && firstScene.id !== originalSceneId;
+    const sceneToPreview = updatedScenes.find((s) => !s.isEnvelope) || updatedScenes[0];
+    const needsSwitchForPreview = sceneToPreview && sceneToPreview.id !== originalSceneId;
 
     if (needsSwitchForPreview) {
       flushSync(() => {
         setScenes(updatedScenes);
-        setActiveSceneId(firstScene.id);
-        setElements(firstScene.elements);
+        setActiveSceneId(sceneToPreview.id);
+        setElements(sceneToPreview.elements);
         setZoom(100);
       });
     } else {
@@ -1193,13 +1193,12 @@ export default function InvitationDesigner() {
     if (stageCanvasRef.current) {
       try {
         const stageNode = stageCanvasRef.current;
-        const currentZoom = zoom;
 
-        // Wait long enough for React to render the first scene and the browser to reflow the zoom.
+        // Wait long enough for React to render Escena 1 and the browser to reflow the zoom.
         await new Promise((r) => setTimeout(r, 600));
 
         const canvas = await html2canvas(stageNode, {
-          scale: 0.4,
+          scale: 0.2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#FFFFFF',
@@ -1207,21 +1206,24 @@ export default function InvitationDesigner() {
           ignoreElements: (element) => element.classList.contains('outline-pink-500'),
         });
 
-        previewUrl = canvas.toDataURL('image/jpeg', 0.7);
+        previewUrl = canvas.toDataURL('image/jpeg', 0.5);
 
-        // Restaurar zoom y escena original de manera sincronizada
-        flushSync(() => {
-          setZoom(currentZoom);
-          if (needsSwitchForPreview && originalSceneId) {
-            const originalScene = updatedScenes.find(s => s.id === originalSceneId);
-            if (originalScene) {
-              setActiveSceneId(originalScene.id);
-              setElements(originalScene.elements);
-            }
-          }
-        });
       } catch (err) {
         console.error('Error generando vista previa:', err);
+      } finally {
+        // Restaurar SIEMPRE la escena activa original (ej. Sobre) y sus elementos
+        if (needsSwitchForPreview) {
+          const origSceneObj = updatedScenes.find((s) => s.id === originalSceneId);
+          const origElements = origSceneObj ? origSceneObj.elements : elements;
+          flushSync(() => {
+            setScenes(updatedScenes);
+            setActiveSceneId(originalSceneId);
+            setElements(origElements);
+          });
+        }
+        setTimeout(() => {
+          handleFitToScreen();
+        }, 100);
       }
     }
 
@@ -1229,11 +1231,13 @@ export default function InvitationDesigner() {
       // Ensure CSRF token is fresh before saving to avoid CSRF token mismatch on long sessions
       await api.get('/sanctum/csrf-cookie').catch(() => {});
 
+      const activeSceneObj = updatedScenes.find((s) => s.id === originalSceneId);
+
       await api.put(`/invitations/${invitationId}`, {
         content: {
           scenes: updatedScenes,
           activeSceneId: originalSceneId,
-          elements, // This closure still holds the original elements of the active scene
+          elements: activeSceneObj ? activeSceneObj.elements : elements,
           preview: previewUrl,
         },
       });

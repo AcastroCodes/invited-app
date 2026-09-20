@@ -109,6 +109,12 @@ export default function EventConfig() {
     fetchEvent();
   }, [id]);
 
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam.toUpperCase());
+    }
+  }, [tabParam]);
+
   // Helper to calculate global event date range text from itinerary
   const computeEventDateRange = (itinerary: any[]) => {
     if (!itinerary || itinerary.length === 0) {
@@ -353,7 +359,10 @@ export default function EventConfig() {
           <div className="flex items-center gap-5 overflow-visible">
             {ALL_SERVICES.map((srv) => {
               const Icon = srv.icon;
-              const isIncluded = srv.id === 'INVITADOS' || event.services?.includes(srv.id);
+              const isIncluded =
+                srv.id === 'INVITADOS' ||
+                srv.id === 'INVITACION' ||
+                event.services?.some((s: any) => String(s).toUpperCase() === srv.id);
               if (!isIncluded) return null;
 
               const isActiveService = activeTab === srv.id;
@@ -437,7 +446,7 @@ export default function EventConfig() {
       <div className="pt-4">
         {activeTab === 'INVITADOS' ? (
           <GuestManager eventId={event.id} />
-        ) : activeTab === 'INVITACION' && event.services?.includes('INVITACION') ? (
+        ) : activeTab === 'INVITACION' ? (
           <InvitationManager eventId={event.id} />
         ) : (
           ALL_SERVICES.map((srv) => {

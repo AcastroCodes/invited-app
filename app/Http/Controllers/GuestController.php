@@ -44,8 +44,11 @@ class GuestController extends Controller
         $invitations = Invitation::where('event_id', $event->id)->get()->map(function ($inv) {
             return [
                 'id' => $inv->id,
-                'name' => $inv->name,
-                'type' => $inv->type,
+                'name' => $inv->title ?? 'Invitación',
+                'title' => $inv->title ?? 'Invitación',
+                'type' => $inv->template ?? 'interactive',
+                'template' => $inv->template ?? 'interactive',
+                'is_active' => (bool)$inv->is_active,
             ];
         });
 
