@@ -32,12 +32,23 @@ class AssetController extends Controller
     public function store(Request $request, Partner $partner): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|max:10240', // Max 10MB
+            'file' => 'required|file|max:51200', // Max 50MB for 3D/Video
             'type' => 'nullable|string',
         ]);
 
         $file = $request->file('file');
-        $type = $request->input('type', 'image');
+        $extension = strtolower($file->getClientOriginalExtension());
+        
+        $type = $request->input('type');
+        if (!$type) {
+            if (in_array($extension, ['glb', 'gltf', 'fbx', 'dae', 'obj'])) {
+                $type = '3d';
+            } elseif (in_array($extension, ['mp4', 'webm', 'ogg', 'mov', 'avi'])) {
+                $type = 'video';
+            } else {
+                $type = 'image';
+            }
+        }
 
         $path = $file->store("partners/{$partner->id}/assets", 'public');
 
@@ -46,7 +57,7 @@ class AssetController extends Controller
             'name' => $file->getClientOriginalName(),
             'type' => $type,
             'file_path' => $path,
-            'mime_type' => $file->getClientMimeType(),
+            'mime_type' => $file->getClientMimeType() ?: 'application/octet-stream',
             'size' => $file->getSize(),
         ]);
 

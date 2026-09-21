@@ -10,7 +10,8 @@ import {
   VideoElementItem, 
   ShapeElementItem, 
   ButtonElementItem, 
-  AudioElementItem 
+  AudioElementItem,
+  ThreeDElementItem
 } from '../../components/designer/DesignerMediaElements';
 
 const ensureEnvelopeScene = (rawScenes: any[]): any[] => {
@@ -482,6 +483,7 @@ export default function InvitationViewer() {
             case 'shape': innerElement = <ShapeElementItem element={el} />; break;
             case 'button': innerElement = <ButtonElementItem element={el} />; break;
             case 'audio': innerElement = <AudioElementItem element={el} />; break;
+            case '3d': innerElement = <ThreeDElementItem element={el} />; break;
             default: break;
           }
 

@@ -84,7 +84,7 @@ import { StylePickerPopover } from '../../components/StylePickerPopover';
 import { ColorPickerPopover } from '../../components/ColorPickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
 import AppSelect from '../../components/AppSelect';
-import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem } from '../../components/designer/DesignerMediaElements';
+import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
 
 interface NumberInputProps {
@@ -398,6 +398,22 @@ interface CanvasElement {
   groupId?: string;
   groupName?: string;
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };
+  // Propiedades 3D & Patrones
+  modelAutoPlay?: boolean;
+  modelAutoRotate?: boolean;
+  modelShadowIntensity?: number;
+  modelAnimation?: string;
+  rotationX?: number;
+  rotationY?: number;
+  rotationZ?: number;
+  modelScaleX?: number;
+  modelScaleY?: number;
+  modelScaleZ?: number;
+  patternType?: string;
+  patternUrl?: string;
+  patternScale?: number;
+  patternColor?: string;
+  patternOpacity?: number;
 }
 
 import { EnvelopeSettings } from '../../types/designerTypes';
@@ -882,9 +898,10 @@ export default function InvitationDesigner() {
       setZoom(30);
       return;
     }
-    const padding = 64; // Padding inside main container
-    const availWidth = Math.max(100, mainContainerRef.current.clientWidth - padding);
-    const availHeight = Math.max(100, mainContainerRef.current.clientHeight - padding);
+    const paddingX = 64;
+    const paddingY = 64;
+    const availWidth = Math.max(100, mainContainerRef.current.clientWidth - paddingX);
+    const availHeight = Math.max(100, mainContainerRef.current.clientHeight - paddingY);
 
     const scaleX = availWidth / 1080;
     const scaleY = availHeight / 1920;
@@ -893,6 +910,12 @@ export default function InvitationDesigner() {
     const calculatedZoom = Math.floor(fitScale * 100);
     const finalZoom = Math.min(200, Math.max(10, calculatedZoom));
     setZoom(finalZoom);
+
+    // Resetear posición de scroll al encajar en pantalla
+    if (mainContainerRef.current) {
+      mainContainerRef.current.scrollTop = 0;
+      mainContainerRef.current.scrollLeft = 0;
+    }
   };
 
   useEffect(() => {
@@ -3238,14 +3261,14 @@ export default function InvitationDesigner() {
         {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema) */}
         <main
           ref={mainContainerRef}
-          className="flex-1 relative overflow-auto"
+          className="flex-1 relative overflow-auto p-6 flex"
           style={{ backgroundColor: 'var(--bg-app)' }}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
           {/* Controls Zoom flotantes (Esquina superior izquierda del área del diseñador) */}
           <div
-            className="sticky top-4 left-4 z-30 inline-flex items-center gap-1.5 rounded-xl p-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold ml-4 mt-4 pointer-events-auto"
+            className="absolute top-4 left-4 z-30 flex items-center gap-1.5 rounded-xl p-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold pointer-events-auto"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border-color)',
@@ -3317,8 +3340,8 @@ export default function InvitationDesigner() {
             </button>
           </div>
 
-          {/* Wrapper flexible con m-auto para permitir centrado cuando cabe y scroll completo (sin recortar la parte superior) cuando es más grande */}
-          <div className="min-w-full min-h-full flex items-center justify-center p-12 m-auto w-max h-max">
+          {/* Wrapper flexible m-auto sin padding excesivo */}
+          <div className="m-auto flex items-center justify-center relative">
             {/* Canvas stage outer layout container (Dimensiones físicas exactas según el zoom) */}
             <div
               className="flex items-center justify-center shrink-0 transition-all duration-150 m-auto"
@@ -3632,9 +3655,7 @@ export default function InvitationDesigner() {
                     ) : el.type === 'audio' ? (
                       <AudioElementItem element={el} />
                     ) : el.type === '3d' ? (
-                      <div className="flex flex-col items-center justify-center w-full h-full bg-amber-950/20 border-2 border-amber-500/40 rounded-2xl text-amber-400 gap-2 text-2xl font-extrabold shadow-inner">
-                        <Box size={48} className="animate-bounce" /> {el.content}
-                      </div>
+                      <ThreeDElementItem element={el} />
                     ) : el.type === 'shape' ? (
                       <ShapeElementItem element={el} />
                     ) : (
@@ -3964,6 +3985,71 @@ export default function InvitationDesigner() {
                             value={selectedElement.content}
                             onChange={(val) => updateSelectedElement('content', val)}
                           />
+                        </div>
+                      ) : selectedElement.type === '3d' ? (
+                        <div className="pt-2 space-y-3">
+                          <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                            Archivo 3D (.glb, .gltf, .fbx, .dae)
+                          </label>
+                          <AssetPickerPopover
+                            partnerId={event?.partner_id}
+                            partnerName={
+                              event?.partner?.business_name ||
+                              event?.partner?.contact_name ||
+                              event?.partner?.user?.name ||
+                              'ConceptoDigital'
+                            }
+                            type="3d"
+                            accept=".glb,.gltf,.fbx,.dae,.obj"
+                            label="Seleccionar Modelo 3D"
+                            value={selectedElement.content}
+                            onChange={(val) => updateSelectedElement('content', val)}
+                          />
+
+                          <div className="space-y-2 pt-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.modelAutoPlay !== false}
+                                onChange={(e) => updateSelectedElement('modelAutoPlay', e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              Reproducir animación 3D nativa (Autoplay)
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.modelAutoRotate || false}
+                                onChange={(e) => updateSelectedElement('modelAutoRotate', e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              Rotación automática 360° (Auto-rotate)
+                            </label>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                Intensidad de Sombra 3D
+                              </label>
+                              <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
+                                {((selectedElement.modelShadowIntensity ?? 0.5) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={selectedElement.modelShadowIntensity ?? 0.5}
+                              onChange={(e) => updateSelectedElement('modelShadowIntensity', parseFloat(e.target.value))}
+                              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                              style={{ backgroundColor: 'var(--border-color)', accentColor: 'var(--primary-accent)' }}
+                            />
+                          </div>
                         </div>
                       ) : selectedElement.type === 'shape' ? (
                         <div className="pt-2 space-y-2">
@@ -4556,6 +4642,148 @@ export default function InvitationDesigner() {
                           </div>
                         )}
                       </div>
+
+                      {/* Configuración Específica 3D en Posición & Tamaño */}
+                      {selectedElement.type === '3d' && (
+                        <div className="pt-3 pb-1 border-t space-y-3 mt-3 font-mono" style={{ borderColor: 'var(--border-color)' }}>
+                          <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider">
+                            Orientación & Rotación 3D (X, Y, Z)
+                          </span>
+
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Rot X (°)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.rotationX || 0}
+                                min={-360}
+                                max={360}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('rotationX', val)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Rot Y (°)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.rotationY || 0}
+                                min={-360}
+                                max={360}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('rotationY', val)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Rot Z (°)
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.rotationZ || 0}
+                                min={-360}
+                                max={360}
+                                step={5}
+                                onChange={(val) => updateSelectedElement('rotationZ', val)}
+                              />
+                            </div>
+                          </div>
+
+                          <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
+                            Escala 3D Tridimensional
+                          </span>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Escala X
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.modelScaleX ?? 1}
+                                min={0.1}
+                                max={10}
+                                step={0.1}
+                                isFloat={true}
+                                onChange={(val) => updateSelectedElement('modelScaleX', val)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Escala Y
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.modelScaleY ?? 1}
+                                min={0.1}
+                                max={10}
+                                step={0.1}
+                                isFloat={true}
+                                onChange={(val) => updateSelectedElement('modelScaleY', val)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                Escala Z
+                              </label>
+                              <InspectorNumberInput
+                                value={selectedElement.modelScaleZ ?? 1}
+                                min={0.1}
+                                max={10}
+                                step={0.1}
+                                isFloat={true}
+                                onChange={(val) => updateSelectedElement('modelScaleZ', val)}
+                              />
+                            </div>
+                          </div>
+
+                          <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
+                            Animación & Renderizado 3D
+                          </span>
+
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.modelAutoPlay !== false}
+                                onChange={(e) => updateSelectedElement('modelAutoPlay', e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              Reproducir animación 3D nativa (Autoplay)
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedElement.modelAutoRotate || false}
+                                onChange={(e) => updateSelectedElement('modelAutoRotate', e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              Rotación automática 360° (Auto-rotate)
+                            </label>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                Intensidad de Sombra 3D
+                              </label>
+                              <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
+                                {((selectedElement.modelShadowIntensity ?? 0.5) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={selectedElement.modelShadowIntensity ?? 0.5}
+                              onChange={(e) => updateSelectedElement('modelShadowIntensity', parseFloat(e.target.value))}
+                              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                              style={{ backgroundColor: 'var(--border-color)', accentColor: 'var(--primary-accent)' }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     );
                   })()}
@@ -5682,14 +5910,17 @@ export default function InvitationDesigner() {
                           <button
                             onClick={() => updateSelectedElement('backdropBlurEnabled', !selectedElement.backdropBlurEnabled)}
                             className={`w-8 h-4 rounded-full flex items-center transition-colors px-0.5 ${
-                              selectedElement.backdropBlurEnabled ? 'bg-pink-500 justify-end' : 'bg-zinc-700 justify-start'
+                              selectedElement.backdropBlurEnabled ? 'justify-end' : 'justify-start'
                             }`}
+                            style={{
+                              backgroundColor: selectedElement.backdropBlurEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                            }}
                           >
                             <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
                           </button>
                         </div>
                         {selectedElement.backdropBlurEnabled && (
-                          <div className="space-y-2.5 mt-2.5 p-2 rounded-lg border bg-black/5 dark:bg-white/5" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className="space-y-2.5 mt-2.5 p-2 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                             <div className="flex items-center justify-between gap-2">
                               <label className="font-bold text-[9.5px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-muted)' }}>
                                 Tinta Glass
@@ -5719,7 +5950,8 @@ export default function InvitationDesigner() {
                                   step="1"
                                   value={selectedElement.backdropBlurAmount ?? 10}
                                   onChange={(e) => updateSelectedElement('backdropBlurAmount', Number(e.target.value))}
-                                  className="w-full accent-pink-500 h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                  className="w-full h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                  style={{ accentColor: 'var(--primary-accent)' }}
                                 />
                               </div>
                               <div>
@@ -5733,7 +5965,8 @@ export default function InvitationDesigner() {
                                   step="1"
                                   value={selectedElement.backdropOpacity ?? 30}
                                   onChange={(e) => updateSelectedElement('backdropOpacity', Number(e.target.value))}
-                                  className="w-full accent-pink-500 h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                  className="w-full h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                  style={{ accentColor: 'var(--primary-accent)' }}
                                 />
                               </div>
                             </div>

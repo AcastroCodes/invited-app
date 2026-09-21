@@ -119,6 +119,17 @@ export interface CanvasElement {
   audioVolume?: number;
   audioShowTitle?: boolean;
   audioTitle?: string;
+  // Objeto 3D
+  modelAutoPlay?: boolean;
+  modelAutoRotate?: boolean;
+  modelShadowIntensity?: number;
+  modelAnimation?: string;
+  rotationX?: number;
+  rotationY?: number;
+  rotationZ?: number;
+  modelScaleX?: number;
+  modelScaleY?: number;
+  modelScaleZ?: number;
   groupId?: string;
   groupName?: string;
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };

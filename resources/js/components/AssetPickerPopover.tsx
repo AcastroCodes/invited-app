@@ -140,8 +140,17 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
     value.startsWith('/storage/')
   );
 
+  const is3dType = type === '3d' || (typeof value === 'string' && (value.endsWith('.glb') || value.endsWith('.gltf') || value.endsWith('.fbx') || value.endsWith('.dae') || value.endsWith('.obj')));
   const isVideoType = type === 'video' || (typeof value === 'string' && (value.endsWith('.mp4') || value.endsWith('.webm') || value.endsWith('.ogg') || value.startsWith('data:video/')));
   const [showCropModal, setShowCropModal] = useState<boolean>(false);
+
+  const effectiveAccept = accept !== 'image/*' 
+    ? accept 
+    : type === '3d' 
+    ? '.glb,.gltf,.fbx,.dae,.obj' 
+    : type === 'video' 
+    ? 'video/*' 
+    : 'image/*';
 
   return (
     <div className="space-y-3">

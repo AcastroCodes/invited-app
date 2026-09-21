@@ -396,7 +396,157 @@ export const ShapeElementItem: React.FC<ElementRenderProps> = ({ element }) => {
           }}
         />
       )}
+    </div>
+  );
+};
 
+export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => {
+  const modelViewerRef = React.useRef<any>(null);
+  const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [parallaxOffset, setParallaxOffset] = useState<{ rotX: number; rotY: number }>({ rotX: 0, rotY: 0 });
+
+  React.useEffect(() => {
+    // Cargar script de <model-viewer> si no está presente en el DOM
+    if (!document.getElementById('model-viewer-script')) {
+      const script = document.createElement('script');
+      script.id = 'model-viewer-script';
+      script.type = 'module';
+      script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js';
+      document.head.appendChild(script);
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.ctrlKey) {
+        setIsCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || !e.ctrlKey) {
+        setIsCtrlPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Efecto Parallax (Giroscopio en celular / Movimiento de ratón en escritorio)
+  React.useEffect(() => {
+    if (!element.parallaxEnabled) {
+      setParallaxOffset({ rotX: 0, rotY: 0 });
+      return;
+    }
+
+    const depth = element.depth || 20;
+
+    const handleDeviceOrientation = (e: DeviceOrientationEvent) => {
+      if (e.beta !== null && e.gamma !== null) {
+        const rotX = (e.beta / 90) * (depth * 0.5);
+        const rotY = (e.gamma / 90) * (depth * 0.5);
+        setParallaxOffset({ rotX, rotY });
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const { innerWidth, innerHeight } = window;
+      const normX = (e.clientX / innerWidth - 0.5) * 2; // -1 a 1
+      const normY = (e.clientY / innerHeight - 0.5) * 2; // -1 a 1
+      setParallaxOffset({
+        rotX: -normY * (depth * 0.5),
+        rotY: normX * (depth * 0.5),
+      });
+    };
+
+    window.addEventListener('deviceorientation', handleDeviceOrientation);
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('deviceorientation', handleDeviceOrientation);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [element.parallaxEnabled, element.depth]);
+
+  React.useEffect(() => {
+    const modelViewer = modelViewerRef.current;
+    if (!modelViewer) return;
+
+    const handleLoad = () => {
+      if (modelViewer.availableAnimations) {
+        setAvailableAnimations(modelViewer.availableAnimations);
+      }
+    };
+
+    modelViewer.addEventListener('load', handleLoad);
+    return () => {
+      modelViewer.removeEventListener('load', handleLoad);
+    };
+  }, [element.content]);
+
+  if (element.content) {
+    const isAutoPlay = element.modelAutoPlay !== false;
+    const isAutoRotate = Boolean(element.modelAutoRotate);
+    const shadowIntensity = element.modelShadowIntensity ?? 0.5;
+    const animationName = element.modelAnimation || undefined;
+    
+    // Sumar el offset de parallax a la rotación base
+    const baseRotX = element.rotationX || 0;
+    const baseRotY = element.rotationY || 0;
+    const baseRotZ = element.rotationZ || 0;
+    const finalRotX = baseRotX + parallaxOffset.rotX;
+    const finalRotY = baseRotY + parallaxOffset.rotY;
+
+    const scaleX = element.modelScaleX ?? 1;
+    const scaleY = element.modelScaleY ?? 1;
+    const scaleZ = element.modelScaleZ ?? 1;
+
+    return (
+      <div
+        className={`w-full h-full relative overflow-hidden flex items-center justify-center select-none ${
+          isCtrlPressed ? 'pointer-events-auto cursor-grab active:cursor-grabbing ring-2 ring-amber-500/80 rounded-lg' : 'pointer-events-none'
+        }`}
+      >
+        {/* Leyenda interactiva al presionar Ctrl */}
+        {isCtrlPressed && (
+          <div className="absolute top-2 left-2 z-50 bg-black/80 text-amber-400 border border-amber-500/50 text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-lg pointer-events-none animate-pulse flex items-center gap-1">
+            <span>Rotación 3D Libre (Arrastra con Ratón)</span>
+          </div>
+        )}
+
+        {/* Web Component Google Model-Viewer */}
+        {React.createElement('model-viewer', {
+          ref: modelViewerRef,
+          src: element.content,
+          alt: element.name || 'Modelo 3D',
+          autoplay: isAutoPlay ? true : undefined,
+          'animation-name': animationName,
+          'auto-rotate': isAutoRotate ? true : undefined,
+          'camera-controls': isCtrlPressed ? true : undefined,
+          'touch-action': isCtrlPressed ? 'pan-y' : 'none',
+          'shadow-intensity': shadowIntensity,
+          orientation: `${finalRotX}deg ${finalRotY}deg ${baseRotZ}deg`,
+          scale: `${scaleX} ${scaleY} ${scaleZ}`,
+          bounds: 'tight',
+          loading: 'eager',
+          style: {
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'transparent',
+            '--poster-color': 'transparent',
+          } as React.CSSProperties,
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full h-full bg-amber-950/20 border-2 border-dashed border-amber-500/40 rounded-xl text-amber-400 gap-2 text-sm font-bold p-2 text-center select-none">
+      <span className="text-2xl font-black">3D</span>
+      <span>Objeto 3D</span>
     </div>
   );
 };
