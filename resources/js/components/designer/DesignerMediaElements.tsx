@@ -436,6 +436,8 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
     };
   }, []);
 
+  const lastGyroRef = React.useRef<{ beta: number | null, gamma: number | null }>({ beta: null, gamma: null });
+
   // Efecto Parallax (Giroscopio en celular / Movimiento de ratón en escritorio)
   React.useEffect(() => {
     if (!element.parallaxEnabled) {
@@ -447,8 +449,33 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
 
     const handleDeviceOrientation = (e: DeviceOrientationEvent) => {
       if (e.beta !== null && e.gamma !== null) {
-        const rotX = (e.beta / 90) * (depth * 0.5);
-        const rotY = (e.gamma / 90) * (depth * 0.5);
+        let currentBeta = e.beta;
+        let currentGamma = e.gamma;
+
+        // Filtro Anti-Salto (Gimbal Lock)
+        if (lastGyroRef.current.beta !== null && lastGyroRef.current.gamma !== null) {
+          // Si el giro es de más de 30 grados en milisegundos, es un fallo del sensor del móvil
+          if (Math.abs(currentBeta - lastGyroRef.current.beta) > 30 || Math.abs(currentGamma - lastGyroRef.current.gamma) > 30) {
+            currentBeta = lastGyroRef.current.beta;
+            currentGamma = lastGyroRef.current.gamma;
+          }
+        }
+        lastGyroRef.current.beta = currentBeta;
+        lastGyroRef.current.gamma = currentGamma;
+
+        // Centrar beta en 60 grados (posición típica de sostener el celular)
+        let deltaBeta = currentBeta - 60;
+        deltaBeta = Math.max(-45, Math.min(45, deltaBeta));
+        
+        // Evitar el "brinco" (gimbal lock) de gamma cuando el móvil apunta hacia arriba (beta cerca de 0)
+        const gammaDampening = Math.abs(Math.sin(currentBeta * (Math.PI / 180)));
+        let deltaGamma = currentGamma * gammaDampening;
+        deltaGamma = Math.max(-45, Math.min(45, deltaGamma));
+        
+        // Invertimos los signos para que dé el efecto de "ventana" real (parallax natural en móviles)
+        // Aumentamos el multiplicador a 1.5 para que el giro sea mucho más pronunciado
+        const rotX = -(deltaBeta / 45) * (depth * 1.5);
+        const rotY = -(deltaGamma / 45) * (depth * 1.5);
         setParallaxOffset({ rotX, rotY });
       }
     };
@@ -458,8 +485,8 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
       const normX = (e.clientX / innerWidth - 0.5) * 2; // -1 a 1
       const normY = (e.clientY / innerHeight - 0.5) * 2; // -1 a 1
       setParallaxOffset({
-        rotX: -normY * (depth * 0.5),
-        rotY: normX * (depth * 0.5),
+        rotX: normY * (depth * 1.5),
+        rotY: normX * (depth * 1.5),
       });
     };
 
@@ -493,16 +520,57 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
     const shadowIntensity = element.modelShadowIntensity ?? 0.5;
     const animationName = element.modelAnimation || undefined;
     
-    // Sumar el offset de parallax a la rotación base
-    const baseRotX = element.rotationX || 0;
-    const baseRotY = element.rotationY || 0;
-    const baseRotZ = element.rotationZ || 0;
-    const finalRotX = baseRotX + parallaxOffset.rotX;
-    const finalRotY = baseRotY + parallaxOffset.rotY;
+    // --- CALIBRACIÓN BASE DEL MODELO (Ajustada en el Modal de Configuración) ---
+    const basePivotX = Number(element?.modelPivotX) || 0;
+    const basePivotY = Number(element?.modelPivotY) || 0;
+    const basePivotZ = Number(element?.modelPivotZ) || 0;
+    const baseScale = Number(element?.modelBaseScale) || 1;
+    const baseRotX = Number(element?.modelBaseRotX) || 0;
+    const baseRotY = Number(element?.modelBaseRotY) || 0;
+    const baseRotZ = Number(element?.modelBaseRotZ) || 0;
 
-    const scaleX = element.modelScaleX ?? 1;
-    const scaleY = element.modelScaleY ?? 1;
-    const scaleZ = element.modelScaleZ ?? 1;
+    // --- TRANSFORMACIONES DE LA ESCENA (Ajustadas en el Inspector) ---
+    const inspRotX = Number(element?.rotationX) || 0;
+    const inspRotY = Number(element?.rotationY) || 0;
+    const inspRotZ = Number(element?.rotationZ) || 0;
+
+    const inspScaleX = Number(element?.modelScaleX) || 1;
+    const inspScaleY = Number(element?.modelScaleY) || 1;
+    const inspScaleZ = Number(element?.modelScaleZ) || 1;
+
+    const inspOffsetX = Number(element?.modelOffsetX) || 0;
+    const inspOffsetY = Number(element?.modelOffsetY) || 0;
+    const inspOffsetZ = Number(element?.modelOffsetZ) || 0;
+
+    // --- CÁLCULO DE VALORES COMBINADOS FINALES ---
+    // Rotaciones acumuladas + Parallax (Arriba/Abajo -> Rotación X, Izquierda/Derecha -> Rotación Y)
+    const finalRotX = baseRotX + inspRotX + parallaxOffset.rotX;
+    const finalRotY = baseRotY + inspRotY + parallaxOffset.rotY;
+    const finalRotZ = baseRotZ + inspRotZ;
+
+    // Escalas combinadas multiplicativamente
+    const finalScaleX = baseScale * inspScaleX;
+    const finalScaleY = baseScale * inspScaleY;
+    const finalScaleZ = baseScale * inspScaleZ;
+
+    // Centro/Pivote combinado acumulativamente
+    const finalTargetX = basePivotX + inspOffsetX;
+    const finalTargetY = basePivotY + inspOffsetY;
+    const finalTargetZ = basePivotZ + inspOffsetZ;
+
+    // Actualización imperativa del Web Component <model-viewer> para que reaccione instantáneamente a cambios de Pivote y Parallax
+    React.useEffect(() => {
+      const mv = modelViewerRef.current as any;
+      if (!mv) return;
+      try {
+        mv.cameraTarget = `${finalTargetX}m ${finalTargetY}m ${finalTargetZ}m`;
+        mv.orientation = `${baseRotX}deg ${baseRotY}deg ${baseRotZ}deg`;
+        mv.scale = `${finalScaleX} ${finalScaleY} ${finalScaleZ}`;
+        mv.cameraOrbit = `${finalRotY}deg ${90 - finalRotX}deg 105%`;
+      } catch (e) {
+        // Ignorar si aún no se monta la vista
+      }
+    }, [finalTargetX, finalTargetY, finalTargetZ, baseRotX, baseRotY, baseRotZ, finalRotX, finalRotY, finalScaleX, finalScaleY, finalScaleZ]);
 
     return (
       <div
@@ -528,8 +596,10 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
           'camera-controls': isCtrlPressed ? true : undefined,
           'touch-action': isCtrlPressed ? 'pan-y' : 'none',
           'shadow-intensity': shadowIntensity,
-          orientation: `${finalRotX}deg ${finalRotY}deg ${baseRotZ}deg`,
-          scale: `${scaleX} ${scaleY} ${scaleZ}`,
+          orientation: `${baseRotX}deg ${baseRotY}deg ${baseRotZ}deg`,
+          scale: `${finalScaleX} ${finalScaleY} ${finalScaleZ}`,
+          'camera-target': `${finalTargetX}m ${finalTargetY}m ${finalTargetZ}m`,
+          'camera-orbit': `${finalRotY}deg ${90 - finalRotX}deg 105%`,
           bounds: 'tight',
           loading: 'eager',
           style: {

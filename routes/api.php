@@ -33,5 +33,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Assets del Partner
     Route::get('/partners/{partner}/assets', [App\Http\Controllers\AssetController::class, 'index']);
     Route::post('/partners/{partner}/assets', [App\Http\Controllers\AssetController::class, 'store']);
+    Route::put('/assets/{asset}', [App\Http\Controllers\AssetController::class, 'update']);
     Route::delete('/assets/{asset}', [App\Http\Controllers\AssetController::class, 'destroy']);
 });

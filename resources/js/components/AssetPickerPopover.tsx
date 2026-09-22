@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle, Crop } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle, Crop, Settings } from 'lucide-react';
 import api from '../lib/api';
 import { ImageCropModal } from './ImageCropModal';
 
@@ -10,6 +10,15 @@ export interface AssetItem {
   type: string;
   file_path: string;
   url: string;
+  settings?: {
+    modelPivotX?: number;
+    modelPivotY?: number;
+    modelPivotZ?: number;
+    modelBaseScale?: number;
+    modelBaseRotX?: number;
+    modelBaseRotY?: number;
+    modelBaseRotZ?: number;
+  };
 }
 
 interface AssetPickerPopoverProps {
@@ -17,6 +26,17 @@ interface AssetPickerPopoverProps {
   partnerName?: string;
   value?: string;
   onChange: (val: string) => void;
+  onSelectAsset?: (asset: AssetItem) => void;
+  onConfigureAsset?: (asset: AssetItem) => void;
+  selectedElementSettings?: {
+    modelPivotX?: number;
+    modelPivotY?: number;
+    modelPivotZ?: number;
+    modelBaseScale?: number;
+    modelBaseRotX?: number;
+    modelBaseRotY?: number;
+    modelBaseRotZ?: number;
+  };
   label?: string;
   accept?: string;
   type?: string;
@@ -27,6 +47,9 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
   partnerName = 'ConceptoDigital',
   value = '',
   onChange,
+  onSelectAsset,
+  onConfigureAsset,
+  selectedElementSettings,
   label = 'Imagen del Elemento',
   accept = 'image/*',
   type = 'image',
@@ -91,6 +114,10 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
       if (newAsset && newAsset.url) {
         setAssets((prev) => [newAsset, ...prev]);
         onChange(newAsset.url);
+        if (onSelectAsset) onSelectAsset(newAsset);
+        if (onConfigureAsset && (newAsset.type === '3d' || type === '3d')) {
+          onConfigureAsset(newAsset);
+        }
         setJustAdded(true);
         setTimeout(() => setJustAdded(false), 1500);
       }
@@ -158,7 +185,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept={accept}
+        accept={effectiveAccept}
         onChange={handleFileUpload}
         className="hidden"
       />
@@ -180,21 +207,44 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             borderColor: 'var(--border-color)',
           }}
         >
-          {isImgValid ? (
-            isVideoType ? (
+          {(value && (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:') || value.startsWith('/storage/'))) ? (
+            is3dType ? (() => {
+              const matchedAsset = assets.find((a) => a.url === value);
+              const baseRotX = (selectedElementSettings?.modelBaseRotX !== undefined ? selectedElementSettings.modelBaseRotX : matchedAsset?.settings?.modelBaseRotX) ?? 0;
+              const baseRotY = (selectedElementSettings?.modelBaseRotY !== undefined ? selectedElementSettings.modelBaseRotY : matchedAsset?.settings?.modelBaseRotY) ?? 0;
+              const baseRotZ = (selectedElementSettings?.modelBaseRotZ !== undefined ? selectedElementSettings.modelBaseRotZ : matchedAsset?.settings?.modelBaseRotZ) ?? 0;
+              const baseScale = (selectedElementSettings?.modelBaseScale !== undefined ? selectedElementSettings.modelBaseScale : matchedAsset?.settings?.modelBaseScale) ?? 1;
+              const pivotX = (selectedElementSettings?.modelPivotX !== undefined ? selectedElementSettings.modelPivotX : matchedAsset?.settings?.modelPivotX) ?? 0;
+              const pivotY = (selectedElementSettings?.modelPivotY !== undefined ? selectedElementSettings.modelPivotY : matchedAsset?.settings?.modelPivotY) ?? 0;
+              const pivotZ = (selectedElementSettings?.modelPivotZ !== undefined ? selectedElementSettings.modelPivotZ : matchedAsset?.settings?.modelPivotZ) ?? 0;
+
+              return React.createElement('model-viewer', {
+                src: value,
+                alt: 'Modelo 3D',
+                'auto-rotate': true,
+                'camera-controls': true,
+                orientation: `${baseRotX}deg ${baseRotY}deg ${baseRotZ}deg`,
+                scale: `${baseScale} ${baseScale} ${baseScale}`,
+                'camera-target': `${pivotX}m ${pivotY}m ${pivotZ}m`,
+                bounds: 'tight',
+                style: { width: '100%', height: '100%', borderRadius: '0.5rem', outline: 'none' }
+              });
+            })() : isVideoType ? (
               <video
                 src={value}
                 controls
                 muted
                 className="max-h-full max-w-full object-contain p-1 rounded-lg"
               />
-            ) : (
+            ) : !hasImgError ? (
               <img
                 src={value}
                 alt="Vista previa"
                 onError={() => setHasImgError(true)}
                 className="max-h-full max-w-full object-contain p-1 rounded-lg"
               />
+            ) : (
+              <div className="text-[10px] text-red-500 font-bold p-2 text-center">Error al cargar imagen</div>
             )
           ) : (
             <button
@@ -245,22 +295,45 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             <span className="text-[7px] font-extrabold uppercase leading-none">Cargar</span>
           </button>
 
-          {/* Botón Cortar Imagen (sólo para imágenes válidas) */}
-          <button
-            type="button"
-            onClick={() => setShowCropModal(true)}
-            disabled={!value || isVideoType || !isImgValid}
-            className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group"
-            style={{
-              backgroundColor: 'var(--bg-app)',
-              borderColor: 'var(--border-color)',
-              color: 'var(--primary-accent)',
-            }}
-            title="Cortar y encuadrar esta imagen"
-          >
-            <Crop size={13} className="transition-transform group-hover:scale-110" />
-            <span className="text-[7px] font-extrabold uppercase leading-none">Cortar</span>
-          </button>
+          {/* Botón Acción Secundaria: Configurar (3D) o Cortar (Imagen) */}
+          {is3dType ? (
+            <button
+              type="button"
+              onClick={() => {
+                const currentAsset = assets.find((a) => a.url === value);
+                if (currentAsset && onSelectAsset) onSelectAsset(currentAsset);
+                if (onConfigureAsset && currentAsset) onConfigureAsset(currentAsset);
+                else if (onConfigureAsset) onConfigureAsset({ id: 0, partner_id: 0, name: '', type: '3d', file_path: '', url: value });
+              }}
+              disabled={!value}
+              className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group"
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--primary-accent)',
+              }}
+              title="Configurar pivote y orientación de este objeto 3D"
+            >
+              <Settings size={13} className="transition-transform group-hover:scale-110" />
+              <span className="text-[7px] font-extrabold uppercase leading-none">Ajustar</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCropModal(true)}
+              disabled={!value || isVideoType || !isImgValid}
+              className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group"
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--primary-accent)',
+              }}
+              title="Cortar y encuadrar esta imagen"
+            >
+              <Crop size={13} className="transition-transform group-hover:scale-110" />
+              <span className="text-[7px] font-extrabold uppercase leading-none">Cortar</span>
+            </button>
+          )}
 
           {/* Botón Quitar de Elemento */}
           <button
@@ -331,7 +404,12 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               return (
                 <div
                   key={asset.id}
-                  onClick={() => onChange(asset.url)}
+                  onClick={() => {
+                    onChange(asset.url);
+                    if (onSelectAsset) {
+                      onSelectAsset(asset);
+                    }
+                  }}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     setDeleteConfirmIndex(idx);
@@ -345,7 +423,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                     borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
                   }}
                 >
-                  {isAssetVideo ? (
+                  {asset.type === 'video' || (typeof asset.url === 'string' && (asset.url.endsWith('.mp4') || asset.url.endsWith('.webm') || asset.url.endsWith('.ogg'))) ? (
                     <video
                       src={asset.url}
                       muted
@@ -354,6 +432,16 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                       playsInline
                       className="max-h-full max-w-full object-contain rounded pointer-events-none"
                     />
+                  ) : asset.type === '3d' || (typeof asset.url === 'string' && (asset.url.endsWith('.glb') || asset.url.endsWith('.gltf') || asset.url.endsWith('.obj'))) ? (
+                    React.createElement('model-viewer', {
+                      src: asset.url,
+                      alt: 'Modelo 3D',
+                      orientation: `${(isSelected && selectedElementSettings?.modelBaseRotX !== undefined ? selectedElementSettings.modelBaseRotX : asset.settings?.modelBaseRotX) ?? 0}deg ${(isSelected && selectedElementSettings?.modelBaseRotY !== undefined ? selectedElementSettings.modelBaseRotY : asset.settings?.modelBaseRotY) ?? 0}deg ${(isSelected && selectedElementSettings?.modelBaseRotZ !== undefined ? selectedElementSettings.modelBaseRotZ : asset.settings?.modelBaseRotZ) ?? 0}deg`,
+                      scale: `${(isSelected && selectedElementSettings?.modelBaseScale !== undefined ? selectedElementSettings.modelBaseScale : asset.settings?.modelBaseScale) ?? 1} ${(isSelected && selectedElementSettings?.modelBaseScale !== undefined ? selectedElementSettings.modelBaseScale : asset.settings?.modelBaseScale) ?? 1} ${(isSelected && selectedElementSettings?.modelBaseScale !== undefined ? selectedElementSettings.modelBaseScale : asset.settings?.modelBaseScale) ?? 1}`,
+                      'camera-target': `${(isSelected && selectedElementSettings?.modelPivotX !== undefined ? selectedElementSettings.modelPivotX : asset.settings?.modelPivotX) ?? 0}m ${(isSelected && selectedElementSettings?.modelPivotY !== undefined ? selectedElementSettings.modelPivotY : asset.settings?.modelPivotY) ?? 0}m ${(isSelected && selectedElementSettings?.modelPivotZ !== undefined ? selectedElementSettings.modelPivotZ : asset.settings?.modelPivotZ) ?? 0}m`,
+                      bounds: 'tight',
+                      style: { width: '100%', height: '100%', borderRadius: '0.25rem', pointerEvents: 'none', outline: 'none' }
+                    })
                   ) : (
                     <img
                       src={asset.url}
@@ -361,6 +449,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                       className="max-h-full max-w-full object-contain rounded"
                     />
                   )}
+
 
                   {/* Badge de seleccionado */}
                   {isSelected && (

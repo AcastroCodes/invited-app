@@ -18,6 +18,11 @@ class Asset extends Model
         'file_path',
         'mime_type',
         'size',
+        'settings',
+    ];
+
+    protected $casts = [
+        'settings' => 'array',
     ];
 
     protected $appends = ['url'];

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
@@ -76,6 +76,8 @@ import {
   Layout,
   Mail,
   Copy,
+  Settings,
+  Target,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -86,6 +88,7 @@ import { AssetPickerPopover } from '../../components/AssetPickerPopover';
 import AppSelect from '../../components/AppSelect';
 import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
+import { ThreeDViewportCanvas } from '../../components/ThreeDViewportCanvas';
 
 interface NumberInputProps {
   value: number;
@@ -734,6 +737,8 @@ export default function InvitationDesigner() {
   // Fonts state
   const [availableFonts, setAvailableFonts] = useState<FontOption[]>(INITIAL_FONTS);
   const [showFontModal, setShowFontModal] = useState(false);
+  const [showThreeDModal, setShowThreeDModal] = useState(false);
+  const [threeDModalTab, setThreeDModalTab] = useState<'object' | 'pivot'>('object');
   const [fontModalTab, setFontModalTab] = useState<'google' | 'upload'>('google');
   const [googleFontSearch, setGoogleFontSearch] = useState('');
   const [fontPreviewText, setFontPreviewText] = useState('');
@@ -783,6 +788,7 @@ export default function InvitationDesigner() {
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     content: true,
+    threeD: true,
     transform: false,
     imageFit: false,
     typography: false,
@@ -4004,51 +4010,26 @@ export default function InvitationDesigner() {
                             label="Seleccionar Modelo 3D"
                             value={selectedElement.content}
                             onChange={(val) => updateSelectedElement('content', val)}
+                            onSelectAsset={(asset) => {
+                              const settings = asset.settings || {};
+                              updateSelectedElementBatch({
+                                content: asset.url,
+                                modelPivotX: settings.modelPivotX ?? 0,
+                                modelPivotY: settings.modelPivotY ?? 0,
+                                modelPivotZ: settings.modelPivotZ ?? 0,
+                                modelBaseScale: settings.modelBaseScale ?? 1,
+                                modelBaseRotX: settings.modelBaseRotX ?? 0,
+                                modelBaseRotY: settings.modelBaseRotY ?? 0,
+                                modelBaseRotZ: settings.modelBaseRotZ ?? 0,
+                              });
+                            }}
+                            selectedElementSettings={selectedElement}
+                            onConfigureAsset={() => {
+                              setShowThreeDModal(true);
+                            }}
                           />
-
-                          <div className="space-y-2 pt-1">
-                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
-                              <input
-                                type="checkbox"
-                                checked={selectedElement.modelAutoPlay !== false}
-                                onChange={(e) => updateSelectedElement('modelAutoPlay', e.target.checked)}
-                                className="w-4 h-4 rounded"
-                                style={{ accentColor: 'var(--primary-accent)' }}
-                              />
-                              Reproducir animación 3D nativa (Autoplay)
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
-                              <input
-                                type="checkbox"
-                                checked={selectedElement.modelAutoRotate || false}
-                                onChange={(e) => updateSelectedElement('modelAutoRotate', e.target.checked)}
-                                className="w-4 h-4 rounded"
-                                style={{ accentColor: 'var(--primary-accent)' }}
-                              />
-                              Rotación automática 360° (Auto-rotate)
-                            </label>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                                Intensidad de Sombra 3D
-                              </label>
-                              <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
-                                {((selectedElement.modelShadowIntensity ?? 0.5) * 100).toFixed(0)}%
-                              </span>
-                            </div>
-                            <input
-                              type="range"
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              value={selectedElement.modelShadowIntensity ?? 0.5}
-                              onChange={(e) => updateSelectedElement('modelShadowIntensity', parseFloat(e.target.value))}
-                              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
-                              style={{ backgroundColor: 'var(--border-color)', accentColor: 'var(--primary-accent)' }}
-                            />
+                          <div className="text-[10px] opacity-70 font-bold italic pt-1">
+                            Las configuraciones adicionales (rotación, escala, etc.) se encuentran en "Elemento 3D".
                           </div>
                         </div>
                       ) : selectedElement.type === 'shape' ? (
@@ -4323,6 +4304,261 @@ export default function InvitationDesigner() {
                     </div>
                   )}
                 </div>
+
+                {/* 1.5 ACORDEÓN: ELEMENTO 3D (solo 3d) */}
+                {selectedElement.type === '3d' && (
+                  <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                    <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection('threeD')}
+                        className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                        style={{ color: openSections.threeD ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>Elemento 3D</span>
+                          {!isSuperAdmin && selectedElement.lockedSections?.threeD && (
+                            <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                          )}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowThreeDModal(true);
+                            }}
+                            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                            title="Configurar objeto 3D y pivote"
+                            style={{ color: 'var(--primary-accent)' }}
+                          >
+                            <Settings size={13} />
+                          </button>
+                          {openSections.threeD ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </div>
+                      </button>
+                      
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentLocks = selectedElement.lockedSections || {};
+                            updateSelectedElement('lockedSections', {
+                              ...currentLocks,
+                              threeD: !currentLocks.threeD
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                          title={selectedElement.lockedSections?.threeD ? "Desbloquear sección para usuario" : "Bloquear sección para usuario"}
+                          style={{ color: selectedElement.lockedSections?.threeD ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                        >
+                          {selectedElement.lockedSections?.threeD ? <Lock size={13} /> : <Unlock size={13} />}
+                        </button>
+                      )}
+                    </div>
+
+                    {openSections.threeD && (() => {
+                      if (!isSuperAdmin && selectedElement.lockedSections?.threeD) {
+                        return (
+                          <div className="px-4 pb-4 pt-1">
+                            <div className="p-3 rounded-lg border flex items-center gap-2 text-[10px] font-bold opacity-80" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                              <Lock size={14} className="text-amber-500" />
+                              Esta sección ha sido bloqueada por el diseñador.
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="px-4 pb-4 pt-1 space-y-4 animate-in slide-in-from-top-1 fade-in duration-200">
+                          <div className="space-y-3">
+                            <div className="space-y-2 pt-1 border-b pb-3" style={{ borderColor: 'var(--border-color)' }}>
+                              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedElement.modelAutoPlay !== false}
+                                  onChange={(e) => updateSelectedElement('modelAutoPlay', e.target.checked)}
+                                  className="w-4 h-4 rounded"
+                                  style={{ accentColor: 'var(--primary-accent)' }}
+                                />
+                                Reproducir animación 3D nativa (Autoplay)
+                              </label>
+
+                              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedElement.modelAutoRotate || false}
+                                  onChange={(e) => updateSelectedElement('modelAutoRotate', e.target.checked)}
+                                  className="w-4 h-4 rounded"
+                                  style={{ accentColor: 'var(--primary-accent)' }}
+                                />
+                                Rotación automática 360° (Auto-rotate)
+                              </label>
+                            </div>
+
+                            <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider">
+                              Orientación & Rotación 3D (X, Y, Z)
+                            </span>
+
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Rot X (°)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.rotationX || 0}
+                                  min={-360}
+                                  max={360}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('rotationX', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Rot Y (°)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.rotationY || 0}
+                                  min={-360}
+                                  max={360}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('rotationY', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Rot Z (°)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.rotationZ || 0}
+                                  min={-360}
+                                  max={360}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('rotationZ', val)}
+                                />
+                              </div>
+                            </div>
+
+                            <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
+                              Escala 3D Tridimensional
+                            </span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Escala X
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.modelScaleX ?? 1}
+                                  min={0.1}
+                                  max={10}
+                                  step={0.1}
+                                  isFloat={true}
+                                  onChange={(val) => updateSelectedElement('modelScaleX', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Escala Y
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.modelScaleY ?? 1}
+                                  min={0.1}
+                                  max={10}
+                                  step={0.1}
+                                  isFloat={true}
+                                  onChange={(val) => updateSelectedElement('modelScaleY', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Escala Z
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.modelScaleZ ?? 1}
+                                  min={0.1}
+                                  max={10}
+                                  step={0.1}
+                                  isFloat={true}
+                                  onChange={(val) => updateSelectedElement('modelScaleZ', val)}
+                                />
+                              </div>
+                            </div>
+
+                            <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
+                              Pivote / Posición 3D (X, Y, Z)
+                            </span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Pos X (m)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.modelOffsetX ?? 0}
+                                  min={-100}
+                                  max={100}
+                                  step={0.1}
+                                  isFloat={true}
+                                  onChange={(val) => updateSelectedElement('modelOffsetX', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Pos Y (m)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.modelOffsetY ?? 0}
+                                  min={-100}
+                                  max={100}
+                                  step={0.1}
+                                  isFloat={true}
+                                  onChange={(val) => updateSelectedElement('modelOffsetY', val)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                  Pos Z (m)
+                                </label>
+                                <InspectorNumberInput
+                                  value={selectedElement.modelOffsetZ ?? 0}
+                                  min={-100}
+                                  max={100}
+                                  step={0.1}
+                                  isFloat={true}
+                                  onChange={(val) => updateSelectedElement('modelOffsetZ', val)}
+                                />
+                              </div>
+                            </div>
+
+                            <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
+                              Renderizado 3D
+                            </span>
+
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                  Intensidad de Sombra 3D
+                                </label>
+                                <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
+                                  {((selectedElement.modelShadowIntensity ?? 0.5) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min={0}
+                                max={1}
+                                step={0.05}
+                                value={selectedElement.modelShadowIntensity ?? 0.5}
+                                onChange={(e) => updateSelectedElement('modelShadowIntensity', parseFloat(e.target.value))}
+                                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                                style={{ backgroundColor: 'var(--border-color)', accentColor: 'var(--primary-accent)' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 {/* 2. ACORDEÓN: POSICIÓN & TAMAÑO */}
                 <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
@@ -4643,147 +4879,6 @@ export default function InvitationDesigner() {
                         )}
                       </div>
 
-                      {/* Configuración Específica 3D en Posición & Tamaño */}
-                      {selectedElement.type === '3d' && (
-                        <div className="pt-3 pb-1 border-t space-y-3 mt-3 font-mono" style={{ borderColor: 'var(--border-color)' }}>
-                          <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider">
-                            Orientación & Rotación 3D (X, Y, Z)
-                          </span>
-
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Rot X (°)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.rotationX || 0}
-                                min={-360}
-                                max={360}
-                                step={5}
-                                onChange={(val) => updateSelectedElement('rotationX', val)}
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Rot Y (°)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.rotationY || 0}
-                                min={-360}
-                                max={360}
-                                step={5}
-                                onChange={(val) => updateSelectedElement('rotationY', val)}
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Rot Z (°)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.rotationZ || 0}
-                                min={-360}
-                                max={360}
-                                step={5}
-                                onChange={(val) => updateSelectedElement('rotationZ', val)}
-                              />
-                            </div>
-                          </div>
-
-                          <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
-                            Escala 3D Tridimensional
-                          </span>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Escala X
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.modelScaleX ?? 1}
-                                min={0.1}
-                                max={10}
-                                step={0.1}
-                                isFloat={true}
-                                onChange={(val) => updateSelectedElement('modelScaleX', val)}
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Escala Y
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.modelScaleY ?? 1}
-                                min={0.1}
-                                max={10}
-                                step={0.1}
-                                isFloat={true}
-                                onChange={(val) => updateSelectedElement('modelScaleY', val)}
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Escala Z
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.modelScaleZ ?? 1}
-                                min={0.1}
-                                max={10}
-                                step={0.1}
-                                isFloat={true}
-                                onChange={(val) => updateSelectedElement('modelScaleZ', val)}
-                              />
-                            </div>
-                          </div>
-
-                          <span className="block font-extrabold uppercase text-[10px] text-amber-500 tracking-wider pt-1">
-                            Animación & Renderizado 3D
-                          </span>
-
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
-                              <input
-                                type="checkbox"
-                                checked={selectedElement.modelAutoPlay !== false}
-                                onChange={(e) => updateSelectedElement('modelAutoPlay', e.target.checked)}
-                                className="w-4 h-4 rounded"
-                                style={{ accentColor: 'var(--primary-accent)' }}
-                              />
-                              Reproducir animación 3D nativa (Autoplay)
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
-                              <input
-                                type="checkbox"
-                                checked={selectedElement.modelAutoRotate || false}
-                                onChange={(e) => updateSelectedElement('modelAutoRotate', e.target.checked)}
-                                className="w-4 h-4 rounded"
-                                style={{ accentColor: 'var(--primary-accent)' }}
-                              />
-                              Rotación automática 360° (Auto-rotate)
-                            </label>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                                Intensidad de Sombra 3D
-                              </label>
-                              <span className="text-[11px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
-                                {((selectedElement.modelShadowIntensity ?? 0.5) * 100).toFixed(0)}%
-                              </span>
-                            </div>
-                            <input
-                              type="range"
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              value={selectedElement.modelShadowIntensity ?? 0.5}
-                              onChange={(e) => updateSelectedElement('modelShadowIntensity', parseFloat(e.target.value))}
-                              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
-                              style={{ backgroundColor: 'var(--border-color)', accentColor: 'var(--primary-accent)' }}
-                            />
-                          </div>
-                        </div>
-                      )}
                     </div>
                     );
                   })()}
@@ -6407,6 +6502,304 @@ export default function InvitationDesigner() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Configuración Avanzada de Calibración Base 3D */}
+      {showThreeDModal && selectedElement && selectedElement.type === '3d' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div
+            className="w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col shadow-2xl border transition-all overflow-hidden"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+          >
+          {/* Header */}
+          <div className="p-4 border-b flex items-center justify-between shrink-0" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl border shadow-sm"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--primary-accent) 15%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--primary-accent) 30%, transparent)',
+                  color: 'var(--primary-accent)',
+                }}
+              >
+                <Box size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold" style={{ color: 'var(--text-main)' }}>
+                  Configuración Base & Calibración de Pivote 3D
+                </h3>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  Ajusta la orientación base y el origen/pivote del objeto subido. Los controles del inspector operarán sobre esta base.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowThreeDModal(false)}
+              className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              style={{ color: 'var(--text-main)' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden h-[500px]">
+            {/* Preview Viewport Canvas 3D Real (Three.js + OrbitControls + TransformControls Gizmo) */}
+            <div className="w-full md:w-1/2 flex items-center justify-center border-r relative overflow-hidden bg-slate-900" style={{ borderColor: 'var(--border-color)' }}>
+              <ThreeDViewportCanvas
+                modelUrl={selectedElement.content}
+                activeTab={threeDModalTab}
+                offsetX={selectedElement.modelOffsetX ?? 0}
+                offsetY={selectedElement.modelOffsetY ?? 0}
+                offsetZ={selectedElement.modelOffsetZ ?? 0}
+                rotationX={selectedElement.rotationX ?? 0}
+                rotationY={selectedElement.rotationY ?? 0}
+                rotationZ={selectedElement.rotationZ ?? 0}
+                scaleX={selectedElement.modelScaleX ?? 1}
+                scaleY={selectedElement.modelScaleY ?? 1}
+                scaleZ={selectedElement.modelScaleZ ?? 1}
+                pivotX={selectedElement.modelPivotX ?? 0}
+                pivotY={selectedElement.modelPivotY ?? 0}
+                pivotZ={selectedElement.modelPivotZ ?? 0}
+                baseRotX={selectedElement.modelBaseRotX ?? 0}
+                baseRotY={selectedElement.modelBaseRotY ?? 0}
+                baseRotZ={selectedElement.modelBaseRotZ ?? 0}
+                baseScale={selectedElement.modelBaseScale ?? 1}
+                onChangeOffset={(ox, oy, oz) => {
+                  updateSelectedElementBatch({
+                    modelOffsetX: ox,
+                    modelOffsetY: oy,
+                    modelOffsetZ: oz,
+                  });
+                }}
+                onChangeRotation={(rx, ry, rz) => {
+                  updateSelectedElementBatch({
+                    rotationX: rx,
+                    rotationY: ry,
+                    rotationZ: rz,
+                  });
+                }}
+                onChangeScale3D={(sx, sy, sz) => {
+                  updateSelectedElementBatch({
+                    modelScaleX: sx,
+                    modelScaleY: sy,
+                    modelScaleZ: sz,
+                  });
+                }}
+                onChangePivot={(px, py, pz) => {
+                  updateSelectedElementBatch({
+                    modelPivotX: px,
+                    modelPivotY: py,
+                    modelPivotZ: pz,
+                  });
+                }}
+                onChangeBaseRot={(rx, ry, rz) => {
+                  updateSelectedElementBatch({
+                    modelBaseRotX: rx,
+                    modelBaseRotY: ry,
+                    modelBaseRotZ: rz,
+                  });
+                }}
+                onChangeBaseScale={(sc) => {
+                  updateSelectedElement('modelBaseScale', sc);
+                }}
+              />
+            </div>
+
+            {/* Controls con Pestañas / Tabs */}
+            <div className="w-full md:w-1/2 overflow-y-auto p-6 flex flex-col justify-between">
+              <div className="space-y-5">
+                {/* NAVEGACIÓN PESTAÑAS (TABS) */}
+                <div className="flex items-center p-1 rounded-xl bg-black/10 dark:bg-white/5 border" style={{ borderColor: 'var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setThreeDModalTab('object')}
+                    className="flex-1 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                    style={{
+                      backgroundColor: threeDModalTab === 'object' ? 'var(--primary-accent)' : 'transparent',
+                      color: threeDModalTab === 'object' ? '#ffffff' : 'var(--text-muted)',
+                    }}
+                  >
+                    <Box size={15} />
+                    <span>Objeto 3D</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setThreeDModalTab('pivot')}
+                    className="flex-1 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                    style={{
+                      backgroundColor: threeDModalTab === 'pivot' ? 'var(--primary-accent)' : 'transparent',
+                      color: threeDModalTab === 'pivot' ? '#ffffff' : 'var(--text-muted)',
+                    }}
+                  >
+                    <Target size={15} />
+                    <span>Pivote</span>
+                  </button>
+                </div>
+
+                {/* TAB 1: OBJETO 3D (Posición, Rotación y Escala de la Escena) */}
+                {threeDModalTab === 'object' && (
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <div>
+                      <span className="block font-extrabold uppercase text-[10px] tracking-wider mb-2" style={{ color: 'var(--primary-accent)' }}>
+                        Posición del Objeto en la Escena (X, Y, Z)
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Pos X (m)</label>
+                          <InspectorNumberInput value={selectedElement.modelOffsetX ?? 0} min={-50} max={50} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelOffsetX', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Pos Y (m)</label>
+                          <InspectorNumberInput value={selectedElement.modelOffsetY ?? 0} min={-50} max={50} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelOffsetY', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Pos Z (m)</label>
+                          <InspectorNumberInput value={selectedElement.modelOffsetZ ?? 0} min={-50} max={50} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelOffsetZ', val)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block font-extrabold uppercase text-[10px] tracking-wider mb-2" style={{ color: 'var(--primary-accent)' }}>
+                        Rotación del Objeto (X, Y, Z °)
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Rot X (°)</label>
+                          <InspectorNumberInput value={selectedElement.rotationX || 0} min={-360} max={360} step={5} onChange={(val) => updateSelectedElement('rotationX', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Rot Y (°)</label>
+                          <InspectorNumberInput value={selectedElement.rotationY || 0} min={-360} max={360} step={5} onChange={(val) => updateSelectedElement('rotationY', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Rot Z (°)</label>
+                          <InspectorNumberInput value={selectedElement.rotationZ || 0} min={-360} max={360} step={5} onChange={(val) => updateSelectedElement('rotationZ', val)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block font-extrabold uppercase text-[10px] tracking-wider mb-2" style={{ color: 'var(--primary-accent)' }}>
+                        Escala Tridimensional del Objeto
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Escala X</label>
+                          <InspectorNumberInput value={selectedElement.modelScaleX ?? 1} min={0.1} max={10} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelScaleX', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Escala Y</label>
+                          <InspectorNumberInput value={selectedElement.modelScaleY ?? 1} min={0.1} max={10} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelScaleY', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Escala Z</label>
+                          <InspectorNumberInput value={selectedElement.modelScaleZ ?? 1} min={0.1} max={10} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelScaleZ', val)} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: PIVOTE (Posición del Pivote, Rotación y Escala Base) */}
+                {threeDModalTab === 'pivot' && (
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <div>
+                      <span className="block font-extrabold uppercase text-[10px] tracking-wider mb-2" style={{ color: 'var(--primary-accent)' }}>
+                        Posición del Pivote (X, Y, Z)
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Pivote X (m)</label>
+                          <InspectorNumberInput value={selectedElement.modelPivotX ?? 0} min={-50} max={50} step={0.05} isFloat={true} onChange={(val) => updateSelectedElement('modelPivotX', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Pivote Y (m)</label>
+                          <InspectorNumberInput value={selectedElement.modelPivotY ?? 0} min={-50} max={50} step={0.05} isFloat={true} onChange={(val) => updateSelectedElement('modelPivotY', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Pivote Z (m)</label>
+                          <InspectorNumberInput value={selectedElement.modelPivotZ ?? 0} min={-50} max={50} step={0.05} isFloat={true} onChange={(val) => updateSelectedElement('modelPivotZ', val)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block font-extrabold uppercase text-[10px] tracking-wider mb-2" style={{ color: 'var(--primary-accent)' }}>
+                        Rotación del Pivote / Base (X, Y, Z °)
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Rot X (°)</label>
+                          <InspectorNumberInput value={selectedElement.modelBaseRotX ?? 0} min={-360} max={360} step={5} onChange={(val) => updateSelectedElement('modelBaseRotX', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Rot Y (°)</label>
+                          <InspectorNumberInput value={selectedElement.modelBaseRotY ?? 0} min={-360} max={360} step={5} onChange={(val) => updateSelectedElement('modelBaseRotY', val)} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Rot Z (°)</label>
+                          <InspectorNumberInput value={selectedElement.modelBaseRotZ ?? 0} min={-360} max={360} step={5} onChange={(val) => updateSelectedElement('modelBaseRotZ', val)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block font-extrabold uppercase text-[10px] tracking-wider mb-2" style={{ color: 'var(--primary-accent)' }}>
+                        Escala del Pivote / Base
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold opacity-70 mb-1 uppercase" style={{ color: 'var(--text-muted)' }}>Escala Base</label>
+                          <InspectorNumberInput value={selectedElement.modelBaseScale ?? 1} min={0.01} max={50} step={0.1} isFloat={true} onChange={(val) => updateSelectedElement('modelBaseScale', val)} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                <button
+                  onClick={async () => {
+                    setShowThreeDModal(false);
+                    // Persistir configuración en el banco de recursos en el servidor si coincide con un asset
+                    try {
+                      const partnerId = event?.partner_id;
+                      if (partnerId && selectedElement.content) {
+                        const assetsRes = await api.get(`/partners/${partnerId}/assets?type=3d`);
+                        const assetList = assetsRes.data?.data || assetsRes.data || [];
+                        const matchedAsset = assetList.find((a: any) => a.url === selectedElement.content);
+                        if (matchedAsset) {
+                          await api.put(`/assets/${matchedAsset.id}`, {
+                            settings: {
+                              modelPivotX: selectedElement.modelPivotX ?? 0,
+                              modelPivotY: selectedElement.modelPivotY ?? 0,
+                              modelPivotZ: selectedElement.modelPivotZ ?? 0,
+                              modelBaseScale: selectedElement.modelBaseScale ?? 1,
+                              modelBaseRotX: selectedElement.modelBaseRotX ?? 0,
+                              modelBaseRotY: selectedElement.modelBaseRotY ?? 0,
+                              modelBaseRotZ: selectedElement.modelBaseRotZ ?? 0,
+                            }
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Error al guardar configuración base en el banco de recursos:', e);
+                    }
+                  }}
+                  className="px-6 py-2 rounded-xl text-white font-extrabold text-xs shadow-md transition-all hover:opacity-90"
+                  style={{ backgroundColor: 'var(--primary-accent)' }}
+                >
+                  Finalizar Configuración Base
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       )}
 
       {/* Overlay de Guardado / Generando Preview */}

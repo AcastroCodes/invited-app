@@ -130,6 +130,17 @@ export interface CanvasElement {
   modelScaleX?: number;
   modelScaleY?: number;
   modelScaleZ?: number;
+  modelOffsetX?: number;
+  modelOffsetY?: number;
+  modelOffsetZ?: number;
+  // Calibración Base de Pivote y Orientación (Modal de Configuración Base 3D)
+  modelPivotX?: number;
+  modelPivotY?: number;
+  modelPivotZ?: number;
+  modelBaseScale?: number;
+  modelBaseRotX?: number;
+  modelBaseRotY?: number;
+  modelBaseRotZ?: number;
   groupId?: string;
   groupName?: string;
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };

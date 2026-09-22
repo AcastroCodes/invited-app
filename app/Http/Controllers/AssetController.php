@@ -65,6 +65,22 @@ class AssetController extends Controller
     }
 
     /**
+     * Actualizar configuración/settings de un asset
+     */
+    public function update(Request $request, Asset $asset): JsonResponse
+    {
+        $validated = $request->validate([
+            'settings' => 'nullable|array',
+        ]);
+
+        $asset->update([
+            'settings' => $validated['settings'] ?? $asset->settings,
+        ]);
+
+        return response()->json($asset);
+    }
+
+    /**
      * Eliminar un asset por ID
      */
     public function destroy(Asset $asset): JsonResponse
