@@ -35,7 +35,18 @@ Este archivo mantiene el contexto del proyecto para retomar de inmediato en las 
   - Controles para Autoplay de animaciones nativas, Auto-rotate 360° e intensidad de sombra.
   - Renderizado idéntico y fluido en el visor de invitados (`InvitationViewer.tsx`).
 
-### 2. Optimización de Miniaturas y Almacenamiento JSON
+### 2. Recorte de Video (Trim) y Configuración FFmpeg WebAssembly (23 Sept)
+- **Corte Físico Client-side:**
+  - Integración de `@ffmpeg/ffmpeg` para cortes físicos instantáneos en el navegador utilizando la estrategia `-c copy` (cero consumo intensivo de CPU/memoria).
+  - Interfaz de `VideoEditorModal.tsx` actualizada para mostrar porcentajes de carga y botones de Guardar separados.
+- **Configuraciones de Vite & Seguridad:**
+  - `vite.config.js` configurado con cabeceras `Cross-Origin-Opener-Policy` y `Cross-Origin-Embedder-Policy` para soportar `SharedArrayBuffer`.
+  - Exclusión de `@ffmpeg/ffmpeg` y `@ffmpeg/util` en `optimizeDeps.exclude` de Vite para evitar loops de recarga del servidor de desarrollo.
+- **Botón "Guardar Nuevo" y Subida Inmediata:**
+  - El modal de edición envía el `blob:` temporal directo al endpoint de Laravel (`api.post('/partners/{id}/assets')`) para asegurar que el `.mp4` cortado se registre oficialmente en la base de datos.
+  - El modal espera asíncronamente con un loader visual antes de cerrarse para garantizar que el listado de recursos (`AssetPickerPopover`) lo cargue de forma inmediata.
+
+### 3. Optimización de Miniaturas y Almacenamiento JSON
 - **Backend (`InvitationController.php`):**
   - Resuelto error 500 en MySQL mediante guardado de imágenes preview en disco público (`storage/app/public/invitations/previews/preview_{id}.jpg`), almacenando URLs limpias en el JSON.
 - **Frontend (`InvitationDesigner.tsx`):**
