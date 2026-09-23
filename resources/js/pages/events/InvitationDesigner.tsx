@@ -6892,8 +6892,67 @@ export default function InvitationDesigner() {
           isOpen={showVideoEditorModal}
           element={selectedElement}
           onClose={() => setShowVideoEditorModal(false)}
-          onSave={(updates) => {
-            updateSelectedElementBatch(updates);
+          onSave={async (updates, saveAsNew) => {
+            let finalContentUrl = updates.content;
+
+            // Si se trata de un nuevo blob (Corte físico), subirlo al banco de recursos
+            if (finalContentUrl && finalContentUrl.startsWith('blob:')) {
+              try {
+                // Notificar al usuario que se está subiendo
+                const blobResp = await fetch(finalContentUrl);
+                const blob = await blobResp.blob();
+                const file = new File([blob], `corte_${Date.now()}.mp4`, { type: 'video/mp4' });
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('type', 'video');
+
+                const partnerId = event?.partner_id;
+                if (partnerId) {
+                  const res = await api.post(`/partners/${partnerId}/assets`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                  });
+                  if (res.data && res.data.url) {
+                    finalContentUrl = res.data.url;
+                    updates.content = finalContentUrl;
+                  }
+                }
+              } catch (err: any) {
+                console.error("Error subiendo el video recortado al banco de recursos:", err);
+                window.alert("Hubo un error subiendo el video al servidor. Por favor intenta de nuevo.");
+              }
+            }
+
+            if (saveAsNew) {
+              const newId = `el-${selectedElement.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+              const newElement = {
+                ...selectedElement,
+                ...updates,
+                id: newId,
+                x: selectedElement.x + 20,
+                y: selectedElement.y + 20,
+              };
+              
+              const addRecursive = (elList: CanvasElement[]): CanvasElement[] => {
+                const result: CanvasElement[] = [];
+                for (const el of elList) {
+                  result.push(el);
+                  if (el.id === selectedElement.id) {
+                    result.push(newElement);
+                  } else if (el.children && el.children.length > 0) {
+                    result[result.length - 1] = { ...el, children: addRecursive(el.children) };
+                  }
+                }
+                return result;
+              };
+              
+              const nextElements = addRecursive(elements);
+              pushHistorySnapshot(nextElements);
+              setSelectedElementId(newId);
+              setSelectedElementIds([newId]);
+            } else {
+              updateSelectedElementBatch(updates);
+            }
           }}
         />
       )}

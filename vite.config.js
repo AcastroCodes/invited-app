@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => {
             https: true,
             cors: true,
             strictPort: true,
+            headers: {
+                'Cross-Origin-Opener-Policy': 'same-origin',
+                'Cross-Origin-Embedder-Policy': 'require-corp',
+            },
             hmr: {
                 host: devDomain,
             },
@@ -36,6 +40,9 @@ export default defineConfig(({ mode }) => {
                     xfwd: true,
                 },
             },
+        },
+        optimizeDeps: {
+            exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
         },
     };
 });
