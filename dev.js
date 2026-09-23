@@ -7,6 +7,10 @@ function getLocalIp() {
     const interfaces = os.networkInterfaces();
     let bestIp = '127.0.0.1';
     for (const name of Object.keys(interfaces)) {
+        // Ignorar adaptadores virtuales comunes en Windows (Hyper-V vEthernet, VirtualBox, VMware, etc.)
+        if (/vEthernet|VirtualBox|VMware|WSL|Loopback/i.test(name)) {
+            continue;
+        }
         for (const iface of interfaces[name]) {
             if (iface.family === 'IPv4' && !iface.internal) {
                 if (iface.address.startsWith('192.168.') || iface.address.startsWith('10.')) {
@@ -31,6 +35,7 @@ if (fs.existsSync(envPath)) {
     } else {
         envContent += `\nAPP_URL=https://${ip}:5173`;
     }
+
 
     if (envContent.includes('VITE_DEV_DOMAIN=')) {
         envContent = envContent.replace(/^VITE_DEV_DOMAIN=.*/m, `VITE_DEV_DOMAIN=${ip}`);

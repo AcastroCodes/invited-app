@@ -149,7 +149,80 @@ export const AudioElementItem: React.FC<ElementRenderProps> = ({ element }) => {
 };
 
 export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
+    if (!element.chromaKeyEnabled || !element.content) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = element.content;
+    img.onload = () => {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      const w = img.naturalWidth || 600;
+      const h = img.naturalHeight || 600;
+      canvas.width = w;
+      canvas.height = h;
+
+      ctx.drawImage(img, 0, 0, w, h);
+      const frame = ctx.getImageData(0, 0, w, h);
+      const data = frame.data;
+
+      const colorList = (element.chromaKeyColors && element.chromaKeyColors.length > 0)
+        ? element.chromaKeyColors
+        : [element.chromaKeyColor || '#00FF00'];
+
+      const parsedTargetColors = colorList.map((hex) => ({
+        r: parseInt(hex.slice(1, 3), 16) || 0,
+        g: parseInt(hex.slice(3, 5), 16) || 0,
+        b: parseInt(hex.slice(5, 7), 16) || 0,
+      }));
+
+      const tolerance = ((element.chromaKeyTolerance ?? 40) / 100) * 255;
+      const len = data.length;
+
+      for (let i = 0; i < len; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        for (let j = 0; j < parsedTargetColors.length; j++) {
+          const tColor = parsedTargetColors[j];
+          const diffR = r - tColor.r;
+          const diffG = g - tColor.g;
+          const diffB = b - tColor.b;
+          const dist = Math.sqrt(diffR * diffR + diffG * diffG + diffB * diffB);
+
+          if (dist < tolerance) {
+            data[i + 3] = 0; // Transparente
+            break;
+          }
+        }
+      }
+
+      ctx.putImageData(frame, 0, 0);
+    };
+  }, [
+    element.chromaKeyEnabled,
+    element.chromaKeyColor,
+    JSON.stringify(element.chromaKeyColors),
+    element.chromaKeyTolerance,
+    element.content,
+  ]);
+
   if (element.content) {
+    const isFullSizeImage = (element.width >= 900 && element.height >= 1700) || element.isBackground;
+    const effectiveObjectFit = (element.objectFit as any) || (isFullSizeImage ? 'cover' : 'contain');
+    const hasMediaTransforms = Boolean(element.mediaX || element.mediaY || (element.mediaScale && element.mediaScale !== 100) || element.mediaRotation);
+    const filterStyle = `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim();
+    const transformStyle = hasMediaTransforms
+      ? `translate(${element.mediaX || 0}px, ${element.mediaY || 0}px) scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`
+      : undefined;
+
     if (element.objectFit === 'repeat' || element.objectFit === 'repeat-x' || element.objectFit === 'repeat-y') {
       return (
         <div
@@ -160,13 +233,25 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
             backgroundSize: element.repeatTileSize ? `${element.repeatTileSize}px auto` : 'auto',
             backgroundPosition: `${element.mediaX || 0}px ${element.mediaY || 0}px`,
             transform: `scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`,
-            filter: `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim(),
+            filter: filterStyle,
           }}
         />
       );
     }
 
-    const hasMediaTransforms = Boolean(element.mediaX || element.mediaY || (element.mediaScale && element.mediaScale !== 100) || element.mediaRotation);
+    if (element.chromaKeyEnabled) {
+      return (
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full pointer-events-none select-none transition-all"
+          style={{
+            objectFit: effectiveObjectFit,
+            transform: transformStyle,
+            filter: filterStyle,
+          }}
+        />
+      );
+    }
 
     return (
       <img
@@ -174,11 +259,9 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
         alt="Imagen del elemento"
         className="w-full h-full pointer-events-none select-none transition-all"
         style={{
-          objectFit: (element.objectFit as any) || 'contain',
-          transform: hasMediaTransforms
-            ? `translate(${element.mediaX || 0}px, ${element.mediaY || 0}px) scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`
-            : undefined,
-          filter: `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim(),
+          objectFit: effectiveObjectFit,
+          transform: transformStyle,
+          filter: filterStyle,
         }}
       />
     );
@@ -269,6 +352,76 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
     };
   }, [element.chromaKeyEnabled, element.chromaKeyColor, JSON.stringify(element.chromaKeyColors), element.chromaKeyTolerance, element.content]);
 
+  const startTime = Number(element.videoStartTime) || 0;
+  const endTime = Number(element.videoEndTime) || 0;
+  const loopMode = element.videoLoopMode || 'loop';
+  const isMuted = element.videoMuted !== false;
+  const speed = Number(element.videoSpeed) || 1;
+
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.muted = isMuted;
+    video.playbackRate = speed;
+
+    let animId: number;
+    let direction: 'forward' | 'backward' = 'forward';
+
+    const handleLoadedMetadata = () => {
+      if (startTime > 0 && video.currentTime < startTime) {
+        video.currentTime = startTime;
+      }
+    };
+
+    const updateLoopState = () => {
+      if (!video) return;
+
+      const duration = video.duration;
+      const effectiveEnd = (endTime > 0 && endTime > startTime && endTime < duration) ? endTime : duration;
+
+      if (effectiveEnd && !isNaN(effectiveEnd)) {
+        if (loopMode === 'pingpong' || loopMode === 'yoyo') {
+          if (direction === 'forward') {
+            if (video.currentTime >= effectiveEnd - 0.08) {
+              direction = 'backward';
+              video.pause();
+            }
+          } else {
+            const nextTime = video.currentTime - (0.033 * speed);
+            if (nextTime <= startTime + 0.05) {
+              direction = 'forward';
+              video.currentTime = startTime;
+              video.play().catch(() => {});
+            } else {
+              video.currentTime = nextTime;
+            }
+          }
+        } else if (loopMode === 'loop') {
+          direction = 'forward';
+          if (video.currentTime >= effectiveEnd - 0.08) {
+            video.currentTime = startTime;
+          }
+        } else if (loopMode === 'once') {
+          direction = 'forward';
+          if (video.currentTime >= effectiveEnd - 0.08) {
+            video.pause();
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(updateLoopState);
+    };
+
+    animId = requestAnimationFrame(updateLoopState);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [startTime, endTime, loopMode, isMuted, speed, element.content]);
+
   if (element.content) {
     const filterStyle = `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim();
 
@@ -280,8 +433,8 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
           src={element.content}
           controls={false}
           autoPlay
-          loop
-          muted
+          loop={loopMode === 'loop'}
+          muted={isMuted}
           crossOrigin="anonymous"
           playsInline
           disablePictureInPicture

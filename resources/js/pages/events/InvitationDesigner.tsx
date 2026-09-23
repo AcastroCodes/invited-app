@@ -78,6 +78,9 @@ import {
   Copy,
   Settings,
   Target,
+  Volume2,
+  VolumeX,
+  Film,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -85,6 +88,7 @@ import type { Invitation, Event } from '../../types';
 import { StylePickerPopover } from '../../components/StylePickerPopover';
 import { ColorPickerPopover } from '../../components/ColorPickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
+import { VideoEditorModal } from '../../components/VideoEditorModal';
 import AppSelect from '../../components/AppSelect';
 import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
@@ -111,11 +115,13 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
   isFloat = false,
   canvasDimension,
 }) => {
-  const [inputValue, setInputValue] = useState<string>(value.toString());
+  const safeValue = value ?? (min !== undefined ? min : 0);
+  const [inputValue, setInputValue] = useState<string>(safeValue.toString());
 
   useEffect(() => {
-    setInputValue(value.toString());
-  }, [value]);
+    const safe = value ?? (min !== undefined ? min : 0);
+    setInputValue(safe.toString());
+  }, [value, min]);
 
   const handleDecrement = () => {
     const nextVal = value - step;
@@ -738,6 +744,7 @@ export default function InvitationDesigner() {
   const [availableFonts, setAvailableFonts] = useState<FontOption[]>(INITIAL_FONTS);
   const [showFontModal, setShowFontModal] = useState(false);
   const [showThreeDModal, setShowThreeDModal] = useState(false);
+  const [showVideoEditorModal, setShowVideoEditorModal] = useState(false);
   const [threeDModalTab, setThreeDModalTab] = useState<'object' | 'pivot'>('object');
   const [fontModalTab, setFontModalTab] = useState<'google' | 'upload'>('google');
   const [googleFontSearch, setGoogleFontSearch] = useState('');
@@ -3976,7 +3983,7 @@ export default function InvitationDesigner() {
                           />
                         </div>
                       ) : selectedElement.type === 'video' ? (
-                        <div className="pt-2">
+                        <div className="pt-2 space-y-3">
                           <AssetPickerPopover
                             partnerId={event?.partner_id}
                             partnerName={
@@ -3990,7 +3997,82 @@ export default function InvitationDesigner() {
                             label="Video del Elemento"
                             value={selectedElement.content}
                             onChange={(val) => updateSelectedElement('content', val)}
+                            onConfigureVideo={() => setShowVideoEditorModal(true)}
                           />
+
+                          {/* BOTÓN DESTACADO ABRIR EDITOR DE VIDEO */}
+                          <button
+                            type="button"
+                            onClick={() => setShowVideoEditorModal(true)}
+                            className="w-full py-2.5 px-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                            style={{
+                              backgroundColor: 'var(--primary-accent-light)',
+                              borderColor: 'var(--primary-accent)',
+                              color: 'var(--primary-accent)',
+                            }}
+                          >
+                            <Video size={16} />
+                            <span>Abrir Editor de Video (Recorte & Fotogramas)</span>
+                          </button>
+
+                          {/* MODO DE REPRODUCCIÓN DIRECTO EN EL INSPECTOR */}
+                          <div className="p-3 rounded-xl border space-y-2" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <span className="block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
+                              Modo de Reproducción
+                            </span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {[
+                                { id: 'loop', label: 'Bucle', desc: 'Continuo' },
+                                { id: 'pingpong', label: 'Ping-Pong', desc: 'Rebote' },
+                                { id: 'once', label: 'Una Vez', desc: 'Pausa' },
+                              ].map((m) => {
+                                const isActive = (selectedElement.videoLoopMode || 'loop') === m.id;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => updateSelectedElement('videoLoopMode', m.id)}
+                                    className="p-2 rounded-lg border transition-all text-center cursor-pointer flex flex-col items-center justify-center"
+                                    style={{
+                                      backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-card)',
+                                      borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                                      color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
+                                    }}
+                                  >
+                                    <span className="text-[11px] font-bold">{m.label}</span>
+                                    <span className="text-[8px] opacity-75">{m.desc}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* VELOCIDAD DE REPRODUCCIÓN DIRECTA EN EL INSPECTOR */}
+                          <div className="p-3 rounded-xl border space-y-2" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <span className="block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
+                              Velocidad ({(selectedElement.videoSpeed || 1)}x)
+                            </span>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[0.5, 1, 1.5, 2].map((s) => {
+                                const isActive = (selectedElement.videoSpeed || 1) === s;
+                                return (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => updateSelectedElement('videoSpeed', s)}
+                                    className="py-1.5 rounded-lg text-xs font-extrabold border transition-all cursor-pointer flex items-center justify-center"
+                                    style={{
+                                      backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-card)',
+                                      borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                                      color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
+                                    }}
+                                  >
+                                    {s}x
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       ) : selectedElement.type === '3d' ? (
                         <div className="pt-2 space-y-3">
@@ -5366,8 +5448,8 @@ export default function InvitationDesigner() {
                             </div>
                           )}
 
-                          {/* 4. SECCIÓN CHROMA KEY (EFECTO PANTALLA VERDE / ELIMINAR FONDO DE VIDEO) */}
-                          {selectedElement.type === 'video' && (
+                          {/* 4. SECCIÓN CHROMA KEY (EFECTO PANTALLA VERDE / ELIMINAR FONDO DE VIDEO O IMAGEN) */}
+                          {(selectedElement.type === 'video' || selectedElement.type === 'image') && (
                             <div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
                               <div className="flex items-center justify-between">
                                 <span className="font-extrabold uppercase text-[9px] tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
@@ -5567,6 +5649,8 @@ export default function InvitationDesigner() {
                               )}
                             </div>
                           )}
+
+                          {/* Fin Secciones Especiales */}
                         </div>
                       </div>
                     )}
@@ -6800,6 +6884,18 @@ export default function InvitationDesigner() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Modal de Editor de Video (Trim, Mute, Loop Yoyo, Velocidad) */}
+      {showVideoEditorModal && selectedElement && selectedElement.type === 'video' && (
+        <VideoEditorModal
+          isOpen={showVideoEditorModal}
+          element={selectedElement}
+          onClose={() => setShowVideoEditorModal(false)}
+          onSave={(updates) => {
+            updateSelectedElementBatch(updates);
+          }}
+        />
       )}
 
       {/* Overlay de Guardado / Generando Preview */}

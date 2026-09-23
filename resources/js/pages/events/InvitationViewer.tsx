@@ -54,6 +54,31 @@ const ensureEnvelopeScene = (rawScenes: any[]): any[] => {
   return [envScene, ...rest];
 };
 
+const ensureFontLoaded = (fontName?: string, fontUrl?: string) => {
+  if (!fontName) return;
+  if (fontUrl) {
+    const styleId = `custom-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+    if (!document.getElementById(styleId)) {
+      const styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      styleEl.textContent = `@font-face { font-family: "${fontName}"; src: url("${fontUrl}"); font-display: swap; }`;
+      document.head.appendChild(styleEl);
+    }
+  } else {
+    const standardFonts = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Impact', 'Trebuchet MS', 'Comic Sans MS', 'Inter', 'sans-serif', 'serif', 'monospace'];
+    if (standardFonts.includes(fontName)) return;
+
+    const linkId = `google-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+    if (!document.getElementById(linkId)) {
+      const linkEl = document.createElement('link');
+      linkEl.id = linkId;
+      linkEl.rel = 'stylesheet';
+      linkEl.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap`;
+      document.head.appendChild(linkEl);
+    }
+  }
+};
+
 export default function InvitationViewer() {
   const { id } = useParams<{ id: string }>();
   const [invitation, setInvitation] = useState<any>(null);
@@ -107,6 +132,49 @@ export default function InvitationViewer() {
       });
   }, [id]);
 
+  // Precargar todas las fuentes (Google Fonts y personalizadas) usadas en la invitación
+  useEffect(() => {
+    if (!invitation?.content?.scenes) return;
+    const scenes = invitation.content.scenes;
+    scenes.forEach((scene: any) => {
+      scene.elements?.forEach((el: any) => {
+        if (el.fontFamily) {
+          ensureFontLoaded(el.fontFamily, el.fontUrl);
+        }
+      });
+    });
+  }, [invitation]);
+
+  // Manejo de escalado adaptable (responsivo para móviles y PC)
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      
+      const availableW = isMobile ? window.innerWidth : Math.min(window.innerWidth * 0.9, 448);
+      const availableH = containerRef.current?.clientHeight || window.innerHeight;
+      
+      const scaleX = availableW / 1080;
+      const scaleY = availableH / 1920;
+      
+      if (isMobile) {
+         // Ajustar al 100% del ancho de la pantalla móvil sin dejar franjas laterales
+         setScale(scaleX);
+         const logicalHeight = availableH / scaleX;
+         setDeltaY(logicalHeight > 1920 ? logicalHeight - 1920 : 0);
+      } else {
+         setScale(Math.min(scaleX, scaleY));
+         setDeltaY(0);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   useEffect(() => {
     if (!invitation?.content?.scenes || !hasEntered) return;
     
@@ -127,34 +195,7 @@ export default function InvitationViewer() {
     };
   }, [invitation, currentSceneIndex]);
 
-  useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth < 768;
-      
-      // En PC queremos que se vea centrado con un ancho fijo máximo como un móvil
-      const availableW = isMobile ? window.innerWidth : 448;
-      const availableH = containerRef.current?.clientHeight || window.innerHeight;
-      
-      const scaleX = availableW / 1080;
-      const scaleY = availableH / 1920;
-      
-      if (isMobile) {
-         setScale(scaleX); // Ajuste perfecto al ancho
-         const logicalHeight = availableH / scaleX;
-         setDeltaY(logicalHeight > 1920 ? logicalHeight - 1920 : 0);
-      } else {
-         setScale(Math.min(scaleX, scaleY)); // Contenido dentro del monitor
-         setDeltaY(0);
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Ejecutar inmediatamente
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
 
   // Preload Envelope Logic (Phase 1)
   useEffect(() => {
@@ -527,10 +568,12 @@ export default function InvitationViewer() {
           
           if (deltaY > 0) {
             const centerY = el.y + (el.height / 2);
+            const isFullBackground = (el.y <= 150 && (el.y + el.height) >= 1750) || el.isBackground;
             
-            // Si es un fondo que cubre todo el lienzo desde arriba hasta abajo, lo estiramos
-            if (el.y <= 0 && (el.y + el.height) >= 1900) {
-              adjustedHeight += deltaY;
+            // Si es un fondo/imagen que cubre el alto del lienzo, lo estiramos para cubrir 100% de la pantalla
+            if (isFullBackground) {
+              adjustedY = 0;
+              adjustedHeight = 1920 + deltaY;
             } else {
               // Anclaje inteligente basado en el CENTRO del elemento
               if (centerY >= 1280) {
@@ -542,6 +585,12 @@ export default function InvitationViewer() {
               }
             }
           }
+
+          const hasParallax = el.parallaxEnabled && el.depth && el.depth !== 0 && el.type !== '3d';
+          // Sangrado protector para evitar franjas blancas en las orillas al girar el móvil con Parallax
+          const parallaxScale = hasParallax ? Math.max(1.05, 1 + (Math.abs(el.depth) * 0.004)) : 1;
+          const translateX = hasParallax ? tilt.x * el.depth * 2.5 : 0;
+          const translateY = hasParallax ? tilt.y * el.depth * 2.5 : 0;
 
           return (
             <div
@@ -555,12 +604,12 @@ export default function InvitationViewer() {
                 width: `${el.width}px`,
                 height: `${adjustedHeight}px`,
                 transform: [
-                  (el.parallaxEnabled && el.depth && el.depth !== 0 && el.type !== '3d') ? `translate(${tilt.x * el.depth * 3}px, ${tilt.y * el.depth * 3}px)` : '',
+                  hasParallax ? `translate(${translateX}px, ${translateY}px) scale(${parallaxScale})` : '',
                   el.rotation ? `rotate(${el.rotation}deg)` : '',
                   el.flipH ? 'scaleX(-1)' : '',
                   el.flipV ? 'scaleY(-1)' : '',
                 ].filter(Boolean).join(' ') || undefined,
-                transition: (el.parallaxEnabled && el.depth && el.depth !== 0 && el.type !== '3d') ? 'transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+                transition: hasParallax ? 'transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
                 opacity: el.opacity !== undefined ? el.opacity / 100 : 1,
                 fontSize: el.fontSize ? `${el.fontSize}px` : undefined,
                 fontWeight: el.fontWeight || 'normal',

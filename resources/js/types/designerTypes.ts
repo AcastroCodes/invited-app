@@ -102,6 +102,12 @@ export interface CanvasElement {
   chromaKeyColor?: string;
   chromaKeyColors?: string[];
   chromaKeyTolerance?: number;
+  // Editor de Video & Reproducción (Trim, Mute, Loop/Yoyo, Velocidad)
+  videoStartTime?: number;
+  videoEndTime?: number;
+  videoMuted?: boolean;
+  videoLoopMode?: 'loop' | 'yoyo' | 'once';
+  videoSpeed?: number;
   patternType?: 'none' | 'dots' | 'lines' | 'grid' | 'waves' | 'custom';
   patternUrl?: string;
   patternScale?: number;

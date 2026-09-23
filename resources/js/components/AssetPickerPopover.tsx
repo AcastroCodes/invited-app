@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle, Crop, Settings } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash2, Check, UploadCloud, LoaderCircle, Crop, Settings, Film } from 'lucide-react';
 import api from '../lib/api';
 import { ImageCropModal } from './ImageCropModal';
 
@@ -28,6 +28,7 @@ interface AssetPickerPopoverProps {
   onChange: (val: string) => void;
   onSelectAsset?: (asset: AssetItem) => void;
   onConfigureAsset?: (asset: AssetItem) => void;
+  onConfigureVideo?: () => void;
   selectedElementSettings?: {
     modelPivotX?: number;
     modelPivotY?: number;
@@ -49,6 +50,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
   onChange,
   onSelectAsset,
   onConfigureAsset,
+  onConfigureVideo,
   selectedElementSettings,
   label = 'Imagen del Elemento',
   accept = 'image/*',
@@ -295,7 +297,7 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
             <span className="text-[7px] font-extrabold uppercase leading-none">Cargar</span>
           </button>
 
-          {/* Botón Acción Secundaria: Configurar (3D) o Cortar (Imagen) */}
+          {/* Botón Acción Secundaria: Configurar (3D), Editor (Video), Cortar (Imagen) */}
           {is3dType ? (
             <button
               type="button"
@@ -317,11 +319,29 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               <Settings size={13} className="transition-transform group-hover:scale-110" />
               <span className="text-[7px] font-extrabold uppercase leading-none">Ajustar</span>
             </button>
+          ) : isVideoType ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (onConfigureVideo) onConfigureVideo();
+              }}
+              disabled={!value}
+              className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group"
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--primary-accent)',
+              }}
+              title="Abrir Editor de Video (Recorte, Mute, Bucle Yoyo, Velocidad)"
+            >
+              <Film size={13} className="transition-transform group-hover:scale-110" />
+              <span className="text-[7px] font-extrabold uppercase leading-none">Editor</span>
+            </button>
           ) : (
             <button
               type="button"
               onClick={() => setShowCropModal(true)}
-              disabled={!value || isVideoType || !isImgValid}
+              disabled={!value || !isImgValid}
               className="flex-1 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group"
               style={{
                 backgroundColor: 'var(--bg-app)',
