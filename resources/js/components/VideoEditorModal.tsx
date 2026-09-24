@@ -1,25 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Player, PlayerRef } from '@remotion/player';
+import { AbsoluteFill, Video as RemotionVideo } from 'remotion';
 import {
-  X,
-  Film,
-  Volume2,
-  VolumeX,
-  Play,
-  Pause,
-  Check,
-  Scissors,
-  Loader2,
-  RefreshCw,
-  Repeat,
-  Rewind,
-  RotateCcw,
-  Sparkles,
-  Zap,
-  Wand2,
+  X, Play, Pause, Check, Loader2, Volume2, VolumeX, Scissors, 
+  Settings2, Wand2, Repeat, Rewind, FastForward, Film, Zap, RefreshCcw, RotateCcw
 } from 'lucide-react';
 import type { CanvasElement } from '../types/designerTypes';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { toBlobURL } from '@ffmpeg/util';
 
 interface VideoEditorModalProps {
   isOpen: boolean;
@@ -28,473 +16,125 @@ interface VideoEditorModalProps {
   onSave: (updates: Partial<CanvasElement>, saveAsNew?: boolean) => void | Promise<void>;
 }
 
+const MODES = [
+  { id: 'seamless', name: 'Bucle Suave', icon: Repeat },
+  { id: 'pingpong', name: 'Ping-Pong', icon: RefreshCcw },
+  { id: 'once', name: 'Una vez', icon: Play },
+  { id: 'rewind', name: 'Rebobinar', icon: Rewind },
+  { id: 'reverse', name: 'Reversa', icon: RotateCcw },
+  { id: 'slowmo', name: 'Cámara Lenta', icon: Zap },
+];
+
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+// Composición principal de Remotion
+const VideoComposition: React.FC<{
+  src: string;
+  startFrame: number;
+  endFrame: number;
+  isMuted: boolean;
+  speed: number;
+  loopMode: string;
+}> = ({ src, startFrame, endFrame, isMuted, speed, loopMode }) => {
+  return (
+    <AbsoluteFill className="flex items-center justify-center bg-black">
+      <RemotionVideo
+        src={src}
+        startFrom={startFrame}
+        endAt={endFrame}
+        muted={isMuted}
+        playbackRate={speed}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+    </AbsoluteFill>
+  );
+};
+
 export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
   isOpen,
   element,
   onClose,
   onSave,
 }) => {
-  const previewVideoRef = useRef<HTMLVideoElement>(null);
-  const [duration, setDuration] = useState<number>(0);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
-
+  const playerRef = useRef<PlayerRef>(null);
+  
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [durationInSeconds, setDurationInSeconds] = useState(0);
+  const [videoWidth, setVideoWidth] = useState(720);
+  const [videoHeight, setVideoHeight] = useState(1280);
+  
   const [startTime, setStartTime] = useState<number>(Number(element.videoStartTime) || 0);
   const [endTime, setEndTime] = useState<number>(Number(element.videoEndTime) || 0);
   const [isMuted, setIsMuted] = useState<boolean>(element.videoMuted !== false);
-  const [loopMode, setLoopMode] = useState<
-    'seamless' | 'loop' | 'pingpong' | 'yoyo' | 'once' | 'rewind' | 'reverse' | 'slowmo' | 'stutter'
-  >((element.videoLoopMode as any) || 'seamless');
   const [speed, setSpeed] = useState<number>(Number(element.videoSpeed) || 1);
-
-  useEffect(() => {
-    const initStart = Number(element.videoStartTime) || 0;
-    const initEnd = Number(element.videoEndTime) || 0;
-    setStartTime(initStart);
-    setEndTime(initEnd);
-    startTimeRef.current = initStart;
-    endTimeRef.current = initEnd;
-    setIsMuted(element.videoMuted !== false);
-    setLoopMode((element.videoLoopMode as any) || 'seamless');
-    setSpeed(Number(element.videoSpeed) || 1);
-  }, [element]);
-
-  const startTimeRef = useRef<number>(startTime);
-  const endTimeRef = useRef<number>(endTime);
-  const redNeedleRef = useRef<HTMLDivElement>(null);
-  const timeBadgeRef = useRef<HTMLDivElement>(null);
-
-  // Cache para no volver a descargar/escribir el video fuente a memoria de FFmpeg
-  const loadedInputSrcRef = useRef<string | null>(null);
-
-  // FFmpeg State
-  const ffmpegRef = useRef(new FFmpeg());
+  const [loopMode, setLoopMode] = useState<string>((element.videoLoopMode as string) || 'seamless');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'trim' | 'effects'>('trim');
+  const [showResultModal, setShowResultModal] = useState(false);
+
+  // FFmpeg states
+  const ffmpegRef = useRef(new FFmpeg());
   const [processingProgress, setProcessingProgress] = useState(0);
   const [trimmedVideoUrl, setTrimmedVideoUrl] = useState<string | null>(null);
+  const loadedInputSrcRef = useRef<string | null>(null);
 
-  // Dirección de reproducción para simulación JS en vivo (Ping-Pong / Reverse)
-  const playbackDirRef = useRef<1 | -1>(1);
+  const fps = 30;
 
   useEffect(() => {
-    startTimeRef.current = startTime;
-    endTimeRef.current = endTime;
-  }, [startTime, endTime]);
+    if (!element.content || !isOpen) return;
 
-  // Procesar video automáticamente cuando la duración se carga y no hay vista previa recortada activa
-  useEffect(() => {
-    if (isOpen && element.content && duration > 0 && !trimmedVideoUrl && !isProcessing) {
-      processVideoWithFFmpeg();
-    }
-  }, [isOpen, element.content, duration]);
-
-  // Reproductor de vista previa y loop dentro de [startTime, endTime]
-  useEffect(() => {
-    const video = previewVideoRef.current;
-    if (!video) return;
-
-    video.muted = isMuted;
-
-    let animId: number;
-
-    const handleLoadedMetadata = () => {
-      const dur = video.duration || 0;
-      setDuration(dur);
-      if (endTimeRef.current === 0 || endTimeRef.current > dur) {
-        const endVal = Math.round(dur * 10) / 10;
-        setEndTime(endVal);
-        endTimeRef.current = endVal;
-      }
-      if (startTimeRef.current > 0 && !trimmedVideoUrl) {
-        video.currentTime = startTimeRef.current;
-      }
-    };
-
-    const updateTimeState = () => {
-      if (video && !video.paused) {
-        if (!trimmedVideoUrl) {
-          const curStart = Math.max(0, startTimeRef.current);
-          const curEnd = (endTimeRef.current > curStart && endTimeRef.current <= (duration || video.duration || 999))
-            ? endTimeRef.current
-            : (duration > 0 ? duration : (video.duration || 0));
-
-          if (curEnd > curStart) {
-            if (loopMode === 'reverse') {
-              video.playbackRate = 1;
-              if (video.currentTime <= curStart + 0.1 || video.currentTime > curEnd) {
-                video.currentTime = curEnd - 0.05;
-              } else {
-                // Retroceder fotograma a fotograma si no hay video procesado
-                video.currentTime = Math.max(curStart, video.currentTime - 0.04 * speed);
-              }
-            } else if (loopMode === 'pingpong' || loopMode === 'yoyo') {
-              if (playbackDirRef.current === 1) {
-                if (video.currentTime >= curEnd - 0.1) {
-                  playbackDirRef.current = -1;
-                }
-              } else {
-                if (video.currentTime <= curStart + 0.1) {
-                  playbackDirRef.current = 1;
-                  video.currentTime = curStart;
-                } else {
-                  video.currentTime = Math.max(curStart, video.currentTime - 0.04 * speed);
-                }
-              }
-            } else if (loopMode === 'once') {
-              video.playbackRate = speed;
-              if (video.currentTime >= curEnd - 0.08) {
-                video.pause();
-                setIsPlaying(false);
-              }
-            } else if (loopMode === 'slowmo') {
-              const segLen = curEnd - curStart;
-              const midStart = curStart + segLen * 0.25;
-              const midEnd = curStart + segLen * 0.75;
-              if (video.currentTime >= midStart && video.currentTime <= midEnd) {
-                video.playbackRate = 0.5 * speed;
-              } else {
-                video.playbackRate = 1.0 * speed;
-              }
-              if (video.currentTime >= curEnd - 0.08 || video.currentTime < curStart) {
-                video.currentTime = curStart;
-              }
-            } else {
-              // Seamless / standard loop
-              video.playbackRate = speed;
-              if (video.currentTime >= curEnd - 0.08 || video.currentTime < curStart) {
-                video.currentTime = curStart;
-              }
-            }
-          }
-        } else {
-          video.playbackRate = 1;
-        }
-
-        setCurrentTime(video.currentTime);
-        if (redNeedleRef.current && duration > 0) {
-          const percent = (video.currentTime / duration) * 100;
-          redNeedleRef.current.style.left = `${Math.max(0, Math.min(100, percent))}%`;
-        }
-        if (timeBadgeRef.current) {
-          const totalDur = trimmedVideoUrl ? (video.duration || 0) : duration;
-          timeBadgeRef.current.textContent = `${video.currentTime.toFixed(1)}s / ${(totalDur > 0 ? totalDur : 0).toFixed(1)}s`;
-        }
-        animId = requestAnimationFrame(updateTimeState);
-      }
-    };
-
-    if (isPlaying) {
-      animId = requestAnimationFrame(updateTimeState);
+    let mediaUrl = element.content;
+    if (mediaUrl.startsWith('/')) {
+      mediaUrl = `${window.location.origin}${mediaUrl}`;
     }
 
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    const tempVideo = document.createElement('video');
+    tempVideo.src = mediaUrl;
+    tempVideo.crossOrigin = 'anonymous';
+    
+    tempVideo.onloadedmetadata = () => {
+      setDurationInSeconds(tempVideo.duration);
+      setVideoWidth(tempVideo.videoWidth || 720);
+      setVideoHeight(tempVideo.videoHeight || 1280);
+      
+      if (endTime === 0 || endTime > tempVideo.duration) {
+        setEndTime(tempVideo.duration);
+      }
+    };
+  }, [element.content, isOpen]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    player.addEventListener('play', onPlay);
+    player.addEventListener('pause', onPause);
 
     return () => {
-      if (animId) cancelAnimationFrame(animId);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      player.removeEventListener('play', onPlay);
+      player.removeEventListener('pause', onPause);
     };
-  }, [isMuted, element.content, isPlaying, trimmedVideoUrl, duration, loopMode, speed]);
+  }, [playerRef.current]);
 
   const togglePlay = () => {
-    const video = previewVideoRef.current;
-    if (!video) return;
-    if (isPlaying) {
-      video.pause();
-      setIsPlaying(false);
-    } else {
-      if (!trimmedVideoUrl) {
-        const curStart = Math.max(0, startTimeRef.current);
-        const curEnd = endTimeRef.current > curStart ? endTimeRef.current : duration;
-        if (video.currentTime < curStart || video.currentTime >= curEnd - 0.1) {
-          video.currentTime = curStart;
-        }
-      }
-      video.play().catch(() => {});
-      setIsPlaying(true);
-    }
-  };
-
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
-  const [videoAspectRatio, setVideoAspectRatio] = useState<number>(16 / 9);
-
-  // Generar fotogramas de la línea de tiempo del video activo (fuente o procesado por el modo)
-  useEffect(() => {
-    const activeMediaSrc = trimmedVideoUrl || (element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : null);
-    if (!activeMediaSrc || !duration) return;
-
-    let isMounted = true;
-    let objectUrl = '';
-    let hiddenVideo: HTMLVideoElement | null = null;
-
-    const cleanup = () => {
-      isMounted = false;
-      if (hiddenVideo) {
-        hiddenVideo.onseeked = null;
-        hiddenVideo.onloadedmetadata = null;
-        if (document.body.contains(hiddenVideo)) {
-          document.body.removeChild(hiddenVideo);
-        }
-      }
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-
-    const generateThumbnails = async () => {
-      try {
-        let mediaUrl = activeMediaSrc;
-        const response = await fetch(mediaUrl);
-        const blob = await response.blob();
-        if (!isMounted) return;
-
-        objectUrl = URL.createObjectURL(blob);
-
-        hiddenVideo = document.createElement('video');
-        hiddenVideo.src = objectUrl;
-        hiddenVideo.crossOrigin = 'anonymous';
-        hiddenVideo.muted = true;
-        hiddenVideo.playsInline = true;
-        hiddenVideo.preload = 'auto';
-        hiddenVideo.style.position = 'fixed';
-        hiddenVideo.style.bottom = '0px';
-        hiddenVideo.style.right = '0px';
-        hiddenVideo.style.width = '10px';
-        hiddenVideo.style.height = '10px';
-        hiddenVideo.style.opacity = '0.2';
-        hiddenVideo.style.pointerEvents = 'none';
-        hiddenVideo.style.zIndex = '-999';
-
-        document.body.appendChild(hiddenVideo);
-
-        const frames: string[] = [];
-
-        hiddenVideo.onloadedmetadata = () => {
-          if (!isMounted) return;
-          const vw = hiddenVideo!.videoWidth || 16;
-          const vh = hiddenVideo!.videoHeight || 9;
-          const aspectRatio = vw / vh;
-          setVideoAspectRatio(aspectRatio);
-
-          let count = 10;
-          if (timelineRef.current) {
-            const timelineWidth = timelineRef.current.clientWidth;
-            const thumbHeight = 64;
-            const thumbWidth = thumbHeight * aspectRatio;
-            count = Math.max(2, Math.ceil(timelineWidth / thumbWidth));
-          }
-
-          let currentStep = 0;
-
-          const startCapturing = () => {
-            const captureStep = () => {
-              if (!isMounted || !hiddenVideo) return;
-              if (currentStep >= count) {
-                setThumbnails([...frames]);
-                cleanup();
-                return;
-              }
-
-              const targetPercent = count > 1 ? currentStep / (count - 1) : 0;
-              const targetTime = Math.max(0.05, Math.min(duration - 0.05, targetPercent * duration));
-              hiddenVideo.currentTime = targetTime;
-            };
-
-            hiddenVideo!.onseeked = () => {
-              if (!isMounted || !hiddenVideo) return;
-              setTimeout(() => {
-                if (!isMounted || !hiddenVideo) return;
-                if (hiddenVideo.readyState >= 2) {
-                  const canvas = document.createElement('canvas');
-                  canvas.width = Math.round((70 * vw) / vh);
-                  canvas.height = 70;
-                  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                  if (ctx) {
-                    ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
-                    frames.push(canvas.toDataURL('image/jpeg', 0.7));
-                  }
-                  currentStep++;
-                  captureStep();
-                } else {
-                  hiddenVideo.onseeked?.(new Event('seeked'));
-                }
-              }, 120);
-            };
-
-            captureStep();
-          };
-
-          hiddenVideo!.play().then(() => {
-            if (!isMounted) return;
-            hiddenVideo!.pause();
-            startCapturing();
-          }).catch(() => {
-            if (!isMounted) return;
-            startCapturing();
-          });
-        };
-      } catch (error) {
-        console.error('Error generando fotogramas:', error);
-      }
-    };
-
-    generateThumbnails();
-
-    return () => {
-      cleanup();
-    };
-  }, [element.content, trimmedVideoUrl, duration]);
-
-  const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current || !duration) return;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const clickPercent = clickX / rect.width;
-    const targetTime = Math.round((clickPercent * duration) * 10) / 10;
-
-    if (previewVideoRef.current) {
-      previewVideoRef.current.currentTime = Math.max(0, Math.min(duration, targetTime));
-      setCurrentTime(previewVideoRef.current.currentTime);
-    }
-
-    const updateTime = (moveEvent: MouseEvent) => {
-      const currentRect = timelineRef.current?.getBoundingClientRect();
-      if (!currentRect) return;
-      const moveX = Math.max(0, Math.min(currentRect.width, moveEvent.clientX - currentRect.left));
-      const movePercent = moveX / currentRect.width;
-      const moveTargetTime = Math.round((movePercent * duration) * 10) / 10;
-
-      if (previewVideoRef.current) {
-        previewVideoRef.current.currentTime = Math.max(0, Math.min(duration, moveTargetTime));
-        setCurrentTime(previewVideoRef.current.currentTime);
-      }
-    };
-
-    const handleMouseUp = () => {
-      window.removeEventListener('mousemove', updateTime);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    window.addEventListener('mousemove', updateTime);
-    window.addEventListener('mouseup', handleMouseUp);
-  };
-
-  const handleDragHandle = (e: React.MouseEvent<HTMLDivElement>, type: 'start' | 'end') => {
-    e.stopPropagation();
-    if (!timelineRef.current || !duration) return;
-
-    setTrimmedVideoUrl(null);
-
-    const updateTime = (moveEvent: MouseEvent) => {
-      const currentRect = timelineRef.current?.getBoundingClientRect();
-      if (!currentRect) return;
-      const moveX = Math.max(0, Math.min(currentRect.width, moveEvent.clientX - currentRect.left));
-      const movePercent = moveX / currentRect.width;
-      const moveTargetTime = Math.round((movePercent * duration) * 10) / 10;
-
-      if (type === 'start') {
-        const newStart = Math.max(0, Math.min(moveTargetTime, endTimeRef.current - 0.1));
-        setStartTime(newStart);
-        startTimeRef.current = newStart;
-        if (previewVideoRef.current) {
-          previewVideoRef.current.currentTime = newStart;
-        }
+    if (playerRef.current) {
+      if (isPlaying) {
+        playerRef.current.pause();
       } else {
-        const newEnd = Math.min(duration, Math.max(moveTargetTime, startTimeRef.current + 0.1));
-        setEndTime(newEnd);
-        endTimeRef.current = newEnd;
-        if (previewVideoRef.current) {
-          previewVideoRef.current.currentTime = newEnd;
-        }
+        playerRef.current.play();
       }
-    };
-
-    const handleMouseUp = () => {
-      window.removeEventListener('mousemove', updateTime);
-      window.removeEventListener('mouseup', handleMouseUp);
-      processVideoWithFFmpeg();
-    };
-
-    window.addEventListener('mousemove', updateTime);
-    window.addEventListener('mouseup', handleMouseUp);
-  };
-
-  const handleDragBlock = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    if (!timelineRef.current || !duration) return;
-
-    setTrimmedVideoUrl(null);
-
-    const startX = e.clientX;
-    const initialStartTime = startTimeRef.current;
-    const initialEndTime = endTimeRef.current;
-    const blockDuration = initialEndTime - initialStartTime;
-
-    const updateTime = (moveEvent: MouseEvent) => {
-      const currentRect = timelineRef.current?.getBoundingClientRect();
-      if (!currentRect) return;
-
-      const deltaX = moveEvent.clientX - startX;
-      const deltaPercent = deltaX / currentRect.width;
-      const deltaTime = deltaPercent * duration;
-
-      let newStart = initialStartTime + deltaTime;
-      let newEnd = initialEndTime + deltaTime;
-
-      if (newStart < 0) {
-        newStart = 0;
-        newEnd = blockDuration;
-      } else if (newEnd > duration) {
-        newEnd = duration;
-        newStart = duration - blockDuration;
-      }
-
-      setStartTime(newStart);
-      startTimeRef.current = newStart;
-      setEndTime(newEnd);
-      endTimeRef.current = newEnd;
-
-      if (previewVideoRef.current) {
-        previewVideoRef.current.currentTime = newStart;
-      }
-    };
-
-    const handleMouseUp = () => {
-      window.removeEventListener('mousemove', updateTime);
-      window.removeEventListener('mouseup', handleMouseUp);
-      processVideoWithFFmpeg();
-    };
-
-    window.addEventListener('mousemove', updateTime);
-    window.addEventListener('mouseup', handleMouseUp);
-  };
-
-  // Referencia a la URL del blob procesado para liberar memoria con revokeObjectURL
-  const trimmedUrlRef = useRef<string | null>(null);
-
-  // Liberar la memoria de la vista previa de objetos Blob sin revertir al video base
-  const releasePreviewMemory = () => {
-    if (trimmedUrlRef.current) {
-      try {
-        URL.revokeObjectURL(trimmedUrlRef.current);
-      } catch (e) {}
-      trimmedUrlRef.current = null;
     }
   };
 
-  // Limpiar memoria al cerrar el modal o desmontar el componente
-  useEffect(() => {
-    return () => {
-      releasePreviewMemory();
-    };
-  }, []);
-
-  // Motor NATIVO de Procesamiento de Video con Canvas y MediaRecorder (Respaldo 100% Confiable)
   const processVideoNative = async (
     targetMode: string,
     targetSpeed: number,
     targetMuted: boolean
   ): Promise<string | null> => {
+    let canvas: HTMLCanvasElement | null = null;
     try {
       setIsProcessing(true);
       setProcessingProgress(10);
@@ -511,6 +151,15 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       tempVideo.src = mediaUrl;
       tempVideo.muted = true;
       tempVideo.playsInline = true;
+      
+      // Crucial: Append video to DOM so Chrome updates its internal texture buffer when seeking
+      tempVideo.style.position = 'fixed';
+      tempVideo.style.top = '0';
+      tempVideo.style.left = '0';
+      tempVideo.style.opacity = '0.01';
+      tempVideo.style.pointerEvents = 'none';
+      tempVideo.style.zIndex = '-1000';
+      document.body.appendChild(tempVideo);
 
       await new Promise<void>((resolve, reject) => {
         tempVideo.onloadedmetadata = () => resolve();
@@ -519,11 +168,21 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
 
       const videoWidth = tempVideo.videoWidth || 720;
       const videoHeight = tempVideo.videoHeight || 1280;
-      const totalDur = tempVideo.duration || (duration > 0 ? duration : 5);
+      const totalDur = tempVideo.duration || (durationInSeconds > 0 ? durationInSeconds : 5);
 
-      const canvas = document.createElement('canvas');
+      canvas = document.createElement('canvas');
       canvas.width = Math.min(640, videoWidth);
       canvas.height = Math.round((canvas.width * videoHeight) / videoWidth);
+      
+      // Prevent browser from optimizing out background canvas rendering
+      canvas.style.position = 'fixed';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.opacity = '0.01';
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '-1000';
+      document.body.appendChild(canvas);
+      
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
 
       const fps = 25;
@@ -575,6 +234,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       }
 
       const totalFrames = frameQueue.length;
+      const recordingStartTime = Date.now();
 
       for (let i = 0; i < totalFrames; i++) {
         const task = frameQueue[i];
@@ -582,14 +242,24 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         await new Promise<void>((res) => {
           const onSeeked = () => {
             tempVideo.removeEventListener('seeked', onSeeked);
-            res();
+            // Allow a tiny bit of time for the internal decoder to flush the frame to the texture
+            setTimeout(res, 15);
           };
           tempVideo.addEventListener('seeked', onSeeked);
         });
 
         ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
         setProcessingProgress(Math.min(99, Math.round(((i + 1) / totalFrames) * 100)));
-        await new Promise((r) => setTimeout(r, 6));
+        
+        // Pacing for real-time capture
+        const expectedTime = recordingStartTime + i * (1000 / fps);
+        const now = Date.now();
+        if (now < expectedTime) {
+          await new Promise((r) => setTimeout(r, expectedTime - now));
+        } else {
+          // If we are lagging behind, just yield to let MediaRecorder breathe
+          await new Promise((r) => setTimeout(r, 1));
+        }
       }
 
       recorder.stop();
@@ -601,28 +271,33 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         };
       });
 
-      releasePreviewMemory();
-      trimmedUrlRef.current = newUrl;
       setTrimmedVideoUrl(newUrl);
+      
+      // Fix for WebM blobs having Infinity duration in Chrome:
+      const actualDuration = totalFrames / fps;
+      setDurationInSeconds(actualDuration);
+      setStartTime(0);
+      setEndTime(actualDuration);
       setProcessingProgress(100);
-
-      if (previewVideoRef.current) {
-        previewVideoRef.current.src = newUrl;
-        previewVideoRef.current.load();
-        previewVideoRef.current.play().catch(() => {});
-        setIsPlaying(true);
-      }
-
+      setShowResultModal(true);
       return newUrl;
     } catch (err) {
       console.error('Error en procesador nativo canvas:', err);
       return null;
     } finally {
+      try {
+        if (canvas && canvas.parentNode) {
+          document.body.removeChild(canvas);
+        }
+        const temps = document.querySelectorAll('video[style*="z-index: -1000"]');
+        temps.forEach(v => {
+          if (v.parentNode) v.parentNode.removeChild(v);
+        });
+      } catch(e) {}
       setIsProcessing(false);
     }
   };
 
-  // Motor Ultra-Rápido de Procesamiento Unificado con FFmpeg WASM y Gestión de Memoria
   const processVideoWithFFmpeg = async (
     targetMode = loopMode,
     targetSpeed = speed,
@@ -654,9 +329,8 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         }
       }
 
-      // Cargar video fuente en memoria de FFmpeg
       if (loadedInputSrcRef.current !== element.content) {
-        let mediaUrl = element.content;
+        let mediaUrl = element.content || '';
         if (mediaUrl.startsWith('/')) {
           mediaUrl = `${window.location.origin}${mediaUrl}`;
         }
@@ -666,19 +340,15 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         loadedInputSrcRef.current = element.content;
       }
 
-      // Procesar el video completo (0 a duration) ignorando recortes de la línea de tiempo para probar los modos
-      const sourceDur = (previewVideoRef.current?.duration && previewVideoRef.current.duration > 0)
-        ? previewVideoRef.current.duration
-        : (duration > 0 ? duration : 5);
-      const segStart = 0;
-      const segEnd = sourceDur;
+      const sourceDur = durationInSeconds > 0 ? durationInSeconds : 5;
+      const segStart = startTime;
+      const segEnd = endTime;
       const segDur = Math.max(0.3, segEnd - segStart);
 
       const speedFilter = targetSpeed !== 1 ? `,setpts=${(1 / targetSpeed).toFixed(4)}*PTS` : '';
       const scaleFilter = `scale=-2:'min(720,ih)',format=yuv420p`;
       const fastEncoding = ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p'];
 
-      // Limpiar output previo si existe
       try {
         await ffmpeg.deleteFile('output.mp4');
       } catch (e) {}
@@ -691,25 +361,25 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       } else if (targetMode === 'seamless' || targetMode === 'loop') {
         const fadeDur = Math.max(0.1, Math.min(0.5, segDur / 4));
         const offset = Math.max(0.1, segDur - fadeDur);
-        const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[seg];` +
+        const filterGraph = 
+          `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[seg];` +
           `[seg]split=2[v1][v2_full];` +
           `[v2_full]trim=start=0:end=${fadeDur.toFixed(2)},setpts=PTS-STARTPTS[v2];` +
           `[v1][v2]xfade=transition=fade:duration=${fadeDur.toFixed(2)}:offset=${offset.toFixed(2)}${speedFilter}[outv]`;
-
         ffmpegArgs = ['-y', '-i', 'input.mp4', '-filter_complex', filterGraph, '-map', '[outv]', ...fastEncoding, ...(targetMuted ? ['-an'] : []), 'output.mp4'];
       } else if (targetMode === 'pingpong' || targetMode === 'yoyo') {
-        const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[base];` +
+        const filterGraph = 
+          `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[base];` +
           `[base]split=2[f1][f2];` +
           `[f2]reverse[rev];` +
           `[f1][rev]concat=n=2:v=1:a=0${speedFilter}[outv]`;
-
         ffmpegArgs = ['-y', '-i', 'input.mp4', '-filter_complex', filterGraph, '-map', '[outv]', ...fastEncoding, ...(targetMuted ? ['-an'] : []), 'output.mp4'];
       } else if (targetMode === 'rewind') {
-        const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[base];` +
+        const filterGraph = 
+          `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[base];` +
           `[base]split=2[f1][f2];` +
           `[f2]reverse,setpts=0.333*PTS-STARTPTS[rev_fast];` +
           `[f1][rev_fast]concat=n=2:v=1:a=0${speedFilter}[outv]`;
-
         ffmpegArgs = ['-y', '-i', 'input.mp4', '-filter_complex', filterGraph, '-map', '[outv]', ...fastEncoding, ...(targetMuted ? ['-an'] : []), 'output.mp4'];
       } else if (targetMode === 'reverse') {
         const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,reverse,${scaleFilter}${speedFilter}[outv]`;
@@ -717,20 +387,14 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       } else if (targetMode === 'slowmo') {
         const p1 = segDur * 0.25;
         const p2 = segDur * 0.75;
-        const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${(segStart + p1).toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[part1];` +
+        const filterGraph = 
+          `[0:v]trim=start=${segStart.toFixed(2)}:end=${(segStart + p1).toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[part1];` +
           `[0:v]trim=start=${(segStart + p1).toFixed(2)}:end=${(segStart + p2).toFixed(2)},setpts=2.0*PTS-STARTPTS,${scaleFilter}[part2];` +
           `[0:v]trim=start=${(segStart + p2).toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[part3];` +
           `[part1][part2][part3]concat=n=3:v=1:a=0${speedFilter}[outv]`;
-
         ffmpegArgs = ['-y', '-i', 'input.mp4', '-filter_complex', filterGraph, '-map', '[outv]', ...fastEncoding, ...(targetMuted ? ['-an'] : []), 'output.mp4'];
-      } else if (targetMode === 'stutter') {
-        const pulseLen = Math.min(0.4, segDur / 3);
-        const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}[full_base];` +
-          `[full_base]split=2[full1][full2];` +
-          `[full1]trim=start=0:end=${pulseLen.toFixed(2)},setpts=PTS-STARTPTS[pulse_base];` +
-          `[pulse_base]split=3[p1][p2][p3];` +
-          `[p1][p2][p3][full2]concat=n=4:v=1:a=0${speedFilter}[outv]`;
-
+      } else {
+        const filterGraph = `[0:v]trim=start=${segStart.toFixed(2)}:end=${segEnd.toFixed(2)},setpts=PTS-STARTPTS,${scaleFilter}${speedFilter}[outv]`;
         ffmpegArgs = ['-y', '-i', 'input.mp4', '-filter_complex', filterGraph, '-map', '[outv]', ...fastEncoding, ...(targetMuted ? ['-an'] : []), 'output.mp4'];
       }
 
@@ -740,477 +404,375 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       const blob = new Blob([(data as Uint8Array).buffer], { type: 'video/mp4' });
       const newUrl = URL.createObjectURL(blob);
 
-      trimmedUrlRef.current = newUrl;
       setTrimmedVideoUrl(newUrl);
-      setProcessingProgress(100);
-
-      // Cargar y reproducir inmediatamente la nueva instancia limpia de video
-      if (previewVideoRef.current) {
-        previewVideoRef.current.src = newUrl;
-        previewVideoRef.current.load();
-        previewVideoRef.current.play().catch(() => {});
-        setIsPlaying(true);
-      }
-
+      
+      // Update duration state to match new video
+      const tempVideo = document.createElement('video');
+      tempVideo.src = newUrl;
+      tempVideo.onloadedmetadata = () => {
+        setDurationInSeconds(tempVideo.duration);
+        setStartTime(0);
+        setEndTime(tempVideo.duration);
+        setProcessingProgress(100);
+      };
+      setShowResultModal(true);
       return newUrl;
     } catch (error: any) {
-      console.warn('FFmpeg WASM no disponible, usando procesador nativo Canvas:', error);
+      console.warn('FFmpeg WASM processing failed, using native canvas fallback:', error);
       return await processVideoNative(targetMode, targetSpeed, targetMuted);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Manejar cambio directo de Modo de Reproducción con procesamiento inmediato
-  const handleSelectMode = (newMode: typeof loopMode) => {
-    setLoopMode(newMode);
-    processVideoWithFFmpeg(newMode, speed, isMuted);
-  };
-
-  // Manejar cambio directo de Velocidad con procesamiento inmediato
-  const handleSelectSpeed = (newSpeed: number) => {
-    setSpeed(newSpeed);
-    processVideoWithFFmpeg(loopMode, newSpeed, isMuted);
-  };
-
   const handleSave = async () => {
     setIsProcessing(true);
-    try {
-      let finalUrl = trimmedVideoUrl;
-      if (!finalUrl) {
-        finalUrl = await processVideoWithFFmpeg();
-      }
-
-      if (finalUrl) {
-        await onSave({
-          content: finalUrl,
-          videoStartTime: 0,
-          videoEndTime: 0,
-          videoMuted: isMuted,
-          videoLoopMode: loopMode,
-          videoSpeed: 1,
-        }, false);
-      } else {
-        await onSave({
-          videoStartTime: startTime,
-          videoEndTime: endTime,
-          videoMuted: isMuted,
-          videoLoopMode: loopMode,
-          videoSpeed: speed,
-        }, false);
-      }
-      onClose();
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleSaveNew = async () => {
-    setIsProcessing(true);
-    try {
-      let finalUrl = trimmedVideoUrl;
-      if (!finalUrl) {
-        finalUrl = await processVideoWithFFmpeg();
-      }
-
-      if (finalUrl) {
-        await onSave({
-          content: finalUrl,
-          videoStartTime: 0,
-          videoEndTime: 0,
-          videoMuted: isMuted,
-          videoLoopMode: loopMode,
-          videoSpeed: 1,
-        }, true);
-      }
-      onClose();
-    } finally {
-      setIsProcessing(false);
-    }
+    await onSave({
+      content: trimmedVideoUrl || element.content,
+      videoStartTime: startTime,
+      videoEndTime: endTime,
+      videoMuted: isMuted,
+      videoSpeed: speed,
+      videoLoopMode: loopMode as any,
+    }, false);
+    setIsProcessing(false);
+    onClose();
   };
 
   if (!isOpen) return null;
 
-  const actualEndTime = (endTime > startTime && endTime <= duration) ? endTime : duration;
-  const activeSegmentDuration = Math.max(0.1, actualEndTime - startTime);
-  const startPercent = duration > 0 ? (startTime / duration) * 100 : 0;
-  const endPercent = duration > 0 ? (actualEndTime / duration) * 100 : 100;
-
-  const REPRODUCTION_MODES = [
-    { id: 'seamless', label: 'Bucle Suave', desc: 'Fundido sin salto', icon: RefreshCw },
-    { id: 'pingpong', label: 'Ping-Pong', desc: 'Efecto Boomerang', icon: Repeat },
-    { id: 'rewind', label: 'Rebobinado 3x', desc: 'Efecto retro VHS', icon: Rewind },
-    { id: 'slowmo', label: 'Cámara Lenta', desc: 'Centro emotivo 0.5x', icon: Sparkles },
-    { id: 'reverse', label: 'Reversa Pura', desc: 'Inversión completa', icon: RotateCcw },
-    { id: 'stutter', label: 'Stutter 3x', desc: 'Ritmo 1, 2, 3... Go!', icon: Zap },
-    { id: 'once', label: 'Una Vez', desc: 'Reproducción limpia', icon: Play },
-  ];
+  const durationInFrames = Math.max(1, Math.floor((endTime - startTime) * fps));
+  const startFrame = Math.floor(startTime * fps);
+  const endFrame = Math.floor(endTime * fps);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-150 font-sans">
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl border rounded-none shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
-        style={{
-          backgroundColor: 'var(--bg-card)',
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300">
+      <div 
+        className="rounded-md w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl border"
+        style={{ 
+          backgroundColor: 'var(--bg-card)', 
           borderColor: 'var(--border-color)',
-          color: 'var(--text-main)',
+          color: 'var(--text-main)' 
         }}
       >
-        {/* MODAL HEADER */}
-        <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-none flex items-center justify-center border" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}>
-              <Film size={18} />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold tracking-wide uppercase" style={{ color: 'var(--text-main)' }}>Editor de Video Profesional</h3>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Procesamiento unificado con FFmpeg WASM: Corte, Modos de Reproducción y Vista Previa Real</p>
-            </div>
+        
+        {/* Header */}
+        <div 
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-app)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Film className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+            <h2 className="text-sm font-semibold">Editor de Video</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-none border transition-all cursor-pointer opacity-70 hover:opacity-100"
-            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+          <button 
+            onClick={onClose} 
+            className="p-1 rounded-md transition-opacity hover:opacity-70"
+            style={{ color: 'var(--text-muted)' }}
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        {/* MODAL BODY GRID (COLUMNA IZQUIERDA: PREVIEW SMARTPHONE 9:16 | COLUMNA DERECHA: CONTROLES) */}
-        <div className="p-5 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* COLUMNA IZQUIERDA: VISTA PREVIA FINAL EN SMARTPHONE 9:16 (5 COLS) */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-center p-3 rounded-none border h-full min-h-[380px]" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-            <div className="relative h-[430px] max-h-full aspect-[9/16] rounded-none overflow-hidden bg-black border-2 shadow-2xl flex items-center justify-center" style={{ borderColor: 'var(--border-color)' }}>
-              {/* OVERLAY DE CARGA DE PROCESAMIENTO FFMPEG */}
-              {isProcessing && (
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 z-30 animate-in fade-in duration-150">
-                  <Loader2 size={36} className="animate-spin text-emerald-400 mb-2" />
-                  <span className="text-xs font-extrabold text-white uppercase tracking-wider text-center">Procesando Modo</span>
-                  <span className="text-[10px] text-emerald-400 font-mono mt-1 font-extrabold">{processingProgress}%</span>
-                </div>
-              )}
-
-              {element.content ? (
-                <video
-                  key={trimmedVideoUrl || element.content}
-                  ref={previewVideoRef}
-                  src={trimmedVideoUrl || (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content)}
-                  autoPlay
-                  loop
-                  playsInline
-                  crossOrigin="anonymous"
-                  className="w-full h-full"
-                  style={{
-                    objectFit: (element.objectFit as any) || 'cover',
-                    filter: `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim(),
-                    transform: (element.mediaX || element.mediaY || (element.mediaScale && element.mediaScale !== 100) || element.mediaRotation)
-                      ? `translate(${element.mediaX || 0}px, ${element.mediaY || 0}px) scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`
-                      : undefined,
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                  Sin video
-                </div>
-              )}
-
-              {/* BADGE DE TIEMPO ACTUAL */}
-              <div
-                ref={timeBadgeRef}
-                className="absolute top-3 right-3 bg-black/70 px-3 py-1 rounded-full text-[10px] font-mono font-extrabold border shadow-md z-10"
-                style={{ borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}
-              >
-                {currentTime.toFixed(1)}s / {duration > 0 ? duration.toFixed(1) : 0}s
-              </div>
-
-              {/* INDICADOR DE VIDEO PROCESADO */}
-              {trimmedVideoUrl && !isProcessing && (
-                <div className="absolute bottom-3 left-3 bg-emerald-500/90 text-white px-2.5 py-0.5 rounded-full text-[9px] font-bold border border-white/20 shadow-md flex items-center gap-1 z-10 animate-in zoom-in-50 duration-200">
-                  <Check size={10} /> Video Procesado (Vista Previa Real)
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* COLUMNA DERECHA: TIMELINE DE RECORTE & MODOS DE REPRODUCCIÓN (7 COLS) */}
-          <div className="lg:col-span-7 space-y-4 flex flex-col justify-center">
-            {/* PISTA PRINCIPAL DE VIDEO RECORTADO */}
-            <div className="space-y-3 p-4 rounded-none border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-              <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
-                <span className="flex items-center gap-1.5"><Film size={14} /> Línea de Tiempo (Segmento Seleccionado)</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-white/90 bg-black/60 px-2 py-0.5 rounded border border-white/10">
-                    Duración: {activeSegmentDuration.toFixed(1)}s
-                  </span>
-                  {/* BOTÓN PLAY / PAUSA */}
-                  <button
-                    type="button"
-                    onClick={togglePlay}
-                    title={isPlaying ? 'Pausar' : 'Reproducir'}
-                    className="p-1.5 rounded-none border transition-all cursor-pointer flex items-center justify-center"
-                    style={{
-                      backgroundColor: isPlaying ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                      borderColor: isPlaying ? 'var(--primary-accent)' : 'var(--border-color)',
-                      color: isPlaying ? 'var(--primary-accent)' : 'var(--text-main)',
-                    }}
-                  >
-                    {isPlaying ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
-                  </button>
-                  {/* BOTÓN SILENCIAR */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextMute = !isMuted;
-                      setIsMuted(nextMute);
-                      processVideoWithFFmpeg(loopMode, speed, nextMute);
-                    }}
-                    title={isMuted ? 'Desactivar silenciar' : 'Silenciar audio'}
-                    className="p-1.5 rounded-none border transition-all cursor-pointer flex items-center justify-center"
-                    style={{
-                      backgroundColor: isMuted ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                      borderColor: isMuted ? 'var(--primary-accent)' : 'var(--border-color)',
-                      color: isMuted ? 'var(--primary-accent)' : 'var(--text-main)',
-                    }}
-                  >
-                    {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* PISTA Y BOTON DE PROCESAMIENTO */}
-              <div className="flex gap-4 items-stretch">
-                <div
-                  ref={timelineRef}
-                  onMouseDown={handleTimelineMouseDown}
-                  className="relative flex-1 rounded-none bg-slate-950 overflow-hidden cursor-pointer select-none shadow-2xl p-0"
-                >
-                  {/* REGLA DE TIEMPO */}
-                  <div className="h-6 w-full bg-slate-900/90 border-b border-white/10 flex items-center justify-between px-3 relative font-mono text-[9px] text-white/70 pointer-events-none">
-                    {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
-                      const timeLabel = (duration * pct).toFixed(1);
-                      return (
-                        <div key={idx} className="flex flex-col items-center">
-                          <span className="leading-none">{timeLabel}s</span>
-                          <div className="w-0.5 h-1.5 bg-white/40 mt-0.5" />
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* FOTOGRAMAS Y MANIJAS */}
-                  <div className="relative h-16 w-full">
-                    <div className="absolute inset-0 flex items-center bg-black">
-                      {thumbnails.length > 0 ? (
-                        thumbnails.map((thumb, idx) => {
-                          const frameTime = ((idx / (thumbnails.length - 1)) * duration).toFixed(1);
-                          return (
-                            <div
-                              key={idx}
-                              className="h-full flex-1 relative overflow-hidden border-r border-white/10 last:border-r-0 flex items-center justify-center bg-slate-900/80 group"
-                            >
-                              <img
-                                src={thumb}
-                                style={{ aspectRatio: `${videoAspectRatio}` }}
-                                className="h-full max-w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                                alt={`Fotograma ${frameTime}s`}
-                              />
-                              <div className="absolute bottom-1 right-1 bg-black/85 px-1 py-0.2 rounded text-[8px] font-mono font-bold text-white border border-white/10 backdrop-blur-[2px]">
-                                {frameTime}s
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center text-[10px] text-white/40 font-mono">
-                          Cargando fotogramas del corte...
-                        </div>
-                      )}
-                    </div>
-
-                    {/* OVERLAYS OSCUROS */}
-                    <div className="absolute top-0 bottom-0 left-0 bg-black/60 z-10 pointer-events-none" style={{ width: `${startPercent}%` }} />
-                    <div className="absolute top-0 bottom-0 right-0 bg-black/60 z-10 pointer-events-none" style={{ width: `${100 - endPercent}%` }} />
-
-                    {/* MARCO DE SELECCIÓN Y MANIJAS */}
-                    <div
-                      className="absolute top-0 bottom-0 border-y-2 z-20 group"
-                      style={{ borderColor: 'var(--primary-accent)', left: `${startPercent}%`, width: `${endPercent - startPercent}%` }}
-                    >
-                      <div
-                        onMouseDown={handleDragBlock}
-                        className="absolute inset-y-0 left-1.5 right-1.5 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-colors pointer-events-auto"
-                      />
-                      <div
-                        onMouseDown={(e) => handleDragHandle(e, 'start')}
-                        className="absolute top-0 bottom-0 left-0 w-4 -ml-2 cursor-ew-resize pointer-events-auto flex items-center justify-center hover:scale-110 transition-transform shadow-md"
-                        style={{ backgroundColor: 'var(--primary-accent)' }}
-                      >
-                        <div className="w-0.5 h-4 bg-white/70" />
-                      </div>
-                      <div
-                        onMouseDown={(e) => handleDragHandle(e, 'end')}
-                        className="absolute top-0 bottom-0 right-0 w-4 -mr-2 cursor-ew-resize pointer-events-auto flex items-center justify-center hover:scale-110 transition-transform shadow-md"
-                        style={{ backgroundColor: 'var(--primary-accent)' }}
-                      >
-                        <div className="w-0.5 h-4 bg-white/70" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AGUJA ROJA PRO */}
-                  <div
-                    ref={redNeedleRef}
-                    className="absolute top-0 bottom-0 z-25 pointer-events-none flex flex-col items-center -ml-[1px]"
-                    style={{ left: `${Math.max(0, Math.min(100, duration > 0 ? (currentTime / duration) * 100 : 0))}%` }}
-                  >
-                    <div className="w-3 h-3 bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,1)] -mt-0.5 border border-white" />
-                    <div className="w-0.5 h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,1)]" />
-                  </div>
-                </div>
-
-                {/* BOTÓN PROCESAR Y PREVISUALIZAR */}
-                <button
-                  type="button"
-                  onClick={() => processVideoWithFFmpeg()}
-                  disabled={isProcessing}
-                  title={isProcessing ? 'Procesando...' : 'Aplicar Filtros y Previsualizar'}
-                  className="w-[84px] shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-none border transition-all cursor-pointer relative group shadow-md"
-                  style={{
-                    backgroundColor: trimmedVideoUrl ? 'var(--primary-accent)' : 'var(--bg-card)',
-                    borderColor: trimmedVideoUrl ? 'var(--primary-accent)' : 'var(--border-color)',
-                    color: trimmedVideoUrl ? '#ffffff' : 'var(--text-main)',
-                    opacity: isProcessing ? 0.7 : 1,
-                    cursor: isProcessing ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      <span className="text-[10px] font-extrabold uppercase text-center leading-tight">
-                        {processingProgress}%
-                      </span>
-                    </>
+        {/* Workspace */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          
+          {/* Main Canvas Area */}
+          <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-app)' }}>
+            {/* Preview Section */}
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-sm">
+                {durationInSeconds > 0 ? (
+                  trimmedVideoUrl ? (
+                    <video
+                      key={trimmedVideoUrl}
+                      src={trimmedVideoUrl}
+                      ref={(v) => { if (v) { (playerRef as any).current = v; } }}
+                      className="w-full h-full object-contain"
+                      controls={false}
+                      autoPlay
+                      loop
+                      muted={isMuted}
+                    />
                   ) : (
-                    <>
-                      <Wand2 size={20} className="transition-transform group-hover:scale-110" />
-                      <span className="text-[9px] font-extrabold uppercase text-center leading-tight">
-                        Procesar
-                      </span>
-                    </>
-                  )}
-                </button>
+                    <Player
+                      key={trimmedVideoUrl || 'original'}
+                      ref={playerRef}
+                      component={VideoComposition}
+                      inputProps={{
+                        src: element.content || '',
+                        startFrame,
+                        endFrame,
+                        isMuted,
+                        speed,
+                        loopMode,
+                      }}
+                      durationInFrames={Math.max(1, durationInFrames)}
+                      compositionWidth={videoWidth}
+                      compositionHeight={videoHeight}
+                      fps={fps}
+                      style={{ width: '100%', height: '100%' }}
+                      controls={false}
+                      loop
+                      autoPlay
+                    />
+                  )
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Cargando...</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* MODOS DE REPRODUCCIÓN PROFESIONALES */}
-            <div className="p-3.5 rounded-none border space-y-2" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-              <span className="block text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
-                Modos de Reproducción Profesionales
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {REPRODUCTION_MODES.map((m) => {
-                  const Icon = m.icon;
-                  const isActive = loopMode === m.id || (m.id === 'seamless' && loopMode === 'loop');
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => handleSelectMode(m.id as any)}
-                      disabled={isProcessing}
-                      className="p-2 rounded-none border transition-all text-left cursor-pointer flex flex-col justify-between group hover:scale-[1.02] disabled:opacity-50"
-                      style={{
-                        backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                        borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
-                        color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
-                      }}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-xs font-bold leading-tight">{m.label}</span>
-                        <Icon size={14} className="shrink-0 opacity-70 group-hover:opacity-100" />
-                      </div>
-                      <span className="text-[9px] opacity-75 mt-1 font-medium leading-tight">{m.desc}</span>
-                    </button>
-                  );
-                })}
+            {/* Timeline & Transport (Bottom of Canvas) */}
+            <div 
+              className="border-t p-3 flex flex-col gap-2 h-28"
+              style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+            >
+              {/* Controles de reproducción compactos */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={togglePlay}
+                    className="w-8 h-8 flex items-center justify-center border rounded-md transition-colors hover:opacity-80"
+                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                  >
+                    {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                  </button>
+                  <button 
+                    onClick={() => setIsMuted(!isMuted)}
+                    className="w-8 h-8 flex items-center justify-center border rounded-md transition-colors hover:opacity-80"
+                    style={{ 
+                      backgroundColor: 'var(--bg-app)', 
+                      borderColor: isMuted ? 'transparent' : 'var(--border-color)', 
+                      color: isMuted ? 'var(--color-danger, #E63946)' : 'var(--text-muted)' 
+                    }}
+                  >
+                    {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                  </button>
+                </div>
+                
+                <div className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {startTime.toFixed(1)}s / {endTime.toFixed(1)}s
+                </div>
               </div>
-            </div>
 
-            {/* VELOCIDAD DE REPRODUCCIÓN */}
-            <div className="p-3.5 rounded-none border space-y-2" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-              <span className="block text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
-                Velocidad del Fragmento ({speed}x)
-              </span>
-              <div className="grid grid-cols-4 gap-2">
-                {[0.5, 1, 1.5, 2].map((s) => {
-                  const isActive = speed === s;
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => handleSelectSpeed(s)}
-                      disabled={isProcessing}
-                      className="py-2 rounded-none text-xs font-extrabold border transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-                      style={{
-                        backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                        borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
-                        color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
-                      }}
-                    >
-                      {s}x
-                    </button>
-                  );
-                })}
+              {/* Sliders Compactos */}
+              <div className="flex-1 relative flex flex-col justify-center mt-2">
+                <div 
+                  className="relative w-full h-8 rounded-md border flex items-center px-2"
+                  style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                >
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 opacity-20 border-r" 
+                    style={{ width: `${(startTime / durationInSeconds) * 100}%`, backgroundColor: 'var(--primary-accent)', borderColor: 'var(--primary-accent)' }}
+                  ></div>
+                  <div 
+                    className="absolute right-0 top-0 bottom-0 opacity-20 border-l" 
+                    style={{ width: `${(1 - endTime / durationInSeconds) * 100}%`, backgroundColor: 'var(--primary-accent)', borderColor: 'var(--primary-accent)' }}
+                  ></div>
+                  
+                  <input 
+                    type="range" 
+                    min={0} 
+                    max={durationInSeconds} 
+                    step={0.1}
+                    value={startTime}
+                    onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime - 0.5))}
+                    className="absolute inset-x-2 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow"
+                    style={{ zIndex: 10, '--tw-thumb-bg': 'var(--text-main)', '--tw-thumb-border': 'var(--border-color)' } as any}
+                  />
+                  <input 
+                    type="range" 
+                    min={0} 
+                    max={durationInSeconds} 
+                    step={0.1}
+                    value={endTime}
+                    onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime + 0.5))}
+                    className="absolute inset-x-2 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow"
+                    style={{ zIndex: 10, '--tw-thumb-bg': 'var(--text-main)', '--tw-thumb-border': 'var(--border-color)' } as any}
+                  />
+                  {/* Estilos inyectados para forzar el color del thumb usando las variables */}
+                  <style>{`
+                    input[type=range]::-webkit-slider-thumb {
+                      background: var(--text-main) !important;
+                      border-color: var(--border-color) !important;
+                    }
+                  `}</style>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* MODAL FOOTER */}
-        <div className="px-5 py-3 border-t flex items-center justify-end gap-3" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-none text-xs font-extrabold border transition-colors cursor-pointer"
-            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+          {/* Sidebar Inspector Compacto */}
+          <div 
+            className="w-full md:w-[300px] border-l flex flex-col"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
           >
-            Cancelar
-          </button>
+            <div 
+              className="flex items-center p-2 border-b gap-1"
+              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+            >
+              <button 
+                onClick={() => setActiveTab('trim')}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors border"
+                style={{ 
+                  backgroundColor: activeTab === 'trim' ? 'var(--bg-card)' : 'transparent', 
+                  color: activeTab === 'trim' ? 'var(--text-main)' : 'var(--text-muted)',
+                  borderColor: activeTab === 'trim' ? 'var(--border-color)' : 'transparent'
+                }}
+              >
+                <Scissors size={14} />
+                Ajustes
+              </button>
+              <button 
+                onClick={() => setActiveTab('effects')}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors border"
+                style={{ 
+                  backgroundColor: activeTab === 'effects' ? 'var(--bg-card)' : 'transparent', 
+                  color: activeTab === 'effects' ? 'var(--text-main)' : 'var(--text-muted)',
+                  borderColor: activeTab === 'effects' ? 'var(--border-color)' : 'transparent'
+                }}
+              >
+                <Wand2 size={14} />
+                Efectos
+              </button>
+            </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={handleSaveNew}
-              disabled={isProcessing}
-              title="Guardar como un nuevo elemento de video unificado"
-              className={`px-5 py-2 rounded-none text-xs font-extrabold transition-all flex items-center gap-1.5 border ${
-                !isProcessing
-                  ? 'cursor-pointer hover:scale-105 active:scale-95 shadow-md'
-                  : 'cursor-not-allowed opacity-50'
-              }`}
-              style={{
-                backgroundColor: 'var(--bg-app)',
-                borderColor: 'var(--primary-accent)',
-                color: 'var(--primary-accent)',
-              }}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
+              
+              {activeTab === 'trim' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                      <Settings2 size={14} style={{ color: 'var(--text-muted)' }} />
+                      Velocidad
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {SPEEDS.map(s => {
+                        const isActive = speed === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => setSpeed(s)}
+                            className="py-1.5 rounded-md text-xs font-medium border transition-colors"
+                            style={{ 
+                              backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
+                              borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                              color: isActive ? '#fff' : 'var(--text-main)',
+                              opacity: isActive ? 0.9 : 1
+                            }}
+                          >
+                            {s}x
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                      <Repeat size={14} style={{ color: 'var(--text-muted)' }} />
+                      Modo de Bucle
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {MODES.map(mode => {
+                        const Icon = mode.icon;
+                        const isActive = loopMode === mode.id;
+                        return (
+                          <button
+                            key={mode.id}
+                            onClick={() => setLoopMode(mode.id)}
+                            className="flex flex-col items-center gap-1.5 p-2.5 rounded-md border transition-colors"
+                            style={{
+                              backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
+                              borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                              color: isActive ? '#fff' : 'var(--text-main)',
+                              opacity: isActive ? 0.9 : 1
+                            }}
+                          >
+                            <Icon size={16} strokeWidth={2} />
+                            <span className="text-[10px] font-medium leading-none">{mode.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    <button 
+                      onClick={() => processVideoWithFFmpeg(loopMode, speed, isMuted)}
+                      disabled={isProcessing}
+                      className="mt-3 w-full py-2 flex items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors border"
+                      style={{ 
+                        backgroundColor: 'var(--bg-app)',
+                        borderColor: 'var(--primary-accent)',
+                        color: 'var(--primary-accent)'
+                      }}
+                    >
+                      {isProcessing && processingProgress < 100 ? (
+                        <><Loader2 className="w-3 h-3 animate-spin" /> Procesando {processingProgress}%</>
+                      ) : (
+                        <><Zap className="w-3 h-3" /> Aplicar Bucle y Velocidad</>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'effects' && (
+                <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 opacity-70">
+                  <div 
+                    className="w-10 h-10 rounded-md flex items-center justify-center border"
+                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                  >
+                    <Wand2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                  </div>
+                  <h4 className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Efectos Próximamente</h4>
+                </div>
+              )}
+            </div>
+
+            <div 
+              className="p-3 border-t"
+              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
             >
-              {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Film size={14} />} Guardar Nuevo
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isProcessing}
-              className={`px-5 py-2 rounded-none text-xs font-extrabold text-white transition-all flex items-center gap-1.5 shadow-md ${
-                isProcessing ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:scale-105 active:scale-95'
-              }`}
-              style={{ backgroundColor: 'var(--primary-accent)' }}
-            >
-              {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Guardar Ajustes
-            </button>
+              <button
+                onClick={handleSave}
+                disabled={isProcessing}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 hover:opacity-80"
+                style={{ backgroundColor: 'var(--primary-accent)', color: '#fff', border: 'none' }}
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Aplicar
+              </button>
+            </div>
           </div>
         </div>
       </div>
+      
+      {showResultModal && trimmedVideoUrl && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 rounded-md p-4 max-w-3xl w-full flex flex-col gap-4 border border-gray-700 shadow-2xl">
+            <div className="flex justify-between items-center text-white">
+              <h3 className="font-semibold text-sm">Preview Final (Para Pruebas de Desarrollo)</h3>
+              <button onClick={() => setShowResultModal(false)} className="hover:text-red-400">
+                <X size={18} />
+              </button>
+            </div>
+            <video src={trimmedVideoUrl} controls autoPlay loop className="w-full max-h-[70vh] rounded-md bg-black" />
+            <div className="flex justify-end">
+              <button onClick={() => setShowResultModal(false)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors">
+                Cerrar y Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
