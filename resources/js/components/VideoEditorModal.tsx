@@ -71,6 +71,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'trim' | 'effects'>('trim');
   const [showResultModal, setShowResultModal] = useState(false);
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
 
   // FFmpeg states
   const ffmpegRef = useRef(new FFmpeg());
@@ -176,6 +177,14 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         tempVideo.onloadedmetadata = () => resolve();
         tempVideo.onerror = () => reject(new Error('No se pudo cargar el video fuente'));
       });
+
+      // CRITICAL CHROME HACK: Force the browser to initialize the decoding pipeline
+      // by briefly playing and then pausing. Without this, seeking will often
+      // just yield the first frame repeatedly.
+      try {
+        await tempVideo.play();
+        tempVideo.pause();
+      } catch (e) {}
 
       const videoWidth = tempVideo.videoWidth || 720;
       const videoHeight = tempVideo.videoHeight || 1280;
@@ -498,16 +507,26 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
               <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-sm">
                 {durationInSeconds > 0 ? (
                   trimmedVideoUrl ? (
-                    <video
-                      key={trimmedVideoUrl}
-                      src={trimmedVideoUrl}
-                      ref={(v) => { if (v) { (playerRef as any).current = v; } }}
-                      className="w-full h-full object-contain"
-                      controls={false}
-                      autoPlay
-                      loop
-                      muted={isMuted}
-                    />
+                    <>
+                      {isVideoLoading && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 z-10">
+                          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Cargando buffer del video...</span>
+                        </div>
+                      )}
+                      <video
+                        key={trimmedVideoUrl}
+                        src={trimmedVideoUrl}
+                        ref={(v) => { if (v) { (playerRef as any).current = v; } }}
+                        className="w-full h-full object-contain"
+                        controls={false}
+                        autoPlay
+                        loop
+                        muted={isMuted}
+                        onLoadStart={() => setIsVideoLoading(true)}
+                        onCanPlayThrough={() => setIsVideoLoading(false)}
+                      />
+                    </>
                   ) : (
                     <Player
                       key={trimmedVideoUrl || 'original'}
@@ -778,7 +797,23 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                 <X size={18} />
               </button>
             </div>
-            <video src={trimmedVideoUrl} controls autoPlay loop className="w-full max-h-[70vh] rounded-md bg-black" />
+            <div className="relative w-full max-h-[70vh] rounded-md bg-black flex items-center justify-center overflow-hidden">
+              {isVideoLoading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 z-10">
+                  <Loader2 className="w-6 h-6 animate-spin text-white" />
+                  <span className="text-xs text-white">Cargando buffer...</span>
+                </div>
+              )}
+              <video 
+                src={trimmedVideoUrl} 
+                controls 
+                autoPlay 
+                loop 
+                className="w-full h-full object-contain"
+                onLoadStart={() => setIsVideoLoading(true)}
+                onCanPlayThrough={() => setIsVideoLoading(false)}
+              />
+            </div>
             <div className="flex justify-end">
               <button onClick={() => setShowResultModal(false)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors">
                 Cerrar y Continuar
