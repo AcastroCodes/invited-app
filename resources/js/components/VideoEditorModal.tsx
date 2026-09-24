@@ -135,6 +135,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
     targetMuted: boolean
   ): Promise<string | null> => {
     let canvas: HTMLCanvasElement | null = null;
+    let actualSrc = '';
     try {
       setIsProcessing(true);
       setProcessingProgress(10);
@@ -146,12 +147,22 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       }
 
       // 1. Cargar el video fuente en un elemento HTMLVideoElement en memoria
+      // Fetch it as a blob first to guarantee 100% perfect seeking without HTTP Range Request issues
+      actualSrc = mediaUrl;
+      try {
+        const response = await fetch(mediaUrl);
+        const blob = await response.blob();
+        actualSrc = URL.createObjectURL(blob);
+      } catch (e) {
+        console.warn('Could not fetch video into blob, falling back to direct URL:', e);
+      }
+
       const tempVideo = document.createElement('video');
       tempVideo.crossOrigin = 'anonymous';
-      tempVideo.src = mediaUrl;
+      tempVideo.src = actualSrc;
       tempVideo.muted = true;
       tempVideo.playsInline = true;
-      
+
       // Crucial: Append video to DOM so Chrome updates its internal texture buffer when seeking
       tempVideo.style.position = 'fixed';
       tempVideo.style.top = '0';
@@ -293,6 +304,9 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         temps.forEach(v => {
           if (v.parentNode) v.parentNode.removeChild(v);
         });
+        if (actualSrc && actualSrc.startsWith('blob:')) {
+          URL.revokeObjectURL(actualSrc);
+        }
       } catch(e) {}
       setIsProcessing(false);
     }
