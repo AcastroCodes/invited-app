@@ -85,8 +85,8 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
                   <span className="text-[9px] uppercase tracking-widest text-white font-semibold">
                     Powered By
                   </span>
-                  {partner && partner.logo ? (
-                    <img src={`/storage/${partner.logo}`} alt={partner.business_name} className="h-5 sm:h-6 object-contain grayscale hover:grayscale-0 transition-all duration-500 brightness-0 invert" />
+                  {partner && (partner.logo_url || partner.logo) ? (
+                    <img src={partner.logo_url || (partner.logo.startsWith('/') || partner.logo.startsWith('http') ? partner.logo : `/storage/${partner.logo}`)} alt={partner.business_name} className="h-5 sm:h-6 object-contain grayscale hover:grayscale-0 transition-all duration-500 brightness-0 invert" />
                   ) : (
                     <div className="text-xs font-bold text-white uppercase tracking-widest">{partner?.business_name || 'Invited Pro'}</div>
                   )}
@@ -246,8 +246,8 @@ export const EnvelopeView: React.FC<EnvelopeViewProps> = ({
              <span className="text-[9px] uppercase tracking-widest text-slate-500/60 font-semibold">
                Powered By
              </span>
-             {partner && partner.logo ? (
-               <img src={`/storage/${partner.logo}`} alt={partner.business_name} className="h-6 object-contain opacity-70 grayscale hover:grayscale-0 transition-all duration-500" />
+             {partner && (partner.logo_url || partner.logo) ? (
+               <img src={partner.logo_url || (partner.logo.startsWith('/') || partner.logo.startsWith('http') ? partner.logo : `/storage/${partner.logo}`)} alt={partner.business_name} className="h-6 object-contain opacity-70 grayscale hover:grayscale-0 transition-all duration-500" />
              ) : (
                <div className="text-sm font-bold text-slate-400/80 uppercase tracking-widest opacity-70">{partner?.business_name || 'Invited Pro'}</div>
              )}

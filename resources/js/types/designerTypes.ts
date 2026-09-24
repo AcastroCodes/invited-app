@@ -106,7 +106,7 @@ export interface CanvasElement {
   videoStartTime?: number;
   videoEndTime?: number;
   videoMuted?: boolean;
-  videoLoopMode?: 'loop' | 'yoyo' | 'once';
+  videoLoopMode?: 'loop' | 'seamless' | 'pingpong' | 'yoyo' | 'once' | 'rewind' | 'reverse' | 'slowmo' | 'stutter';
   videoSpeed?: number;
   patternType?: 'none' | 'dots' | 'lines' | 'grid' | 'waves' | 'custom';
   patternUrl?: string;

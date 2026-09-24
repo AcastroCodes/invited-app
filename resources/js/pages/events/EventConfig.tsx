@@ -334,7 +334,7 @@ export default function EventConfig() {
             {event.logo && (
               <div className="shrink-0 self-center relative z-30 -my-10 mx-6 md:mx-10">
                 <img
-                  src={`/storage/${event.logo}`}
+                  src={event.logo_url || (event.logo.startsWith('/') || event.logo.startsWith('http') ? event.logo : `/storage/${event.logo}`)}
                   alt="logo"
                   className="h-36 max-w-[320px] object-contain drop-shadow-xl"
                 />

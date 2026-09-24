@@ -723,7 +723,7 @@ export default function EventList() {
                   style={{ border: '1px solid var(--border-color)' }}
                 >
                   {ev.logo ? (
-                    <img src={`/storage/${ev.logo}`} alt="logo" className="h-full w-full object-cover" />
+                    <img src={ev.logo_url || (ev.logo.startsWith('/') || ev.logo.startsWith('http') ? ev.logo : `/storage/${ev.logo}`)} alt="logo" className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>{
                       ev.name ? ev.name.split(' ').map(w => w[0]).join('').toUpperCase() : ''

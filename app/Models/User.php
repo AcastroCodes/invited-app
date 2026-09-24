@@ -52,6 +52,10 @@ class User extends Authenticatable
             return null;
         }
 
+        if (filter_var($this->avatar, FILTER_VALIDATE_URL) || str_starts_with($this->avatar, '/storage/')) {
+            return $this->avatar;
+        }
+
         return asset('storage/' . $this->avatar);
     }
 

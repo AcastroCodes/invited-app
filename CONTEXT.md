@@ -2,7 +2,7 @@
 
 Este archivo mantiene el contexto del proyecto para retomar de inmediato en las siguientes sesiones de trabajo.
 
-## Estado Actual del Proyecto (Última actualización: 20 de Septiembre, 2026)
+## Estado Actual del Proyecto (Última actualización: 23 de Septiembre, 2026)
 - **Stack:** Laravel 12 (API), React 19 (SPA), Vite, TailwindCSS v4, HTML2Canvas, Google `<model-viewer>` WebGL.
 - **Autenticación:** Implementada con Laravel Sanctum (Cookies Stateful) con el hook `useAuth.tsx`.
 - **Rutas Principales (`app.jsx`):**
@@ -52,10 +52,19 @@ Este archivo mantiene el contexto del proyecto para retomar de inmediato en las 
 - **Frontend (`InvitationDesigner.tsx`):**
   - Captura optimizada con `html2canvas` reduciendo peso de preview de Megabytes a ~15 KB.
 
-### 3. Ajustes de UI, Scrollbars y Frosted Glass
-- **Diseñador de Invitaciones (`InvitationDesigner.tsx`):**
-  - Corregidos problemas de desplazamiento flexbox e `overflow-auto` para centrar el lienzo cuando es pequeño y permitir desplazamiento desde (0,0) al aumentar el zoom.
-  - Personalizadas todas las barras de scroll y controles de vidrio esmerilado con la paleta de color del proyecto (`var(--primary-accent)` / `#E07A5F`).
+### 4. Corrección de Storage Link y Accessors de URLs
+- **Enlace Simbólico (`public/storage`):**
+  - Reconectado `public/storage` a `storage/app/public` en Windows mediante `php artisan storage:link` tras resolver conflicto con directorio vacío.
+- **Accessors en Modelos Laravel (`Event.php`, `Partner.php`, `User.php`):**
+  - Creados accessors `logo_url`, `background_url` y `avatar_url` para normalizar URLs sin duplicación de rutas `/storage/`.
+
+### 5. Editor de Video Profesional y 7 Modos de Reproducción Unificados
+- **Motor de Procesamiento Client-Side (`VideoEditorModal.tsx`):**
+  - Integrado `@ffmpeg/ffmpeg` en WebAssembly con bandera de sobrescritura `-y` y normalización de color `format=yuv420p`.
+  - Soporte para 7 Modos de Reproducción procesados en un único `.mp4`: `seamless` (Bucle Suave con Crossfade), `pingpong` (Boomerang), `rewind` (VHS 3x), `slowmo` (Cámara lenta central 0.5x), `reverse` (Reversa pura), `stutter` (Ritmo 3x) y `once` (Una vez).
+- **Vista Previa Real y Restricción de Selección:**
+  - El reproductor del smartphone 9:16 previsualiza inmediatamente el video procesado al presionar o cambiar de modo.
+  - Durante la edición de la línea de tiempo, la reproducción queda restringida estrictamente al intervalo `[startTime, endTime]`.
 
 ---
 

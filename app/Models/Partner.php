@@ -37,6 +37,10 @@ class Partner extends Model
             return null;
         }
 
+        if (filter_var($this->logo, FILTER_VALIDATE_URL) || str_starts_with($this->logo, '/storage/')) {
+            return $this->logo;
+        }
+
         return asset('storage/' . $this->logo);
     }
 
