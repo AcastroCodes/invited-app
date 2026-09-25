@@ -279,7 +279,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
             </div>
           </div>
 
-          {/* Listado de Pistas por Elemento */}
+          {/* Listado de Pistas por Elemento (Orden directo 1:1 coincidente con el panel de Capas) */}
           {elements.length === 0 ? (
             <div className="text-center py-4 text-xs font-bold opacity-60" style={{ color: 'var(--text-muted)' }}>
               No hay elementos en el lienzo para animar.
@@ -390,10 +390,10 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                         {/* Handle para redimensionar Duración de IN */}
                         <div
                           onPointerDown={(e) => handleStartDragTrack(e, 'resizeIn')}
-                          className="absolute -right-1 top-0 bottom-0 w-2.5 cursor-ew-resize z-30 flex items-center justify-center group-hover/in:opacity-100 opacity-60"
+                          className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-40 flex items-center justify-center opacity-80 hover:opacity-100"
                           title="Arrastra para cambiar la duración de entrada"
                         >
-                          <div className="w-1.5 h-3 bg-emerald-600 rounded-full shadow-xs border border-white/50" />
+                          <div className="w-1.5 h-3.5 bg-emerald-600 rounded-full shadow-xs border border-white" />
                         </div>
                       </div>
 
@@ -414,10 +414,10 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                         {/* Handle para redimensionar Duración de DURANTE */}
                         <div
                           onPointerDown={(e) => handleStartDragTrack(e, 'resizeIdle')}
-                          className="absolute -right-1 top-0 bottom-0 w-2.5 cursor-ew-resize z-30 flex items-center justify-center group-hover/idle:opacity-100 opacity-60"
+                          className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-40 flex items-center justify-center opacity-80 hover:opacity-100"
                           title="Arrastra para cambiar la duración de durante"
                         >
-                          <div className="w-1.5 h-3 bg-blue-600 rounded-full shadow-xs border border-white/50" />
+                          <div className="w-1.5 h-3.5 bg-blue-600 rounded-full shadow-xs border border-white" />
                         </div>
                       </div>
 
@@ -438,10 +438,10 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                         {/* Handle para redimensionar Duración de OUT */}
                         <div
                           onPointerDown={(e) => handleStartDragTrack(e, 'resizeOut')}
-                          className="absolute -right-1 top-0 bottom-0 w-2.5 cursor-ew-resize z-30 flex items-center justify-center group-hover/out:opacity-100 opacity-60"
+                          className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-40 flex items-center justify-center opacity-80 hover:opacity-100"
                           title="Arrastra para cambiar la duración de salida"
                         >
-                          <div className="w-1.5 h-3 bg-rose-600 rounded-full shadow-xs border border-white/50" />
+                          <div className="w-1.5 h-3.5 bg-rose-600 rounded-full shadow-xs border border-white" />
                         </div>
                       </div>
                     </div>
