@@ -62,7 +62,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const playerRef = useRef<PlayerRef>(null);
+  const playerRef = useRef<HTMLVideoElement | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(true);
   const [durationInSeconds, setDurationInSeconds] = useState(0);
@@ -90,6 +90,44 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
   const loadedInputSrcRef = useRef<string | null>(null);
 
   const fps = 30;
+
+  const startTimeRef = useRef(startTime);
+  const endTimeRef = useRef(endTime);
+  const lastSeekRef = useRef<number>(0);
+
+  useEffect(() => {
+    startTimeRef.current = startTime;
+    endTimeRef.current = endTime;
+  }, [startTime, endTime]);
+
+  // Bucle de reproducción acotado entre startTime y endTime
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const intervalId = setInterval(() => {
+      const video = playerRef.current;
+      if (video && !video.paused && !video.seeking && video.readyState >= 2) {
+        const start = startTimeRef.current;
+        const end = endTimeRef.current || video.duration;
+        
+        // Si el video sobrepasa la marca final o reinició por loop nativo a 0 (cuando start > 0.3)
+        if (end > start + 0.2) {
+          if (video.currentTime >= end - 0.15 || (start > 0.3 && video.currentTime < start - 0.2)) {
+            video.currentTime = start;
+          }
+        }
+      }
+    }, 50);
+
+    return () => clearInterval(intervalId);
+  }, [isOpen]);
+
+  // Sincronizar velocidad de reproducción cuando cambie la velocidad
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.playbackRate = speed;
+    }
+  }, [speed]);
 
   // Generar fotogramas de la línea de tiempo del video activo (fuente o procesado por el modo)
   useEffect(() => {
@@ -616,8 +654,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
 
       await ffmpeg.exec(ffmpegArgs);
 
-      const data = await ffmpeg.readFile('output.mp4');
-      const blob = new Blob([(data as Uint8Array).buffer], { type: 'video/mp4' });
+      const blob = new Blob([data as Uint8Array], { type: 'video/mp4' });
       const newUrl = URL.createObjectURL(blob);
 
       setTrimmedVideoUrl(newUrl);
@@ -705,26 +742,23 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       <div className="absolute top-2 left-2 z-20 bg-black/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded backdrop-blur-sm border border-white/20">
                         Video Original
                       </div>
-                      <Player
-                        key="original-side"
+                      <video
+                        key="orig-side-video"
                         ref={playerRef}
-                        component={VideoComposition}
-                        inputProps={{
-                          src: element.content || '',
-                          startFrame,
-                          endFrame,
-                          isMuted,
-                          speed,
-                          loopMode,
-                        }}
-                        durationInFrames={Math.max(1, durationInFrames)}
-                        compositionWidth={videoWidth}
-                        compositionHeight={videoHeight}
-                        fps={fps}
-                        style={{ width: '100%', height: '100%' }}
+                        src={element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : ''}
+                        className="w-full h-full object-contain cursor-pointer"
                         controls={false}
+                        autoPlay
                         loop
-                        autoPlay={!isProcessing}
+                        playsInline
+                        muted={isMuted}
+                        onLoadedMetadata={(e: React.SyntheticEvent<HTMLVideoElement>) => {
+                          const video = e.currentTarget;
+                          video.playbackRate = speed;
+                        }}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onClick={togglePlay}
                       />
                     </div>
 
@@ -778,26 +812,23 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                         <span className="text-[10px] text-gray-400 mt-1">Creando vista previa rápida</span>
                       </div>
                     )}
-                    <Player
-                      key="original-center"
+                    <video
+                      key="orig-center-video"
                       ref={playerRef}
-                      component={VideoComposition}
-                      inputProps={{
-                        src: element.content || '',
-                        startFrame,
-                        endFrame,
-                        isMuted,
-                        speed,
-                        loopMode,
-                      }}
-                      durationInFrames={Math.max(1, durationInFrames)}
-                      compositionWidth={videoWidth}
-                      compositionHeight={videoHeight}
-                      fps={fps}
-                      style={{ width: '100%', height: '100%' }}
+                      src={element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : ''}
+                      className="w-full h-full object-contain cursor-pointer"
                       controls={false}
+                      autoPlay
                       loop
-                      autoPlay={!isProcessing}
+                      playsInline
+                      muted={isMuted}
+                      onLoadedMetadata={(e: React.SyntheticEvent<HTMLVideoElement>) => {
+                        const video = e.currentTarget;
+                        video.playbackRate = speed;
+                      }}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onClick={togglePlay}
                     />
                   </div>
                 )
@@ -902,7 +933,27 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       max={durationInSeconds} 
                       step={0.1}
                       value={startTime}
-                      onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime - 0.5))}
+                      onChange={(e) => {
+                        const val = Math.min(Number(e.target.value), endTime - 0.5);
+                        setStartTime(val);
+                        startTimeRef.current = val;
+                        if (trimmedVideoUrl) setTrimmedVideoUrl(null);
+                      }}
+                      onPointerUp={() => {
+                        if (playerRef.current) {
+                          playerRef.current.currentTime = startTimeRef.current;
+                        }
+                      }}
+                      onMouseUp={() => {
+                        if (playerRef.current) {
+                          playerRef.current.currentTime = startTimeRef.current;
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (playerRef.current) {
+                          playerRef.current.currentTime = startTimeRef.current;
+                        }
+                      }}
                       className="absolute inset-x-0 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-16 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow-lg z-20"
                     />
                     <input 
@@ -911,7 +962,27 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       max={durationInSeconds} 
                       step={0.1}
                       value={endTime}
-                      onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime + 0.5))}
+                      onChange={(e) => {
+                        const val = Math.max(Number(e.target.value), startTime + 0.5);
+                        setEndTime(val);
+                        endTimeRef.current = val;
+                        if (trimmedVideoUrl) setTrimmedVideoUrl(null);
+                      }}
+                      onPointerUp={() => {
+                        if (playerRef.current && playerRef.current.currentTime >= endTimeRef.current) {
+                          playerRef.current.currentTime = startTimeRef.current;
+                        }
+                      }}
+                      onMouseUp={() => {
+                        if (playerRef.current && playerRef.current.currentTime >= endTimeRef.current) {
+                          playerRef.current.currentTime = startTimeRef.current;
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (playerRef.current && playerRef.current.currentTime >= endTimeRef.current) {
+                          playerRef.current.currentTime = startTimeRef.current;
+                        }
+                      }}
                       className="absolute inset-x-0 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-16 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow-lg z-20"
                     />
                     <style>{`
@@ -1036,10 +1107,51 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
-                      <Repeat size={14} style={{ color: 'var(--text-muted)' }} />
-                      Modo de Bucle
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                        <Repeat size={14} style={{ color: 'var(--text-muted)' }} />
+                        Modo de Bucle
+                      </label>
+                      <button
+                        onClick={() => {
+                          const testSec = 2.0;
+                          setStartTime(testSec);
+                          startTimeRef.current = testSec;
+                          if (endTime <= testSec) {
+                            const newEnd = Math.min(durationInSeconds, testSec + 3);
+                            setEndTime(newEnd);
+                            endTimeRef.current = newEnd;
+                          }
+                          if (trimmedVideoUrl) setTrimmedVideoUrl(null);
+                          if (playerRef.current) {
+                            const v = playerRef.current;
+                            try {
+                              v.pause();
+                              v.currentTime = testSec;
+                              const onSeeked = () => {
+                                v.removeEventListener('seeked', onSeeked);
+                                v.play().catch(() => {});
+                                setIsPlaying(true);
+                              };
+                              v.addEventListener('seeked', onSeeked, { once: true });
+                              // Fallback por si 'seeked' fue instantáneo
+                              setTimeout(() => {
+                                v.removeEventListener('seeked', onSeeked);
+                                if (v.paused) {
+                                  v.play().catch(() => {});
+                                  setIsPlaying(true);
+                                }
+                              }, 150);
+                            } catch (e) {}
+                          }
+                        }}
+                        className="px-2 py-1 rounded text-[10px] font-bold border bg-purple-600/20 text-purple-400 border-purple-500/40 hover:bg-purple-600/30 transition-colors flex items-center gap-1"
+                        title="Probar reproducción desde el segundo 2.0"
+                      >
+                        <Play size={10} fill="currentColor" />
+                        Probar Seg 2.0
+                      </button>
+                    </div>
                     <div className="grid grid-cols-3 gap-1.5">
                       {MODES.map(mode => {
                         const Icon = mode.icon;
