@@ -41,7 +41,7 @@ class Event extends Model
         if (filter_var($this->logo, FILTER_VALIDATE_URL) || str_starts_with($this->logo, '/storage/')) {
             return $this->logo;
         }
-        return asset('storage/' . $this->logo);
+        return '/storage/' . $this->logo;
     }
 
     protected function getBackgroundUrlAttribute(): ?string
@@ -52,7 +52,7 @@ class Event extends Model
         if (filter_var($this->background, FILTER_VALIDATE_URL) || str_starts_with($this->background, '/storage/')) {
             return $this->background;
         }
-        return asset('storage/' . $this->background);
+        return '/storage/' . $this->background;
     }
 
     protected $appends = ['logo_url', 'background_url'];

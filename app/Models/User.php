@@ -34,6 +34,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function getRoleAttribute($value): string
+    {
+        return strtolower($value ?? '');
+    }
+
     public function partner()
     {
         return $this->hasOne(Partner::class);
@@ -56,7 +61,7 @@ class User extends Authenticatable
             return $this->avatar;
         }
 
-        return asset('storage/' . $this->avatar);
+        return '/storage/' . $this->avatar;
     }
 
     protected $appends = ['avatar_url'];

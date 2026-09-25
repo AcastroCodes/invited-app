@@ -41,7 +41,7 @@ class Partner extends Model
             return $this->logo;
         }
 
-        return asset('storage/' . $this->logo);
+        return '/storage/' . $this->logo;
     }
 
     protected $appends = ['logo_url'];

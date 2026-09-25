@@ -8,6 +8,7 @@ import {
 import type { CanvasElement } from '../types/designerTypes';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
+import WebMWriter from 'webm-writer';
 
 interface VideoEditorModalProps {
   isOpen: boolean;
@@ -17,9 +18,14 @@ interface VideoEditorModalProps {
 }
 
 const MODES = [
+  { id: 'once', name: 'Normal', icon: Play },
   { id: 'seamless', name: 'Bucle Suave', icon: Repeat },
   { id: 'pingpong', name: 'Ping-Pong', icon: RefreshCcw },
-  { id: 'once', name: 'Una vez', icon: Play },
+  { id: 'boomerang', name: 'Boomerang', icon: Zap },
+  { id: 'zoom', name: 'Zoom Dinámico', icon: Wand2 },
+  { id: 'stutter', name: 'Tartamudeo', icon: FastForward },
+  { id: 'mirror', name: 'Espejo', icon: Scissors },
+  { id: 'colorflash', name: 'Blanco / Color', icon: Film },
   { id: 'rewind', name: 'Rebobinar', icon: Rewind },
   { id: 'reverse', name: 'Reversa', icon: RotateCcw },
   { id: 'slowmo', name: 'Cámara Lenta', icon: Zap },
@@ -67,19 +73,149 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
   const [endTime, setEndTime] = useState<number>(Number(element.videoEndTime) || 0);
   const [isMuted, setIsMuted] = useState<boolean>(element.videoMuted !== false);
   const [speed, setSpeed] = useState<number>(Number(element.videoSpeed) || 1);
-  const [loopMode, setLoopMode] = useState<string>((element.videoLoopMode as string) || 'seamless');
+  const [loopMode, setLoopMode] = useState<string>((element.videoLoopMode as string) || 'once');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'trim' | 'effects'>('trim');
   const [showResultModal, setShowResultModal] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
 
   // FFmpeg states
   const ffmpegRef = useRef(new FFmpeg());
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [trimmedVideoUrl, setTrimmedVideoUrl] = useState<string | null>(null);
   const loadedInputSrcRef = useRef<string | null>(null);
 
   const fps = 30;
+
+  // Generar fotogramas de la línea de tiempo del video activo (fuente o procesado por el modo)
+  useEffect(() => {
+    const activeMediaSrc = trimmedVideoUrl || (element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : null);
+    if (!activeMediaSrc || !durationInSeconds || !isOpen) return;
+
+    let isMounted = true;
+    let objectUrl = '';
+    let hiddenVideo: HTMLVideoElement | null = null;
+
+    const cleanup = () => {
+      isMounted = false;
+      if (hiddenVideo) {
+        hiddenVideo.onseeked = null;
+        hiddenVideo.onloadedmetadata = null;
+        if (document.body.contains(hiddenVideo)) {
+          document.body.removeChild(hiddenVideo);
+        }
+      }
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+
+    const generateThumbnails = async () => {
+      try {
+        const response = await fetch(activeMediaSrc);
+        const blob = await response.blob();
+        if (!isMounted) return;
+
+        objectUrl = URL.createObjectURL(blob);
+
+        hiddenVideo = document.createElement('video');
+        hiddenVideo.src = objectUrl;
+        hiddenVideo.crossOrigin = 'anonymous';
+        hiddenVideo.muted = true;
+        hiddenVideo.playsInline = true;
+        hiddenVideo.preload = 'auto';
+        hiddenVideo.style.position = 'fixed';
+        hiddenVideo.style.bottom = '0px';
+        hiddenVideo.style.right = '0px';
+        hiddenVideo.style.width = '10px';
+        hiddenVideo.style.height = '10px';
+        hiddenVideo.style.opacity = '0.01';
+        hiddenVideo.style.pointerEvents = 'none';
+        hiddenVideo.style.zIndex = '-999';
+
+        document.body.appendChild(hiddenVideo);
+
+        const frames: string[] = [];
+
+        hiddenVideo.onloadedmetadata = () => {
+          if (!isMounted) return;
+          const vw = hiddenVideo!.videoWidth || 16;
+          const vh = hiddenVideo!.videoHeight || 9;
+          const aspectRatio = vw / vh;
+          setVideoAspectRatio(aspectRatio);
+
+          let count = 10;
+          if (timelineRef.current) {
+            const timelineWidth = timelineRef.current.clientWidth || 600;
+            const thumbHeight = 64;
+            const thumbWidth = thumbHeight * aspectRatio;
+            count = Math.max(3, Math.ceil(timelineWidth / thumbWidth));
+          }
+
+          let currentStep = 0;
+
+          const startCapturing = () => {
+            const captureStep = () => {
+              if (!isMounted || !hiddenVideo) return;
+              if (currentStep >= count) {
+                setThumbnails([...frames]);
+                cleanup();
+                return;
+              }
+
+              const targetPercent = count > 1 ? currentStep / (count - 1) : 0;
+              const targetTime = Math.max(0.05, Math.min(durationInSeconds - 0.05, targetPercent * durationInSeconds));
+              hiddenVideo.currentTime = targetTime;
+            };
+
+            hiddenVideo!.onseeked = () => {
+              if (!isMounted || !hiddenVideo) return;
+              setTimeout(() => {
+                if (!isMounted || !hiddenVideo) return;
+                if (hiddenVideo.readyState >= 2) {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = Math.round((70 * vw) / vh);
+                  canvas.height = 70;
+                  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                  if (ctx) {
+                    ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+                    frames.push(canvas.toDataURL('image/jpeg', 0.85));
+                  }
+                  currentStep++;
+                  captureStep();
+                } else {
+                  hiddenVideo.onseeked?.(new Event('seeked'));
+                }
+              }, 120);
+            };
+
+            captureStep();
+          };
+
+          hiddenVideo!.play().then(() => {
+            if (!isMounted) return;
+            hiddenVideo!.pause();
+            startCapturing();
+          }).catch(() => {
+            if (!isMounted) return;
+            startCapturing();
+          });
+        };
+      } catch (error) {
+        console.error('Error generando fotogramas:', error);
+      }
+    };
+
+    generateThumbnails();
+
+    return () => {
+      cleanup();
+    };
+  }, [element.content, isOpen, durationInSeconds, trimmedVideoUrl]);
 
   useEffect(() => {
     if (!element.content || !isOpen) return;
@@ -128,6 +264,13 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         playerRef.current.play();
       }
     }
+    if (previewVideoRef.current) {
+      if (previewVideoRef.current.paused) {
+        previewVideoRef.current.play().catch(() => {});
+      } else {
+        previewVideoRef.current.pause();
+      }
+    }
   };
 
   const processVideoNative = async (
@@ -141,6 +284,12 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       setIsProcessing(true);
       setProcessingProgress(10);
 
+      // Pausar el video de previsualización del editor para ahorrar memoria y CPU
+      if (playerRef.current) {
+        try { playerRef.current.pause(); } catch (e) {}
+      }
+      setIsPlaying(false);
+
       let mediaUrl = element.content;
       if (!mediaUrl) return null;
       if (mediaUrl.startsWith('/')) {
@@ -148,7 +297,6 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       }
 
       // 1. Cargar el video fuente en un elemento HTMLVideoElement en memoria
-      // Fetch it as a blob first to guarantee 100% perfect seeking without HTTP Range Request issues
       actualSrc = mediaUrl;
       try {
         const response = await fetch(mediaUrl);
@@ -164,7 +312,6 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       tempVideo.muted = true;
       tempVideo.playsInline = true;
 
-      // Crucial: Append video to DOM so Chrome updates its internal texture buffer when seeking
       tempVideo.style.position = 'fixed';
       tempVideo.style.top = '0';
       tempVideo.style.left = '0';
@@ -178,9 +325,6 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         tempVideo.onerror = () => reject(new Error('No se pudo cargar el video fuente'));
       });
 
-      // CRITICAL CHROME HACK: Force the browser to initialize the decoding pipeline
-      // by briefly playing and then pausing. Without this, seeking will often
-      // just yield the first frame repeatedly.
       try {
         await tempVideo.play();
         tempVideo.pause();
@@ -190,11 +334,15 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       const videoHeight = tempVideo.videoHeight || 1280;
       const totalDur = tempVideo.duration || (durationInSeconds > 0 ? durationInSeconds : 5);
 
+      const startSec = Math.max(0, startTime);
+      const endSec = (endTime > 0 && endTime <= totalDur) ? endTime : totalDur;
+      const rangeDur = Math.max(0.3, endSec - startSec);
+
+      // Resolución de vista previa ultra-ligera (180p) para generación hiper-rápida (< 300ms)
       canvas = document.createElement('canvas');
-      canvas.width = Math.min(640, videoWidth);
+      canvas.width = Math.min(180, videoWidth);
       canvas.height = Math.round((canvas.width * videoHeight) / videoWidth);
       
-      // Prevent browser from optimizing out background canvas rendering
       canvas.style.position = 'fixed';
       canvas.style.top = '0';
       canvas.style.left = '0';
@@ -205,56 +353,69 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
 
-      const fps = 25;
-      const stream = canvas.captureStream(fps);
+      // 12 FPS y calidad WebP 0.6 para generación hiper-rápida en navegador con webm-writer
+      const fps = 12;
 
-      let mimeType = 'video/webm;codecs=vp8';
-      if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) {
-        mimeType = 'video/mp4;codecs=h264';
-      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-        mimeType = 'video/mp4';
-      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-        mimeType = 'video/webm;codecs=vp9';
-      }
+      const videoWriter = new WebMWriter({
+        quality: 0.6,
+        frameRate: fps,
+        width: canvas.width,
+        height: canvas.height,
+      });
 
-      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 2000000 });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
+      type FrameTask = { 
+        time: number; 
+        scale?: number; 
+        mirror?: boolean; 
+        grayscale?: number; 
       };
-
-      recorder.start();
-
-      type FrameTask = { time: number };
       const frameQueue: FrameTask[] = [];
       const step = (1 / fps) * targetSpeed;
 
       if (targetMode === 'pingpong' || targetMode === 'yoyo') {
-        for (let t = 0; t <= totalDur; t += step) frameQueue.push({ time: t });
-        for (let t = totalDur; t >= 0; t -= step) frameQueue.push({ time: t });
-      } else if (targetMode === 'reverse') {
-        for (let t = totalDur; t >= 0; t -= step) frameQueue.push({ time: t });
-      } else if (targetMode === 'rewind') {
-        for (let t = 0; t <= totalDur; t += step) frameQueue.push({ time: t });
-        for (let t = totalDur; t >= 0; t -= (step * 3)) frameQueue.push({ time: t });
-      } else if (targetMode === 'slowmo') {
-        const p1 = totalDur * 0.25;
-        const p2 = totalDur * 0.75;
-        for (let t = 0; t < p1; t += step) frameQueue.push({ time: t });
-        for (let t = p1; t < p2; t += (step * 0.5)) frameQueue.push({ time: t });
-        for (let t = p2; t <= totalDur; t += step) frameQueue.push({ time: t });
-      } else if (targetMode === 'stutter') {
-        const pulseLen = Math.min(0.4, totalDur / 3);
-        for (let pulse = 0; pulse < 3; pulse++) {
-          for (let t = 0; t <= pulseLen; t += step) frameQueue.push({ time: t });
+        for (let t = startSec; t <= endSec; t += step) frameQueue.push({ time: t });
+        for (let t = endSec; t >= startSec; t -= step) frameQueue.push({ time: t });
+      } else if (targetMode === 'boomerang') {
+        for (let t = startSec; t <= endSec; t += step) frameQueue.push({ time: t });
+        for (let t = endSec; t >= startSec; t -= (step * 2)) frameQueue.push({ time: t });
+      } else if (targetMode === 'zoom') {
+        for (let t = startSec; t <= endSec; t += step) {
+          const progress = (t - startSec) / rangeDur;
+          const scale = 1.0 + Math.sin(progress * Math.PI) * 0.3;
+          frameQueue.push({ time: t, scale });
         }
-        for (let t = 0; t <= totalDur; t += step) frameQueue.push({ time: t });
-      } else {
-        for (let t = 0; t <= totalDur; t += step) frameQueue.push({ time: t });
+      } else if (targetMode === 'stutter') {
+        for (let t = startSec; t <= endSec; t += step) frameQueue.push({ time: t });
+        const stutterStart = Math.max(startSec, endSec - 0.35);
+        for (let r = 0; r < 2; r++) {
+          for (let t = stutterStart; t <= endSec; t += step) frameQueue.push({ time: t });
+        }
+      } else if (targetMode === 'mirror') {
+        for (let t = startSec; t <= endSec; t += step) frameQueue.push({ time: t, mirror: false });
+        for (let t = endSec; t >= startSec; t -= step) frameQueue.push({ time: t, mirror: true });
+      } else if (targetMode === 'colorflash') {
+        for (let t = startSec; t <= endSec; t += step) {
+          const progress = (t - startSec) / rangeDur;
+          frameQueue.push({ time: t, grayscale: 1.0 - progress });
+        }
+      } else if (targetMode === 'reverse') {
+        for (let t = endSec; t >= startSec; t -= step) frameQueue.push({ time: t });
+      } else if (targetMode === 'rewind') {
+        for (let t = startSec; t <= endSec; t += step) frameQueue.push({ time: t });
+        for (let t = endSec; t >= startSec; t -= (step * 3)) frameQueue.push({ time: t });
+      } else if (targetMode === 'slowmo') {
+        const p1 = startSec + rangeDur * 0.25;
+        const p2 = startSec + rangeDur * 0.75;
+        for (let t = startSec; t < p1; t += step) frameQueue.push({ time: t });
+        for (let t = p1; t < p2; t += (step * 0.5)) frameQueue.push({ time: t });
+        for (let t = p2; t <= endSec; t += step) frameQueue.push({ time: t });
+      } else { // seamless, once, loop
+        for (let t = startSec; t <= endSec; t += step) frameQueue.push({ time: t });
       }
 
       const totalFrames = frameQueue.length;
-      const recordingStartTime = Date.now();
+      const isSeamless = (targetMode === 'seamless');
+      const fadeFramesCount = isSeamless ? Math.min(6, Math.max(3, Math.floor(totalFrames * 0.15))) : 0;
 
       for (let i = 0; i < totalFrames; i++) {
         const task = frameQueue[i];
@@ -262,34 +423,61 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
         await new Promise<void>((res) => {
           const onSeeked = () => {
             tempVideo.removeEventListener('seeked', onSeeked);
-            // Allow a tiny bit of time for the internal decoder to flush the frame to the texture
-            setTimeout(res, 15);
+            setTimeout(res, 2);
           };
           tempVideo.addEventListener('seeked', onSeeked);
         });
 
-        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-        setProcessingProgress(Math.min(99, Math.round(((i + 1) / totalFrames) * 100)));
-        
-        // Pacing for real-time capture
-        const expectedTime = recordingStartTime + i * (1000 / fps);
-        const now = Date.now();
-        if (now < expectedTime) {
-          await new Promise((r) => setTimeout(r, expectedTime - now));
-        } else {
-          // If we are lagging behind, just yield to let MediaRecorder breathe
-          await new Promise((r) => setTimeout(r, 1));
+        ctx.save();
+        ctx.globalAlpha = 1.0;
+        ctx.filter = 'none';
+
+        if (task.grayscale !== undefined && task.grayscale > 0) {
+          ctx.filter = `grayscale(${Math.round(task.grayscale * 100)}%)`;
         }
+
+        if (task.scale !== undefined && task.scale !== 1.0) {
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.scale(task.scale, task.scale);
+          ctx.translate(-canvas.width / 2, -canvas.height / 2);
+        }
+
+        if (task.mirror) {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+        }
+
+        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        // En el modo Bucle Suave, aplicamos un fade gradual con los primeros fotogramas en el tramo final
+        if (isSeamless && i >= totalFrames - fadeFramesCount) {
+          const fadeIndex = i - (totalFrames - fadeFramesCount);
+          const alpha = (fadeIndex + 1) / (fadeFramesCount + 1);
+          const startTaskTime = frameQueue[fadeIndex]?.time ?? startSec;
+
+          tempVideo.currentTime = Math.max(0, Math.min(totalDur, startTaskTime));
+          await new Promise<void>((res) => {
+            const onSeeked = () => {
+              tempVideo.removeEventListener('seeked', onSeeked);
+              setTimeout(res, 2);
+            };
+            tempVideo.addEventListener('seeked', onSeeked);
+          });
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        }
+
+        videoWriter.addFrame(canvas);
+        setProcessingProgress(Math.min(99, Math.round(((i + 1) / totalFrames) * 100)));
+        await new Promise((r) => setTimeout(r, 0));
       }
 
-      recorder.stop();
-
-      const newUrl = await new Promise<string>((res) => {
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType });
-          res(URL.createObjectURL(blob));
-        };
-      });
+      const webmBlob = await videoWriter.complete();
+      const newUrl = URL.createObjectURL(webmBlob);
 
       setTrimmedVideoUrl(newUrl);
       
@@ -299,7 +487,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       setStartTime(0);
       setEndTime(actualDuration);
       setProcessingProgress(100);
-      setShowResultModal(true);
+      setIsVideoLoading(true);
       return newUrl;
     } catch (err) {
       console.error('Error en procesador nativo canvas:', err);
@@ -329,6 +517,11 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
     try {
       setIsProcessing(true);
       setProcessingProgress(5);
+
+      if (playerRef.current) {
+        try { playerRef.current.pause(); } catch (e) {}
+      }
+      setIsPlaying(false);
 
       const ffmpeg = ffmpegRef.current;
 
@@ -369,8 +562,8 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
       const segDur = Math.max(0.3, segEnd - segStart);
 
       const speedFilter = targetSpeed !== 1 ? `,setpts=${(1 / targetSpeed).toFixed(4)}*PTS` : '';
-      const scaleFilter = `scale=-2:'min(720,ih)',format=yuv420p`;
-      const fastEncoding = ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p'];
+      const scaleFilter = `scale=-2:'min(480,ih)',format=yuv420p`;
+      const fastEncoding = ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30', '-pix_fmt', 'yuv420p'];
 
       try {
         await ffmpeg.deleteFile('output.mp4');
@@ -503,33 +696,90 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
           {/* Main Canvas Area */}
           <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-app)' }}>
             {/* Preview Section */}
-            <div className="flex-1 flex items-center justify-center p-4">
-              <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-sm">
-                {durationInSeconds > 0 ? (
-                  trimmedVideoUrl ? (
-                    <>
-                      {isVideoLoading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 z-10">
-                          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
-                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Cargando buffer del video...</span>
+            <div className={`flex-1 flex items-center justify-center p-4 gap-4 overflow-hidden ${trimmedVideoUrl ? 'flex-row' : ''}`}>
+              {durationInSeconds > 0 ? (
+                trimmedVideoUrl ? (
+                  <>
+                    {/* LADO IZQUIERDO: VIDEO ORIGINAL */}
+                    <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-md flex flex-col border border-gray-800">
+                      <div className="absolute top-2 left-2 z-20 bg-black/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded backdrop-blur-sm border border-white/20">
+                        Video Original
+                      </div>
+                      <Player
+                        key="original-side"
+                        ref={playerRef}
+                        component={VideoComposition}
+                        inputProps={{
+                          src: element.content || '',
+                          startFrame,
+                          endFrame,
+                          isMuted,
+                          speed,
+                          loopMode,
+                        }}
+                        durationInFrames={Math.max(1, durationInFrames)}
+                        compositionWidth={videoWidth}
+                        compositionHeight={videoHeight}
+                        fps={fps}
+                        style={{ width: '100%', height: '100%' }}
+                        controls={false}
+                        loop
+                        autoPlay={!isProcessing}
+                      />
+                    </div>
+
+                    {/* LADO DERECHO: PREVIEW GENERADO */}
+                    <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-md flex flex-col border border-blue-900/50">
+                      <div className="absolute top-2 left-2 z-20 bg-blue-600/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded backdrop-blur-sm border border-blue-400/30">
+                        Vista Previa
+                      </div>
+                      {isProcessing && (
+                        <div className="absolute inset-0 z-30 bg-black/85 flex flex-col items-center justify-center p-4 text-center backdrop-blur-[2px]">
+                          <Loader2 className="w-8 h-8 animate-spin text-blue-400 mb-2" />
+                          <span className="text-sm font-semibold text-white">Generando... {processingProgress}%</span>
+                          <span className="text-[10px] text-gray-400 mt-1">Creando vista previa rápida</span>
+                        </div>
+                      )}
+                      {!isProcessing && isVideoLoading && (
+                        <div className="absolute inset-0 z-30 bg-black/85 flex flex-col items-center justify-center p-4 text-center backdrop-blur-[2px]">
+                          <Loader2 className="w-8 h-8 animate-spin text-purple-400 mb-2" />
+                          <span className="text-xs font-medium text-white">Cargando vista previa...</span>
+                          <span className="text-[10px] text-gray-400 mt-1">Preparando reproducción fluida</span>
                         </div>
                       )}
                       <video
                         key={trimmedVideoUrl}
                         src={trimmedVideoUrl}
-                        ref={(v) => { if (v) { (playerRef as any).current = v; } }}
-                        className="w-full h-full object-contain"
+                        ref={previewVideoRef}
+                        className={`w-full h-full object-contain transition-opacity duration-300 cursor-pointer ${isVideoLoading ? 'opacity-0' : 'opacity-100'}`}
                         controls={false}
                         autoPlay
                         loop
+                        preload="auto"
+                        playsInline
                         muted={isMuted}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onClick={togglePlay}
                         onLoadStart={() => setIsVideoLoading(true)}
+                        onLoadedData={() => setIsVideoLoading(false)}
+                        onCanPlay={() => setIsVideoLoading(false)}
                         onCanPlayThrough={() => setIsVideoLoading(false)}
                       />
-                    </>
-                  ) : (
+                    </div>
+                  </>
+                ) : (
+                  /* SOLO VIDEO ORIGINAL AL CENTRO CUANDO NO HAY PREVIEW */
+                  <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-sm">
+                    {isProcessing && (
+                      <div className="absolute inset-0 z-30 bg-black/85 flex flex-col items-center justify-center p-4 text-center backdrop-blur-[2px]">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-400 mb-2" />
+                        <span className="text-sm font-semibold text-white">Generando... {processingProgress}%</span>
+                        <span className="text-[10px] text-gray-400 mt-1">Creando vista previa rápida</span>
+                      </div>
+                    )}
                     <Player
-                      key={trimmedVideoUrl || 'original'}
+                      key="original-center"
                       ref={playerRef}
                       component={VideoComposition}
                       inputProps={{
@@ -547,94 +797,174 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       style={{ width: '100%', height: '100%' }}
                       controls={false}
                       loop
-                      autoPlay
+                      autoPlay={!isProcessing}
                     />
-                  )
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Cargando...</span>
                   </div>
-                )}
-              </div>
+                )
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Cargando...</span>
+                </div>
+              )}
             </div>
 
             {/* Timeline & Transport (Bottom of Canvas) */}
             <div 
-              className="border-t p-3 flex flex-col gap-2 h-28"
+              className="border-t p-3 flex flex-col gap-1.5"
               style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
             >
-              {/* Controles de reproducción compactos */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={togglePlay}
-                    className="w-8 h-8 flex items-center justify-center border rounded-md transition-colors hover:opacity-80"
-                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                  >
-                    {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                  </button>
-                  <button 
-                    onClick={() => setIsMuted(!isMuted)}
-                    className="w-8 h-8 flex items-center justify-center border rounded-md transition-colors hover:opacity-80"
-                    style={{ 
-                      backgroundColor: 'var(--bg-app)', 
-                      borderColor: isMuted ? 'transparent' : 'var(--border-color)', 
-                      color: isMuted ? 'var(--color-danger, #E63946)' : 'var(--text-muted)' 
-                    }}
-                  >
-                    {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                  </button>
-                </div>
+              {/* Fila principal: Línea de Tiempo a la izquierda + Tiempo y Botones del alto de fotogramas a la derecha */}
+              <div className="flex items-stretch gap-2.5 h-[80px]">
                 
-                <div className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {startTime.toFixed(1)}s / {endTime.toFixed(1)}s
-                </div>
-              </div>
-
-              {/* Sliders Compactos */}
-              <div className="flex-1 relative flex flex-col justify-center mt-2">
+                {/* Caja de Línea de tiempo detallada */}
                 <div 
-                  className="relative w-full h-8 rounded-md border flex items-center px-2"
-                  style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                  className="flex-1 rounded-md border overflow-hidden shadow-inner flex flex-col h-full" 
+                  style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-app)' }}
                 >
+                  {/* Marcas de tiempo superiores (0s a fin) */}
                   <div 
-                    className="absolute left-0 top-0 bottom-0 opacity-20 border-r" 
-                    style={{ width: `${(startTime / durationInSeconds) * 100}%`, backgroundColor: 'var(--primary-accent)', borderColor: 'var(--primary-accent)' }}
-                  ></div>
-                  <div 
-                    className="absolute right-0 top-0 bottom-0 opacity-20 border-l" 
-                    style={{ width: `${(1 - endTime / durationInSeconds) * 100}%`, backgroundColor: 'var(--primary-accent)', borderColor: 'var(--primary-accent)' }}
-                  ></div>
-                  
-                  <input 
-                    type="range" 
-                    min={0} 
-                    max={durationInSeconds} 
-                    step={0.1}
-                    value={startTime}
-                    onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime - 0.5))}
-                    className="absolute inset-x-2 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow"
-                    style={{ zIndex: 10, '--tw-thumb-bg': 'var(--text-main)', '--tw-thumb-border': 'var(--border-color)' } as any}
-                  />
-                  <input 
-                    type="range" 
-                    min={0} 
-                    max={durationInSeconds} 
-                    step={0.1}
-                    value={endTime}
-                    onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime + 0.5))}
-                    className="absolute inset-x-2 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow"
-                    style={{ zIndex: 10, '--tw-thumb-bg': 'var(--text-main)', '--tw-thumb-border': 'var(--border-color)' } as any}
-                  />
-                  {/* Estilos inyectados para forzar el color del thumb usando las variables */}
-                  <style>{`
-                    input[type=range]::-webkit-slider-thumb {
-                      background: var(--text-main) !important;
-                      border-color: var(--border-color) !important;
-                    }
-                  `}</style>
+                    className="h-5 w-full border-b flex items-center justify-between px-3 relative font-mono text-[9px] pointer-events-none select-none shrink-0"
+                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                  >
+                    {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
+                      const timeLabel = (durationInSeconds * pct).toFixed(1);
+                      return (
+                        <div key={idx} className="flex flex-col items-center">
+                          <span className="leading-none">{timeLabel}s</span>
+                          <div className="w-0.5 h-1 mt-0.5" style={{ backgroundColor: 'var(--border-color)' }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tira de Fotogramas de inicio (0s) a fin con insignias de tiempo */}
+                  <div ref={timelineRef} className="relative flex-1 w-full overflow-hidden">
+                    <div className="absolute inset-0 flex items-center" style={{ backgroundColor: 'var(--bg-app)' }}>
+                      {thumbnails.length > 0 ? (
+                        thumbnails.map((thumb, idx) => {
+                          const frameTime = ((idx / Math.max(1, thumbnails.length - 1)) * durationInSeconds).toFixed(1);
+                          return (
+                            <div
+                              key={idx}
+                              className="h-full flex-1 relative overflow-hidden border-r last:border-r-0 flex items-center justify-center group"
+                              style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                            >
+                              <img
+                                src={thumb}
+                                style={{ aspectRatio: `${videoAspectRatio}` }}
+                                className="h-full max-w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                                alt={`Fotograma ${frameTime}s`}
+                              />
+                              <div 
+                                className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded text-[7.5px] font-mono font-bold border backdrop-blur-[2px]"
+                                style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', color: '#fff', borderColor: 'var(--border-color)' }}
+                              >
+                                {frameTime}s
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div 
+                          className="w-full h-full flex items-center justify-center text-[10px] font-mono animate-pulse"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Cargando fotogramas...
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sombras oscurecidas fuera de la zona seleccionada */}
+                    <div 
+                      className="absolute top-0 bottom-0 left-0 bg-black/70 backdrop-blur-[1px] border-r-2 z-10 pointer-events-none" 
+                      style={{ width: `${(startTime / durationInSeconds) * 100}%`, borderColor: 'var(--primary-accent)' }} 
+                    />
+                    <div 
+                      className="absolute top-0 bottom-0 right-0 bg-black/70 backdrop-blur-[1px] border-l-2 z-10 pointer-events-none" 
+                      style={{ width: `${(1 - endTime / durationInSeconds) * 100}%`, borderColor: 'var(--primary-accent)' }} 
+                    />
+
+                    {/* Marco con color primario del proyecto resaltando la zona seleccionada */}
+                    <div 
+                      className="absolute top-0 bottom-0 border-t-2 border-b-2 z-10 pointer-events-none shadow-sm"
+                      style={{ 
+                        left: `${(startTime / durationInSeconds) * 100}%`,
+                        width: `${((endTime - startTime) / durationInSeconds) * 100}%`,
+                        borderColor: 'var(--primary-accent)'
+                      }}
+                    />
+
+                    {/* Deslizadores de recorte (Sliders) */}
+                    <input 
+                      type="range" 
+                      min={0} 
+                      max={durationInSeconds} 
+                      step={0.1}
+                      value={startTime}
+                      onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime - 0.5))}
+                      className="absolute inset-x-0 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-16 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow-lg z-20"
+                    />
+                    <input 
+                      type="range" 
+                      min={0} 
+                      max={durationInSeconds} 
+                      step={0.1}
+                      value={endTime}
+                      onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime + 0.5))}
+                      className="absolute inset-x-0 top-1/2 -translate-y-1/2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-16 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow-lg z-20"
+                    />
+                    <style>{`
+                      input[type=range]::-webkit-slider-thumb {
+                        background: var(--primary-accent) !important;
+                      }
+                    `}</style>
+                  </div>
                 </div>
+
+                {/* COLUMNA DERECHA: Tiempo encima + Botones del alto exacto de la tira de fotogramas */}
+                <div className="flex flex-col h-full justify-between shrink-0">
+                  {/* Tiempo encima de los botones (alineado con la barra de marcas de tiempo h-5) */}
+                  <div className="h-5 flex items-center justify-center font-mono text-xs font-semibold px-1" style={{ color: 'var(--text-main)' }}>
+                    <span style={{ color: 'var(--primary-accent)' }}>{startTime.toFixed(1)}s</span>
+                    <span className="mx-0.5 opacity-50">/</span>
+                    <span>{endTime.toFixed(1)}s</span>
+                  </div>
+
+                  {/* Botones Play/Stop y Mute con el alto exacto de la tira de fotogramas */}
+                  <div className="flex-1 flex items-center gap-1.5 pt-0.5">
+                    {/* Botón de Reproducción / Parar (Play / Stop) */}
+                    <button 
+                      onClick={togglePlay}
+                      className="h-full px-3.5 flex flex-col items-center justify-center border rounded-md transition-all hover:opacity-80 active:scale-95 shadow-sm"
+                      style={{ 
+                        backgroundColor: 'var(--primary-accent)', 
+                        borderColor: 'var(--primary-accent)', 
+                        color: '#fff' 
+                      }}
+                      title={isPlaying ? 'Pausar / Detener' : 'Reproducir'}
+                    >
+                      {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                      <span className="text-[8.5px] font-medium mt-0.5 leading-none">{isPlaying ? 'Stop' : 'Play'}</span>
+                    </button>
+
+                    {/* Botón de Silenciar (Mute) */}
+                    <button 
+                      onClick={() => setIsMuted(!isMuted)}
+                      className="h-full w-12 flex flex-col items-center justify-center border rounded-md transition-all hover:opacity-80 active:scale-95 shadow-sm"
+                      style={{ 
+                        backgroundColor: 'var(--bg-app)', 
+                        borderColor: isMuted ? 'var(--color-danger, #E63946)' : 'var(--border-color)', 
+                        color: isMuted ? 'var(--color-danger, #E63946)' : 'var(--text-muted)' 
+                      }}
+                      title={isMuted ? 'Activar sonido' : 'Silenciar'}
+                    >
+                      {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      <span className="text-[8.5px] font-medium mt-0.5 leading-none">{isMuted ? 'Mute' : 'Audio'}</span>
+                    </button>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -710,7 +1040,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       <Repeat size={14} style={{ color: 'var(--text-muted)' }} />
                       Modo de Bucle
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {MODES.map(mode => {
                         const Icon = mode.icon;
                         const isActive = loopMode === mode.id;
@@ -718,7 +1048,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                           <button
                             key={mode.id}
                             onClick={() => setLoopMode(mode.id)}
-                            className="flex flex-col items-center gap-1.5 p-2.5 rounded-md border transition-colors"
+                            className="flex flex-col items-center gap-1 p-1.5 rounded-md border transition-colors overflow-hidden"
                             style={{
                               backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
                               borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
@@ -726,29 +1056,12 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                               opacity: isActive ? 0.9 : 1
                             }}
                           >
-                            <Icon size={16} strokeWidth={2} />
-                            <span className="text-[10px] font-medium leading-none">{mode.name}</span>
+                            <Icon size={13} strokeWidth={2} />
+                            <span className="text-[9px] font-medium leading-none text-center truncate w-full">{mode.name}</span>
                           </button>
                         );
                       })}
                     </div>
-                    
-                    <button 
-                      onClick={() => processVideoWithFFmpeg(loopMode, speed, isMuted)}
-                      disabled={isProcessing}
-                      className="mt-3 w-full py-2 flex items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors border"
-                      style={{ 
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--primary-accent)',
-                        color: 'var(--primary-accent)'
-                      }}
-                    >
-                      {isProcessing && processingProgress < 100 ? (
-                        <><Loader2 className="w-3 h-3 animate-spin" /> Procesando {processingProgress}%</>
-                      ) : (
-                        <><Zap className="w-3 h-3" /> Aplicar Bucle y Velocidad</>
-                      )}
-                    </button>
                   </div>
                 </>
               )}
@@ -767,61 +1080,34 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
             </div>
 
             <div 
-              className="p-3 border-t"
+              className="p-3 border-t flex flex-col gap-2"
               style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
             >
               <button
-                onClick={handleSave}
+                onClick={() => processVideoNative(loopMode, speed, isMuted)}
                 disabled={isProcessing}
                 className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 hover:opacity-80"
                 style={{ backgroundColor: 'var(--primary-accent)', color: '#fff', border: 'none' }}
               >
                 {isProcessing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
                 ) : (
-                  <Check className="w-4 h-4" />
+                  <><Play className="w-4 h-4 fill-current" /> Preview</>
                 )}
-                Aplicar
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={isProcessing}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-xs font-medium transition-colors border hover:opacity-80 opacity-90"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+              >
+                <Check className="w-3.5 h-3.5" /> Guardar en Invitación
               </button>
             </div>
           </div>
         </div>
       </div>
-      
-      {showResultModal && trimmedVideoUrl && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-gray-900 rounded-md p-4 max-w-3xl w-full flex flex-col gap-4 border border-gray-700 shadow-2xl">
-            <div className="flex justify-between items-center text-white">
-              <h3 className="font-semibold text-sm">Preview Final (Para Pruebas de Desarrollo)</h3>
-              <button onClick={() => setShowResultModal(false)} className="hover:text-red-400">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="relative w-full max-h-[70vh] rounded-md bg-black flex items-center justify-center overflow-hidden">
-              {isVideoLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 z-10">
-                  <Loader2 className="w-6 h-6 animate-spin text-white" />
-                  <span className="text-xs text-white">Cargando buffer...</span>
-                </div>
-              )}
-              <video 
-                src={trimmedVideoUrl} 
-                controls 
-                autoPlay 
-                loop 
-                className="w-full h-full object-contain"
-                onLoadStart={() => setIsVideoLoading(true)}
-                onCanPlayThrough={() => setIsVideoLoading(false)}
-              />
-            </div>
-            <div className="flex justify-end">
-              <button onClick={() => setShowResultModal(false)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors">
-                Cerrar y Continuar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

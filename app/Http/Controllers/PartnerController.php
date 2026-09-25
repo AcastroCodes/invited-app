@@ -14,7 +14,7 @@ class PartnerController extends Controller
     {
         $user = $request->user();
         
-        if ($user && $user->role === 'superadmin') {
+        if ($user && strtolower($user->role) === 'superadmin') {
             $partners = Partner::with('user')->orderBy('created_at', 'desc')->get();
         } else if ($user) {
             $partners = Partner::with('user')
