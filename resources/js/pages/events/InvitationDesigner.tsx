@@ -804,6 +804,7 @@ export default function InvitationDesigner() {
     threeD: true,
     transform: false,
     imageFit: false,
+    mask: false,
     typography: false,
     wordart: false,
     container: false,
@@ -816,6 +817,7 @@ export default function InvitationDesigner() {
         content: false,
         transform: false,
         imageFit: false,
+        mask: false,
         typography: false,
         wordart: false,
         container: false,
@@ -5343,7 +5345,6 @@ export default function InvitationDesigner() {
                               </span>
                             </div>
                           </div>
-
                           {/* 3. SECCIÓN PATRÓN DE DISEÑO REPETITIVO (SVG / TEXTURAS PARA FIGURAS/SHAPES) */}
                           {selectedElement.type === 'shape' && (
                             <div className="space-y-2 pt-2 border-t font-mono text-[10px]" style={{ borderColor: 'var(--border-color)' }}>
@@ -5658,6 +5659,391 @@ export default function InvitationDesigner() {
 
                           {/* Fin Secciones Especiales */}
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2.5 ACORDEÓN: MÁSCARA & DESVANECIMIENTO (solo para Imagen y Video) */}
+                {(selectedElement.type === 'image' || selectedElement.type === 'video') && (
+                  <div className="border-t" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                    <div className="w-full flex items-center justify-between px-4 py-3 select-none">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection('mask')}
+                        className="flex-1 flex items-center justify-between font-extrabold uppercase text-[10px] cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors pr-2"
+                        style={{ color: openSections.mask ? 'var(--primary-accent)' : 'var(--text-muted)' }}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span>Máscara & Desvanecimiento</span>
+                          {!isSuperAdmin && selectedElement.lockedSections?.appearance && (
+                            <Lock size={12} className="text-amber-500 shrink-0" title="Propiedad restringida por el diseñador" />
+                          )}
+                        </span>
+                        {openSections.mask ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSectionLock('appearance');
+                          }}
+                          className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                            selectedElement.lockedSections?.appearance
+                              ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
+                              : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
+                          }`}
+                          title={
+                            selectedElement.lockedSections?.appearance
+                              ? 'Bloqueado para otros roles (Clic para permitir edición)'
+                              : 'Permitido para otros roles (Clic para bloquear edición)'
+                          }
+                        >
+                          {selectedElement.lockedSections?.appearance ? <Lock size={13} /> : <Unlock size={13} />}
+                        </button>
+                      )}
+                    </div>
+
+                    {openSections.mask && (
+                      <div
+                        className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
+                          !isSuperAdmin && selectedElement.lockedSections?.appearance
+                            ? 'opacity-60 pointer-events-none select-none'
+                            : ''
+                        }`}
+                        style={{ borderColor: 'var(--border-color)' }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer group select-none shrink-0" 
+                            onClick={() => updateSelectedElement('maskEnabled', !selectedElement.maskEnabled)}
+                            title="Activar/Desactivar máscara"
+                          >
+                            <div 
+                              className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200 shrink-0"
+                              style={{
+                                backgroundColor: selectedElement.maskEnabled ? 'var(--primary-accent)' : 'transparent',
+                                borderColor: selectedElement.maskEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                                borderWidth: '1.5px',
+                                boxShadow: selectedElement.maskEnabled ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                              }}
+                            >
+                              {selectedElement.maskEnabled && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                            </div>
+                            <span className="font-extrabold text-[11px] group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                              Activar Máscara
+                            </span>
+                          </div>
+                        </div>
+
+                        {selectedElement.maskEnabled && (
+                          <div className="space-y-3 font-mono text-[10px]">
+                            {/* TAB / MODOS DE MÁSCARA */}
+                            <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg border shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                              {[
+                                { id: 'feather', label: 'Desvanecer', title: 'Desvanecido suave progresivo' },
+                                { id: 'shape', label: 'Por Forma', title: 'Recorte geométrico o de silueta' },
+                              ].map((m) => {
+                                const active = (selectedElement.maskMode || 'feather') === m.id;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => updateSelectedElement('maskMode', m.id as any)}
+                                    title={m.title}
+                                    className="py-1 rounded-md text-[9px] font-extrabold uppercase transition-all cursor-pointer select-none border flex items-center justify-center"
+                                    style={{
+                                      backgroundColor: active ? 'var(--primary-accent-light)' : 'transparent',
+                                      borderColor: active ? 'var(--primary-accent)' : 'transparent',
+                                      color: active ? 'var(--primary-accent)' : 'var(--text-main)',
+                                    }}
+                                  >
+                                    {m.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* MODO 1: DESVANECIMIENTO (FEATHER) */}
+                            {(selectedElement.maskMode || 'feather') === 'feather' && (
+                              <div className="p-2.5 rounded-lg border space-y-3" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                {/* Dirección del desvanecimiento */}
+                                <div>
+                                  <label className="block font-extrabold uppercase text-[9px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                    Dirección del Desvanecimiento
+                                  </label>
+                                  <div className="grid grid-cols-5 gap-1">
+                                    {[
+                                      { id: 'bottom', label: 'Abajo' },
+                                      { id: 'top', label: 'Arriba' },
+                                      { id: 'left', label: 'Izq.' },
+                                      { id: 'right', label: 'Der.' },
+                                      { id: 'radial', label: 'Radial' },
+                                    ].map((dir) => {
+                                      const active = (selectedElement.maskDirection || 'bottom') === dir.id;
+                                      return (
+                                        <button
+                                          key={dir.id}
+                                          type="button"
+                                          onClick={() => updateSelectedElement('maskDirection', dir.id as any)}
+                                          className="py-1 rounded text-[9px] font-bold border transition-all cursor-pointer text-center"
+                                          style={{
+                                            backgroundColor: active ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                                            borderColor: active ? 'var(--primary-accent)' : 'var(--border-color)',
+                                            color: active ? 'var(--primary-accent)' : 'var(--text-main)',
+                                          }}
+                                        >
+                                          {dir.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Intensidad / Feather (Slider) */}
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="font-extrabold uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                      Borde Suave ({selectedElement.maskFeather ?? 30}%)
+                                    </label>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={5}
+                                    max={95}
+                                    step={5}
+                                    value={selectedElement.maskFeather ?? 30}
+                                    onChange={(e) => updateSelectedElement('maskFeather', Number(e.target.value))}
+                                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                    style={{ accentColor: 'var(--primary-accent)' }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* MODO 2: RECORTE POR FORMA (SHAPE MASK) */}
+                            {selectedElement.maskMode === 'shape' && (
+                              <div className="p-2.5 rounded-lg border space-y-3" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <label className="block font-extrabold uppercase text-[9px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                    Selecciona una Forma
+                                  </label>
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                      {[
+                                        { id: 'circle', label: 'Círculo', icon: Circle },
+                                        { id: 'rounded', label: 'Redondeado', icon: Square },
+                                        { id: 'diamond', label: 'Rombo', icon: Square },
+                                        { id: 'star', label: 'Estrella', icon: Star },
+                                        { id: 'heart', label: 'Corazón', icon: Heart },
+                                        { id: 'arch', label: 'Arco', icon: Circle },
+                                        { id: 'custom', label: 'Cargar SVG', icon: Upload, span: 2 },
+                                      ].map((s) => {
+                                        const IconC = s.icon;
+                                        const active = (selectedElement.maskShape || 'circle') === s.id;
+                                        return (
+                                          <button
+                                            key={s.id}
+                                            type="button"
+                                            onClick={() => {
+                                              if (s.id === 'custom') {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = '.svg,image/svg+xml';
+                                                input.onchange = (e: any) => {
+                                                  const file = e.target.files?.[0];
+                                                  if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (re) => {
+                                                      const dataUrl = re.target?.result as string;
+                                                      updateSelectedElement('maskShape', 'custom');
+                                                      updateSelectedElement('maskCustomSvgUrl', dataUrl);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                  }
+                                                };
+                                                input.click();
+                                              } else {
+                                                updateSelectedElement('maskShape', s.id as any);
+                                              }
+                                            }}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all cursor-pointer text-center gap-1 ${
+                                              s.span === 2 ? 'col-span-2 py-2.5' : ''
+                                            }`}
+                                            style={{
+                                              backgroundColor: active ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                                              borderColor: active ? 'var(--primary-accent)' : 'var(--border-color)',
+                                              color: active ? 'var(--primary-accent)' : 'var(--text-main)',
+                                            }}
+                                            title={s.label}
+                                          >
+                                            {s.id === 'custom' && selectedElement.maskCustomSvgUrl ? (
+                                              <img
+                                                src={selectedElement.maskCustomSvgUrl}
+                                                alt="SVG Custom"
+                                                className="w-8 h-8 object-contain shrink-0"
+                                              />
+                                            ) : (
+                                              <>
+                                                <IconC size={14} className={s.id === 'diamond' ? 'rotate-45' : ''} />
+                                                <span className="text-[8px] font-bold uppercase truncate">{s.label}</span>
+                                              </>
+                                            )}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {/* Botón para re-subir SVG si ya está en modo custom */}
+                                  {selectedElement.maskShape === 'custom' && (
+                                    <div className="flex items-center justify-between p-2 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      <span className="text-[10px] font-bold truncate flex-1 opacity-80" style={{ color: 'var(--text-main)' }}>
+                                        {selectedElement.maskCustomSvgUrl ? 'SVG Cargado' : 'Sin SVG seleccionado'}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const input = document.createElement('input');
+                                          input.type = 'file';
+                                          input.accept = '.svg,image/svg+xml';
+                                          input.onchange = (e: any) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const reader = new FileReader();
+                                              reader.onload = (re) => {
+                                                const dataUrl = re.target?.result as string;
+                                                updateSelectedElement('maskShape', 'custom');
+                                                updateSelectedElement('maskCustomSvgUrl', dataUrl);
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          };
+                                          input.click();
+                                        }}
+                                        className="px-2 py-1 text-[9px] font-extrabold uppercase rounded border transition-all"
+                                        style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}
+                                      >
+                                        Cambiar SVG
+                                      </button>
+                                    </div>
+                                  )}
+
+                                {/* Slider Radio si es rectángulo redondeado */}
+                                {selectedElement.maskShape === 'rounded' && (
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="flex items-center gap-1.5 font-extrabold uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                                        <Circle size={12} className="shrink-0 opacity-70" />
+                                        Radio de Bordes ({selectedElement.maskShapeRadius ?? 20}px)
+                                      </label>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min={2}
+                                      max={100}
+                                      step={2}
+                                      value={selectedElement.maskShapeRadius ?? 20}
+                                      onChange={(e) => updateSelectedElement('maskShapeRadius', Number(e.target.value))}
+                                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Desvanecer y Tamaño de la Forma en la misma línea (Icono + Tooltip + Control) */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="flex items-center gap-1.5" title="Desvanecer Bordes">
+                                    <Sparkles size={14} className="shrink-0 opacity-70 cursor-help" style={{ color: 'var(--text-muted)' }} />
+                                    <input
+                                      type="range"
+                                      min={0}
+                                      max={80}
+                                      step={5}
+                                      value={selectedElement.maskFeather ?? 0}
+                                      onChange={(e) => updateSelectedElement('maskFeather', Number(e.target.value))}
+                                      className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                    <span className="text-[9px] font-mono font-bold w-6 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                      {selectedElement.maskFeather ?? 0}%
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5" title="Tamaño de la Forma">
+                                    <Maximize size={14} className="shrink-0 opacity-70 cursor-help" style={{ color: 'var(--text-muted)' }} />
+                                    <input
+                                      type="range"
+                                      min={20}
+                                      max={150}
+                                      step={5}
+                                      value={selectedElement.maskShapeScale ?? 100}
+                                      onChange={(e) => updateSelectedElement('maskShapeScale', Number(e.target.value))}
+                                      className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                    <span className="text-[9px] font-mono font-bold w-7 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                      {selectedElement.maskShapeScale ?? 100}%
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Slider Escala de la Imagen (Icono + Tooltip + Control) */}
+                                <div className="flex items-center gap-1.5" title="Escala de Imagen (Contenido)">
+                                  <ZoomIn size={14} className="shrink-0 opacity-70 cursor-help" style={{ color: 'var(--text-muted)' }} />
+                                  <input
+                                    type="range"
+                                    min={50}
+                                    max={300}
+                                    step={5}
+                                    value={selectedElement.mediaScale ?? 100}
+                                    onChange={(e) => updateSelectedElement('mediaScale', Number(e.target.value))}
+                                    className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                    style={{ accentColor: 'var(--primary-accent)' }}
+                                  />
+                                  <span className="text-[9px] font-mono font-bold w-7 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                    {selectedElement.mediaScale ?? 100}%
+                                  </span>
+                                </div>
+
+                                {/* Desplazamiento X e Y de la Forma */}
+                                <div>
+                                  <label className="flex items-center gap-1.5 font-extrabold uppercase text-[9px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                    <Move size={12} className="shrink-0 opacity-70" />
+                                    Desplazar Forma (X / Y px)
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-2 font-mono">
+                                    <div className="flex items-center gap-1.5" title="Posición horizontal de la forma en px">
+                                      <MoveHorizontal size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                      <div className="flex-1 min-w-0">
+                                        <InspectorNumberInput
+                                          value={selectedElement.maskShapeX || 0}
+                                          min={-500}
+                                          max={500}
+                                          step={5}
+                                          onChange={(val) => updateSelectedElement('maskShapeX', val)}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5" title="Posición vertical de la forma en px">
+                                      <MoveVertical size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                      <div className="flex-1 min-w-0">
+                                        <InspectorNumberInput
+                                          value={selectedElement.maskShapeY || 0}
+                                          min={-500}
+                                          max={500}
+                                          step={5}
+                                          onChange={(val) => updateSelectedElement('maskShapeY', val)}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

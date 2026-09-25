@@ -148,6 +148,131 @@ export const AudioElementItem: React.FC<ElementRenderProps> = ({ element }) => {
   );
 };
 
+const getMaskStyle = (el: any) => {
+  if (!el || !el.maskEnabled) return {};
+  const mode = el.maskMode || 'feather';
+
+  // 1. Modo Desvanecido Lineal / Radial
+  if (mode === 'feather') {
+    const feather = el.maskFeather ?? 30;
+    const direction = el.maskDirection || 'bottom';
+
+    let gradient = '';
+    if (direction === 'bottom') {
+      gradient = `linear-gradient(to bottom, rgba(0,0,0,1) ${100 - feather}%, rgba(0,0,0,0) 100%)`;
+    } else if (direction === 'top') {
+      gradient = `linear-gradient(to top, rgba(0,0,0,1) ${100 - feather}%, rgba(0,0,0,0) 100%)`;
+    } else if (direction === 'left') {
+      gradient = `linear-gradient(to left, rgba(0,0,0,1) ${100 - feather}%, rgba(0,0,0,0) 100%)`;
+    } else if (direction === 'right') {
+      gradient = `linear-gradient(to right, rgba(0,0,0,1) ${100 - feather}%, rgba(0,0,0,0) 100%)`;
+    } else if (direction === 'radial') {
+      gradient = `radial-gradient(circle, rgba(0,0,0,1) ${100 - feather}%, rgba(0,0,0,0) 100%)`;
+    }
+
+    if (!gradient) return {};
+    return {
+      WebkitMaskImage: gradient,
+      maskImage: gradient,
+    };
+  }
+
+  // 2. Modo Recorte por Forma (Shape Clip) con opción de desvanecido de forma
+  const shape = el.maskShape || 'circle';
+  const radius = el.maskShapeRadius ?? 20;
+  const shapeFeather = el.maskFeather ?? 0; // Desvanecido suave opcional en la forma
+
+  let maskSvgUrl = '';
+
+  // Data URIs encodeados de SVGs limpios con feGaussianBlur dinámico según shapeFeather
+  const blurVal = (shapeFeather / 100) * 12; // desenfoque suave proporcional al contorno de la forma
+
+  switch (shape) {
+    case 'circle':
+      if (shapeFeather > 0) {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${blurVal}'/%3E%3C/filter%3E%3Ccircle cx='50' cy='50' r='${46 - blurVal}' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'rounded':
+      if (shapeFeather > 0) {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${blurVal}'/%3E%3C/filter%3E%3Crect x='${blurVal}' y='${blurVal}' width='${100 - blurVal * 2}' height='${100 - blurVal * 2}' rx='${radius}' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='${radius}' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'diamond':
+      if (shapeFeather > 0) {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${blurVal}'/%3E%3C/filter%3E%3Cpolygon points='50,0 100,50 50,100 0,50' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,0 100,50 50,100 0,50' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'star':
+      if (shapeFeather > 0) {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${blurVal}'/%3E%3C/filter%3E%3Cpolygon points='50,0 63,35 98,35 69,57 80,91 50,70 20,91 31,57 2,35 37,35' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,0 63,35 98,35 69,57 80,91 50,70 20,91 31,57 2,35 37,35' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'heart':
+      if (shapeFeather > 0) {
+        const svgPath = 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z';
+        const heartBlur = (shapeFeather / 100) * 2.5;
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${heartBlur}'/%3E%3C/filter%3E%3Cpath d='${svgPath}' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'arch':
+      if (shapeFeather > 0) {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${blurVal}'/%3E%3C/filter%3E%3Cpath d='M 0,120 L 0,50 A 50,50 0 0,1 100,50 L 100,120 Z' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 0,120 L 0,50 A 50,50 0 0,1 100,50 L 100,120 Z' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'splash':
+      if (shapeFeather > 0) {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${blurVal}'/%3E%3C/filter%3E%3Cpath d='M40 10C25 12 15 25 10 40C5 55 12 75 30 85C48 95 75 90 85 70C95 50 88 25 70 12C58 4 48 8 40 10Z' fill='black' filter='url(%23b)'/%3E%3C/svg%3E")`;
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M40 10C25 12 15 25 10 40C5 55 12 75 30 85C48 95 75 90 85 70C95 50 88 25 70 12C58 4 48 8 40 10Z' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    case 'custom':
+      if (el.maskCustomSvgUrl) {
+        if (shapeFeather > 0) {
+          const customBlur = (shapeFeather / 100) * 8;
+          const cleanUrl = el.maskCustomSvgUrl.replace(/'/g, "%27");
+          maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='${customBlur}'/%3E%3C/filter%3E%3Cimage href='${cleanUrl}' width='100' height='100' preserveAspectRatio='none' filter='url(%23b)'/%3E%3C/svg%3E")`;
+        } else {
+          maskSvgUrl = `url("${el.maskCustomSvgUrl}")`;
+        }
+      } else {
+        maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='black'/%3E%3C/svg%3E")`;
+      }
+      break;
+    default:
+      maskSvgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='black'/%3E%3C/svg%3E")`;
+  }
+
+  const shapeScale = el.maskShapeScale ?? 100;
+  const shapeX = el.maskShapeX ?? 0;
+  const shapeY = el.maskShapeY ?? 0;
+  const maskPos = `calc(50% + ${shapeX}px) calc(50% + ${shapeY}px)`;
+
+  return {
+    WebkitMaskImage: maskSvgUrl,
+    maskImage: maskSvgUrl,
+    WebkitMaskSize: `${shapeScale}% ${shapeScale}%`,
+    maskSize: `${shapeScale}% ${shapeScale}%`,
+    WebkitMaskPosition: maskPos,
+    maskPosition: maskPos,
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+  };
+};
+
 export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
@@ -223,8 +348,13 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
       ? `translate(${element.mediaX || 0}px, ${element.mediaY || 0}px) scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`
       : undefined;
 
+    const maskStyle = getMaskStyle(element);
+    const hasMask = Object.keys(maskStyle).length > 0;
+
+    let mediaNode: React.ReactNode = null;
+
     if (element.objectFit === 'repeat' || element.objectFit === 'repeat-x' || element.objectFit === 'repeat-y') {
-      return (
+      mediaNode = (
         <div
           className="w-full h-full pointer-events-none select-none transition-all"
           style={{
@@ -237,10 +367,8 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
           }}
         />
       );
-    }
-
-    if (element.chromaKeyEnabled) {
-      return (
+    } else if (element.chromaKeyEnabled) {
+      mediaNode = (
         <canvas
           ref={canvasRef}
           className="w-full h-full pointer-events-none select-none transition-all"
@@ -251,20 +379,33 @@ export const ImageElementItem: React.FC<ElementRenderProps> = ({ element }) => {
           }}
         />
       );
+    } else {
+      mediaNode = (
+        <img
+          src={element.content}
+          alt="Imagen del elemento"
+          className="w-full h-full pointer-events-none select-none transition-all"
+          style={{
+            objectFit: effectiveObjectFit,
+            transform: transformStyle,
+            filter: filterStyle,
+          }}
+        />
+      );
     }
 
-    return (
-      <img
-        src={element.content}
-        alt="Imagen del elemento"
-        className="w-full h-full pointer-events-none select-none transition-all"
-        style={{
-          objectFit: effectiveObjectFit,
-          transform: transformStyle,
-          filter: filterStyle,
-        }}
-      />
-    );
+    if (hasMask) {
+      return (
+        <div
+          className="w-full h-full relative overflow-hidden flex items-center justify-center pointer-events-none select-none"
+          style={maskStyle}
+        >
+          {mediaNode}
+        </div>
+      );
+    }
+
+    return mediaNode;
   }
 
   return (
@@ -423,10 +564,15 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
   }, [startTime, endTime, loopMode, isMuted, speed, element.content]);
 
   if (element.content) {
+    const hasMediaTransforms = Boolean(element.mediaX || element.mediaY || (element.mediaScale && element.mediaScale !== 100) || element.mediaRotation);
+    const transformStyle = hasMediaTransforms
+      ? `translate(${element.mediaX || 0}px, ${element.mediaY || 0}px) scale(${(element.mediaScale ?? 100) / 100}) rotate(${element.mediaRotation || 0}deg)`
+      : undefined;
     const filterStyle = `brightness(${element.imgBrightness !== undefined ? element.imgBrightness : 100}%) contrast(${element.imgContrast !== undefined ? element.imgContrast : 100}%) saturate(${element.imgSaturate !== undefined ? element.imgSaturate : 100}%) blur(${element.imgBlur || 0}px) ${element.imgGrayscale ? 'grayscale(100%)' : ''} ${element.imgSepia ? 'sepia(100%)' : ''}`.trim();
+    const maskStyle = getMaskStyle(element);
 
     return (
-      <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
+      <div className="w-full h-full relative overflow-hidden flex items-center justify-center" style={maskStyle}>
         {/* Video Oculto si ChromaKey está activo o visible si no */}
         <video
           ref={videoRef}
@@ -443,6 +589,7 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
           }`}
           style={{
             objectFit: (element.objectFit as any) || 'cover',
+            transform: transformStyle,
             filter: filterStyle,
           }}
         />
@@ -454,6 +601,7 @@ export const VideoElementItem: React.FC<ElementRenderProps> = ({ element }) => {
             className="w-full h-full object-cover rounded-xl pointer-events-none transition-all"
             style={{
               objectFit: (element.objectFit as any) || 'cover',
+              transform: transformStyle,
               filter: filterStyle,
             }}
           />
