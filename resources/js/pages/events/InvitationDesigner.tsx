@@ -7036,6 +7036,26 @@ export default function InvitationDesigner() {
                               />
                             </div>
                           </div>
+
+                          {/* Fila 3: Duración de Salida */}
+                          <div className="space-y-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-1.5" title="Duración de Salida">
+                              <Clock size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <input
+                                type="range"
+                                min="0.1"
+                                max="5.0"
+                                step="0.1"
+                                value={selectedElement.animOutDuration || 0.8}
+                                onChange={(e) => updateSelectedElement('animOutDuration', parseFloat(e.target.value) || 0.8)}
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              <span className="text-[9px] font-mono font-bold w-9 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                {(selectedElement.animOutDuration || 0.8).toFixed(1)}s
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

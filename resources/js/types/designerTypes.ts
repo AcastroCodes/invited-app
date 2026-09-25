@@ -85,6 +85,7 @@ export interface CanvasElement {
   animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'zoomIn' | 'bounceIn' | 'spinIn';
   animOut?: 'none' | 'fadeOut' | 'slideOutDown' | 'slideOutRight' | 'zoomOut' | 'fadeScale';
   animDuration?: number;
+  animOutDuration?: number;
   animDelay?: number;
   animEasing?: 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';
   locked?: boolean;

@@ -290,7 +290,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
               const startSec = el.animStartTime ?? 0;
               const inDuration = el.animDuration ?? 0.8;
               const idleDuration = el.animIdleDuration ?? 3.0;
-              const outDuration = 0.8;
+              const outDuration = el.animOutDuration ?? 0.8;
 
               const inStartPct = Math.max(0, (startSec / totalDuration) * 100);
               const inWidthPct = Math.min(100 - inStartPct, (inDuration / totalDuration) * 100);
@@ -298,7 +298,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
               const outWidthPct = Math.min(100 - (inStartPct + inWidthPct + idleWidthPct), (outDuration / totalDuration) * 100);
 
               // Handlers para arrastrar y cambiar tamaño de bloques de animación
-              const handleStartDragTrack = (e: React.PointerEvent, type: 'move' | 'resizeIn' | 'resizeIdle') => {
+              const handleStartDragTrack = (e: React.PointerEvent, type: 'move' | 'resizeIn' | 'resizeIdle' | 'resizeOut') => {
                 e.stopPropagation();
                 e.preventDefault();
                 onSelectElement(el.id);
@@ -311,6 +311,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                 const initialStartSec = startSec;
                 const initialInDuration = inDuration;
                 const initialIdleDuration = idleDuration;
+                const initialOutDuration = outDuration;
 
                 const handlePointerMove = (moveEvent: PointerEvent) => {
                   const deltaX = moveEvent.clientX - startX;
@@ -325,6 +326,9 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                   } else if (type === 'resizeIdle') {
                     const newIdleDuration = Math.max(0.2, Math.min(15.0, Math.round((initialIdleDuration + deltaSec) * 10) / 10));
                     onUpdateElement(el.id, { animIdleDuration: newIdleDuration });
+                  } else if (type === 'resizeOut') {
+                    const newOutDuration = Math.max(0.1, Math.min(10.0, Math.round((initialOutDuration + deltaSec) * 10) / 10));
+                    onUpdateElement(el.id, { animOutDuration: newOutDuration });
                   }
                 };
 
@@ -419,7 +423,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
 
                       {/* 3. Pieza SALIDA (OUT) */}
                       <div
-                        className="h-full flex items-center justify-between px-1 text-[8px] font-black text-rose-950 dark:text-rose-100 relative z-0 rounded-r-md shadow-xs border border-rose-500/50 backdrop-blur-xs"
+                        className="h-full flex items-center justify-between px-1 text-[8px] font-black text-rose-950 dark:text-rose-100 relative z-0 rounded-r-md shadow-xs border border-rose-500/50 backdrop-blur-xs group/out"
                         style={{
                           width: `${(outWidthPct / (inWidthPct + idleWidthPct + outWidthPct)) * 100}%`,
                           backgroundColor: 'rgba(239, 68, 68, 0.45)',
@@ -430,6 +434,15 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                           <Zap size={9} className="shrink-0 text-rose-600 dark:text-rose-400" />
                           <span className="hidden sm:inline">OUT:</span> {outDuration.toFixed(1)}s
                         </span>
+
+                        {/* Handle para redimensionar Duración de OUT */}
+                        <div
+                          onPointerDown={(e) => handleStartDragTrack(e, 'resizeOut')}
+                          className="absolute -right-1 top-0 bottom-0 w-2.5 cursor-ew-resize z-30 flex items-center justify-center group-hover/out:opacity-100 opacity-60"
+                          title="Arrastra para cambiar la duración de salida"
+                        >
+                          <div className="w-1.5 h-3 bg-rose-600 rounded-full shadow-xs border border-white/50" />
+                        </div>
                       </div>
                     </div>
                   </div>
