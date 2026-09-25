@@ -100,26 +100,38 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
     endTimeRef.current = endTime;
   }, [startTime, endTime]);
 
-  // Bucle de reproducción acotado entre startTime y endTime
+  // Bucle de reproducción acotado de precisión extrema con requestAnimationFrame
   useEffect(() => {
     if (!isOpen) return;
 
-    const intervalId = setInterval(() => {
+    let animFrameId: number;
+    let isSeeking = false;
+
+    const checkTime = () => {
       const video = playerRef.current;
-      if (video && !video.paused && !video.seeking && video.readyState >= 2) {
+      if (video && !video.paused && video.readyState >= 2) {
         const start = startTimeRef.current;
         const end = endTimeRef.current || video.duration;
-        
-        // Si el video sobrepasa la marca final o reinició por loop nativo a 0 (cuando start > 0.3)
-        if (end > start + 0.2) {
-          if (video.currentTime >= end - 0.15 || (start > 0.3 && video.currentTime < start - 0.2)) {
+
+        if (end > start + 0.1) {
+          if (!isSeeking && (video.currentTime >= end - 0.08 || video.currentTime < start - 0.1)) {
+            isSeeking = true;
             video.currentTime = start;
+            const onSeeked = () => {
+              isSeeking = false;
+              video.removeEventListener('seeked', onSeeked);
+            };
+            video.addEventListener('seeked', onSeeked, { once: true });
+            setTimeout(() => { isSeeking = false; }, 200);
           }
         }
       }
-    }, 50);
+      animFrameId = requestAnimationFrame(checkTime);
+    };
 
-    return () => clearInterval(intervalId);
+    animFrameId = requestAnimationFrame(checkTime);
+
+    return () => cancelAnimationFrame(animFrameId);
   }, [isOpen]);
 
   // Sincronizar velocidad de reproducción cuando cambie la velocidad
@@ -733,36 +745,37 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
           {/* Main Canvas Area */}
           <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-app)' }}>
             {/* Preview Section */}
-            <div className={`flex-1 flex items-center justify-center p-4 gap-4 overflow-hidden ${trimmedVideoUrl ? 'flex-row' : ''}`}>
+            <div className="flex-1 flex items-center justify-center p-4 gap-4 overflow-hidden">
               {durationInSeconds > 0 ? (
-                trimmedVideoUrl ? (
-                  <>
-                    {/* LADO IZQUIERDO: VIDEO ORIGINAL */}
-                    <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-md flex flex-col border border-gray-800">
-                      <div className="absolute top-2 left-2 z-20 bg-black/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded backdrop-blur-sm border border-white/20">
-                        Video Original
-                      </div>
-                      <video
-                        key="orig-side-video"
-                        ref={playerRef}
-                        src={element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : ''}
-                        className="w-full h-full object-contain cursor-pointer"
-                        controls={false}
-                        autoPlay
-                        loop
-                        playsInline
-                        muted={isMuted}
-                        onLoadedMetadata={(e: React.SyntheticEvent<HTMLVideoElement>) => {
-                          const video = e.currentTarget;
-                          video.playbackRate = speed;
-                        }}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                        onClick={togglePlay}
-                      />
+                <>
+                  {/* VIDEO PRINCIPAL (ORIGINAL) */}
+                  <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-md flex flex-col border border-gray-800">
+                    <div className="absolute top-2 left-2 z-20 bg-black/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded backdrop-blur-sm border border-white/20">
+                      Video Original
                     </div>
+                    <video
+                      ref={playerRef}
+                      src={element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : ''}
+                      className="w-full h-full object-contain cursor-pointer"
+                      controls={false}
+                      autoPlay
+                      playsInline
+                      muted={isMuted}
+                      onLoadedMetadata={(e: React.SyntheticEvent<HTMLVideoElement>) => {
+                        const video = e.currentTarget;
+                        video.playbackRate = speed;
+                        if (startTimeRef.current > 0) {
+                          video.currentTime = startTimeRef.current;
+                        }
+                      }}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onClick={togglePlay}
+                    />
+                  </div>
 
-                    {/* LADO DERECHO: PREVIEW GENERADO */}
+                  {/* VISTA PREVIA GENERADA (Solo se muestra cuando existe un procesado activo) */}
+                  {trimmedVideoUrl && (
                     <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-md flex flex-col border border-blue-900/50">
                       <div className="absolute top-2 left-2 z-20 bg-blue-600/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded backdrop-blur-sm border border-blue-400/30">
                         Vista Previa
@@ -801,37 +814,8 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                         onCanPlayThrough={() => setIsVideoLoading(false)}
                       />
                     </div>
-                  </>
-                ) : (
-                  /* SOLO VIDEO ORIGINAL AL CENTRO CUANDO NO HAY PREVIEW */
-                  <div className="relative h-full max-h-[60vh] aspect-[9/16] bg-black rounded-md overflow-hidden shadow-sm">
-                    {isProcessing && (
-                      <div className="absolute inset-0 z-30 bg-black/85 flex flex-col items-center justify-center p-4 text-center backdrop-blur-[2px]">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-400 mb-2" />
-                        <span className="text-sm font-semibold text-white">Generando... {processingProgress}%</span>
-                        <span className="text-[10px] text-gray-400 mt-1">Creando vista previa rápida</span>
-                      </div>
-                    )}
-                    <video
-                      key="orig-center-video"
-                      ref={playerRef}
-                      src={element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : ''}
-                      className="w-full h-full object-contain cursor-pointer"
-                      controls={false}
-                      autoPlay
-                      loop
-                      playsInline
-                      muted={isMuted}
-                      onLoadedMetadata={(e: React.SyntheticEvent<HTMLVideoElement>) => {
-                        const video = e.currentTarget;
-                        video.playbackRate = speed;
-                      }}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                      onClick={togglePlay}
-                    />
-                  </div>
-                )
+                  )}
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-2">
                   <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
