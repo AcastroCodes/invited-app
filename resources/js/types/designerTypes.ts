@@ -77,7 +77,11 @@ export interface CanvasElement {
   backdropOpacity?: number;
   backdropColor?: string;
   textAlign?: 'left' | 'center' | 'right';
-  animation?: 'fade' | 'slideUp' | 'zoomIn' | 'bounce';
+  animationStartTime?: number;
+  animationEndTime?: number;
+  animationInDuration?: number;
+  animationOutDuration?: number;
+  animationLoop?: 'none' | 'float' | 'pulse' | 'wiggle' | 'spin' | 'heartbeat';
   animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'zoomIn' | 'bounceIn' | 'spinIn';
   animOut?: 'none' | 'fadeOut' | 'slideOutDown' | 'slideOutRight' | 'zoomOut' | 'fadeScale';
   animDuration?: number;

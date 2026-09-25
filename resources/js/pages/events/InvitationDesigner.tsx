@@ -57,6 +57,8 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronRight,
+  Clock,
+  Compass,
   Ratio,
   Minus,
   Sun,
@@ -99,6 +101,7 @@ import AppSelect from '../../components/AppSelect';
 import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
 import { ThreeDViewportCanvas } from '../../components/ThreeDViewportCanvas';
+import { DesignerTimelineBar } from '../../components/designer/DesignerTimelineBar';
 
 interface NumberInputProps {
   value: number;
@@ -236,11 +239,70 @@ interface SelectOption {
   label: string;
 }
 
+const ANIM_EFFECT_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'none', label: 'Ninguno' },
+  { value: 'fade', label: 'Fade (Disolución)' },
+  { value: 'slide', label: 'Slide (Deslizar)' },
+  { value: 'zoom', label: 'Zoom (Escalar)' },
+  { value: 'bounce', label: 'Bounce (Rebote)' },
+  { value: 'spin', label: 'Spin (Rotación)' },
+];
+
+const ANIM_DIRECTION_OPTIONS: SelectOption[] = [
+  { value: 'up', label: 'Abajo → Arriba' },
+  { value: 'down', label: 'Arriba → Abajo' },
+  { value: 'left', label: 'Derecha → Izquierda' },
+  { value: 'right', label: 'Izquierda → Derecha' },
+  { value: 'center', label: 'Centro / Neutro' },
+];
+
+const ANIM_IN_OPTIONS: SelectOption[] = [
+  { value: 'none', label: 'Sin animación' },
+  { value: 'fadeIn', label: 'Fade In' },
+  { value: 'slideInUp', label: 'Slide Arriba' },
+  { value: 'slideInDown', label: 'Slide Abajo' },
+  { value: 'slideInLeft', label: 'Slide Izquierda' },
+  { value: 'slideInRight', label: 'Slide Derecha' },
+  { value: 'zoomIn', label: 'Zoom In' },
+  { value: 'bounceIn', label: 'Bounce In' },
+  { value: 'spinIn', label: 'Spin In' },
+];
+
+const ANIM_IDLE_OPTIONS: SelectOption[] = [
+  { value: 'none', label: 'Sin efecto' },
+  { value: 'float', label: 'Flotar (Float)' },
+  { value: 'pulse', label: 'Pulso (Pulse)' },
+  { value: 'shimmer', label: 'Destello (Shimmer)' },
+  { value: 'bounceLoop', label: 'Rebote (Bounce)' },
+  { value: 'spinLoop', label: 'Girar (Spin)' },
+  { value: 'heartbeat', label: 'Latido (Heartbeat)' },
+];
+
+const ANIM_OUT_OPTIONS: SelectOption[] = [
+  { value: 'none', label: 'Sin animación' },
+  { value: 'fadeOut', label: 'Fade Out' },
+  { value: 'slideOutDown', label: 'Slide Abajo' },
+  { value: 'slideOutUp', label: 'Slide Arriba' },
+  { value: 'slideOutRight', label: 'Slide Derecha' },
+  { value: 'slideOutLeft', label: 'Slide Izquierda' },
+  { value: 'zoomOut', label: 'Zoom Out' },
+];
+
+const ANIM_EASING_OPTIONS: SelectOption[] = [
+  { value: 'ease', label: 'Ease (Estándar)' },
+  { value: 'ease-in', label: 'Ease In (Acelerado)' },
+  { value: 'ease-out', label: 'Ease Out (Frenado)' },
+  { value: 'ease-in-out', label: 'Ease In Out (Suave)' },
+  { value: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)', label: 'Elastic (Rebote)' },
+  { value: 'linear', label: 'Linear (Constante)' },
+];
+
 interface InspectorSelectProps {
   value: string;
   onChange: (val: string) => void;
   options: SelectOption[];
   className?: string;
+  buttonClassName?: string;
 }
 
 const InspectorSelect: React.FC<InspectorSelectProps> = ({
@@ -248,6 +310,7 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
   onChange,
   options,
   className = '',
+  buttonClassName = 'h-7 px-2 text-[10px]',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -269,20 +332,20 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full h-7 rounded-lg border px-2 text-[10px] font-bold outline-none cursor-pointer flex items-center justify-between transition-all"
+        className={`w-full rounded-lg border font-bold outline-none cursor-pointer flex items-center justify-between transition-all ${buttonClassName}`}
         style={{
           backgroundColor: 'var(--bg-app)',
           borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',
           color: 'var(--text-main)',
         }}
       >
-        <span className="truncate">{selectedOpt?.label}</span>
-        <ChevronDown size={12} className={`transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} />
+        <span className="truncate text-[10px] leading-tight">{selectedOpt?.label}</span>
+        <ChevronDown size={11} className={`transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} />
       </button>
 
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border shadow-xl overflow-hidden py-1"
+          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border shadow-xl overflow-hidden py-1 max-h-56 overflow-y-auto"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -298,7 +361,7 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-2.5 py-1.5 text-[10px] font-bold transition-colors cursor-pointer flex items-center justify-between"
+                className="w-full text-left px-2 py-1 text-[10px] font-semibold leading-tight transition-colors cursor-pointer flex items-center justify-between"
                 style={{
                   backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'transparent',
                   color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
@@ -390,11 +453,15 @@ interface CanvasElement {
   boxShadow?: string;
   textAlign?: 'left' | 'center' | 'right';
   animation?: 'fade' | 'slideUp' | 'zoomIn' | 'bounce';
-  animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'zoomIn' | 'bounceIn' | 'spinIn';
-  animOut?: 'none' | 'fadeOut' | 'slideOutDown' | 'slideOutRight' | 'zoomOut' | 'fadeScale';
+  animStartTime?: number;
+  animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'slideInDown' | 'slideInRight' | 'zoomIn' | 'bounceIn' | 'spinIn';
+  animIdle?: 'none' | 'float' | 'pulse' | 'shimmer' | 'bounceLoop' | 'spinLoop' | 'heartbeat';
+  animIdleDuration?: number;
+  animOut?: 'none' | 'fadeOut' | 'slideOutDown' | 'slideOutUp' | 'slideOutRight' | 'slideOutLeft' | 'zoomOut' | 'fadeScale';
   animDuration?: number;
   animDelay?: number;
-  animEasing?: 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';
+  animEasing?: string;
+  previewKey?: number;
   locked?: boolean;
   visible?: boolean;
   objectFit?: string;
@@ -742,6 +809,7 @@ export default function InvitationDesigner() {
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   
   // UI Panels State
+  const [activeLeftSection, setActiveLeftSection] = useState<'layers' | 'scenes' | 'envelope'>('layers');
   const [scenesPanelHeight, setScenesPanelHeight] = useState(250);
   const [isResizingScenes, setIsResizingScenes] = useState(false);
   const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
@@ -894,6 +962,8 @@ export default function InvitationDesigner() {
   const [zoomInputText, setZoomInputText] = useState('30');
   const [isPlaying, setIsPlaying] = useState(false);
   const [timelineTime, setTimelineTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(10);
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
 
   useEffect(() => {
@@ -2236,10 +2306,10 @@ export default function InvitationDesigner() {
       </header>
 
       {/* 2. Main Studio Workspace */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left Panel: Tools & Layers (Capas y Elementos) */}
+      <div className="flex flex-1 min-h-0 overflow-hidden p-3 gap-3">
+        {/* Left Panel: Tools & Layers (Capas y Elementos estilo Floating Deck) */}
         <aside
-          className="w-72 shrink-0 border-r flex flex-col z-30 overflow-hidden"
+          className="w-72 shrink-0 border rounded-2xl shadow-xl backdrop-blur-md flex flex-col z-30 overflow-hidden transition-all"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -2398,337 +2468,521 @@ export default function InvitationDesigner() {
             </div>
           </div>
 
-          {/* 2. SECCIÓN INFERIOR: Administración de Capas (Layers) */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div
-              className="flex items-center justify-between p-3 border-b shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-color)',
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Layers size={15} style={{ color: 'var(--primary-accent)' }} />
-                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                  Capas
-                </h3>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    borderColor: 'var(--border-color)',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {elements.length}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {elements.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Layers size={28} className="opacity-40 mb-2" style={{ color: 'var(--text-muted)' }} />
-                  <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                    No hay capas en el lienzo
-                  </p>
-                  <p className="text-[10px] mt-1 opacity-75" style={{ color: 'var(--text-muted)' }}>
-                    Usa la barra superior para agregar elementos.
-                  </p>
+          {/* 2. SECCIÓN ACORDEÓN IZQUIERDA: Capas, Escenas, Sobre */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden divide-y" style={{ borderColor: 'var(--border-color)' }}>
+            {/* ITEM ACORDEÓN 1: Capas */}
+            <div className={`flex flex-col min-h-0 ${activeLeftSection === 'layers' ? 'flex-1 overflow-hidden' : 'shrink-0'}`}>
+              <div
+                onClick={() => setActiveLeftSection('layers')}
+                className="flex items-center justify-between p-3 cursor-pointer select-none border-b transition-colors hover:bg-black/5 dark:hover:bg-white/5 shrink-0"
+                style={{
+                  backgroundColor: activeLeftSection === 'layers' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                  borderColor: 'var(--border-color)',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Layers size={15} style={{ color: activeLeftSection === 'layers' ? 'var(--primary-accent)' : 'var(--text-muted)' }} />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                    Capas
+                  </h3>
                 </div>
-              ) : (
-                (() => {
-                  const renderedGroupIds = new Set<string>();
-                  return elements.map((el, idx) => {
-                    const isSelected = selectedElementIds.includes(el.id) || selectedElementId === el.id;
-                    const isGrouped = !!el.groupId;
 
-                    // Renderizado de Grupo Padre si es el primer elemento encontrado de ese groupId
-                    if (isGrouped && el.groupId) {
-                      const gId = el.groupId;
-                      if (renderedGroupIds.has(gId)) {
-                        return null; // Ya se renderizó dentro de la carpeta del grupo
-                      }
-                      renderedGroupIds.add(gId);
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
+                    style={{
+                      backgroundColor: 'var(--bg-app)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    {elements.length}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${activeLeftSection === 'layers' ? 'rotate-0' : '-rotate-90'}`}
+                    style={{ color: 'var(--text-muted)' }}
+                  />
+                </div>
+              </div>
 
-                      const groupChildren = elements.filter((item) => item.groupId === gId);
-                      const isCollapsed = collapsedGroups[gId];
-                      const isAnyChildSelected = groupChildren.some(
-                        (item) => selectedElementIds.includes(item.id) || selectedElementId === item.id
-                      );
+              {activeLeftSection === 'layers' && (
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  {elements.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                      <Layers size={28} className="opacity-40 mb-2" style={{ color: 'var(--text-muted)' }} />
+                      <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                        No hay capas en el lienzo
+                      </p>
+                      <p className="text-[10px] mt-1 opacity-75" style={{ color: 'var(--text-muted)' }}>
+                        Usa la barra superior para agregar elementos.
+                      </p>
+                    </div>
+                  ) : (
+                    (() => {
+                      const renderedGroupIds = new Set<string>();
+                      return elements.map((el, idx) => {
+                        const isSelected = selectedElementIds.includes(el.id) || selectedElementId === el.id;
+                        const isGrouped = !!el.groupId;
 
-                      return (
-                        <div
-                          key={gId}
-                          className="rounded-lg border overflow-hidden transition-all shadow-2xs"
-                          style={{
-                            backgroundColor: 'rgba(245, 158, 11, 0.05)',
-                            borderColor: isAnyChildSelected ? '#F59E0B' : 'rgba(245, 158, 11, 0.4)',
-                          }}
-                        >
-                          {/* Cabecera del Grupo (Capa Padre 'Grupo') */}
-                          <div
-                            onClick={() => {
-                              // Al hacer clic en la carpeta de grupo, seleccionar el grupo y focalizar sus hijos
-                              const childIds = groupChildren.map((c) => c.id);
-                              setSelectedElementIds(childIds);
-                              setSelectedElementId(childIds[0] || null);
-                            }}
-                            className="flex items-center justify-between p-1.5 cursor-pointer bg-amber-500/10 hover:bg-amber-500/15 transition-colors border-b select-none"
-                            style={{ borderColor: 'rgba(245, 158, 11, 0.2)' }}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleGroupCollapse(gId);
+                        // Renderizado de Grupo Padre si es el primer elemento encontrado de ese groupId
+                        if (isGrouped && el.groupId) {
+                          const gId = el.groupId;
+                          if (renderedGroupIds.has(gId)) {
+                            return null; // Ya se renderizó dentro de la carpeta del grupo
+                          }
+                          renderedGroupIds.add(gId);
+
+                          const groupChildren = elements.filter((item) => item.groupId === gId);
+                          const isCollapsed = collapsedGroups[gId];
+                          const isAnyChildSelected = groupChildren.some(
+                            (item) => selectedElementIds.includes(item.id) || selectedElementId === item.id
+                          );
+
+                          return (
+                            <div
+                              key={gId}
+                              className="rounded-lg border overflow-hidden transition-all shadow-2xs"
+                              style={{
+                                backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                                borderColor: isAnyChildSelected ? '#F59E0B' : 'rgba(245, 158, 11, 0.4)',
+                              }}
+                            >
+                              {/* Cabecera del Grupo (Capa Padre 'Grupo') */}
+                              <div
+                                onClick={() => {
+                                  const childIds = groupChildren.map((c) => c.id);
+                                  setSelectedElementIds(childIds);
+                                  setSelectedElementId(childIds[0] || null);
                                 }}
-                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
+                                className="flex items-center justify-between p-1.5 cursor-pointer bg-amber-500/10 hover:bg-amber-500/15 transition-colors border-b select-none"
+                                style={{ borderColor: 'rgba(245, 158, 11, 0.2)' }}
                               >
-                                {isCollapsed ? (
-                                  <ChevronRight size={12} className="text-amber-500" />
-                                ) : (
-                                  <ChevronDown size={12} className="text-amber-500" />
-                                )}
-                              </button>
-                              <Folder size={13} className="shrink-0 text-amber-500" />
-                              <span className="font-extrabold text-[11px] text-amber-600 dark:text-amber-400 truncate">
-                                {el.groupName || `Grupo (${groupChildren.length} capas)`}
-                              </span>
-                            </div>
-
-                            {/* Controles del Grupo completo: Flechas Reordenar, Ojo, Cadena (Desagrupar), Eliminar */}
-                            <div className="flex items-center gap-1 shrink-0 ml-1">
-                              {/* Subir / Bajar Bloque del Grupo */}
-                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveGroupUp(gId);
-                                  }}
-                                  className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                  style={{ color: 'var(--text-main)' }}
-                                  title="Subir grupo de capas"
-                                >
-                                  <ChevronUp size={10} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveGroupDown(gId);
-                                  }}
-                                  className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                  style={{ color: 'var(--text-main)' }}
-                                  title="Bajar grupo de capas"
-                                >
-                                  <ChevronDown size={10} />
-                                </button>
-                              </div>
-
-                              {/* Ojo (Visibilidad del grupo completo) & Cadena (Desagrupar solo icono) */}
-                              <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleGroupVisibility(gId);
-                                  }}
-                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                  style={{
-                                    color: groupChildren.every((c) => c.visible === false)
-                                      ? 'var(--text-muted)'
-                                      : 'var(--text-main)',
-                                  }}
-                                  title="Mostrar/Ocultar capas del grupo"
-                                >
-                                  {groupChildren.every((c) => c.visible === false) ? (
-                                    <EyeOff size={10} />
-                                  ) : (
-                                    <Eye size={10} />
-                                  )}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUngroupSelected(gId);
-                                  }}
-                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-amber-500 cursor-pointer"
-                                  title="Desagrupar estas capas"
-                                >
-                                  <Unlink size={10} />
-                                </button>
-                              </div>
-
-                              {/* Eliminar Grupo completo */}
-                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteGroup(gId);
-                                  }}
-                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                  style={{ color: 'var(--danger)' }}
-                                  title="Eliminar grupo completo"
-                                >
-                                  <Trash2 size={10} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Capas Hijos dentro del Grupo (Visualmente normales) */}
-                          {!isCollapsed && (
-                            <div className="p-1 space-y-1 bg-black/5 dark:bg-white/5">
-                              {groupChildren.map((childEl) => {
-                                const childIdx = elements.findIndex((item) => item.id === childEl.id);
-
-                                return (
-                                  <div
-                                    key={childEl.id}
-                                    onClick={(e) =>
-                                      handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey)
-                                    }
-                                    className="flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ml-1.5 hover:opacity-90 shadow-2xs"
-                                    style={{
-                                      backgroundColor: 'var(--bg-card)',
-                                      borderColor: 'var(--border-color)',
-                                      color: 'var(--text-main)',
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleGroupCollapse(gId);
                                     }}
+                                    className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
                                   >
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      {childEl.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                                      {childEl.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
-                                      {childEl.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
-                                      {childEl.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
-                                      {childEl.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
-                                      {childEl.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
-                                      {childEl.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                                    {isCollapsed ? (
+                                      <ChevronRight size={12} className="text-amber-500" />
+                                    ) : (
+                                      <ChevronDown size={12} className="text-amber-500" />
+                                    )}
+                                  </button>
+                                  <Folder size={13} className="shrink-0 text-amber-500" />
+                                  <span className="font-extrabold text-[11px] text-amber-600 dark:text-amber-400 truncate">
+                                    {el.groupName || `Grupo (${groupChildren.length} capas)`}
+                                  </span>
+                                </div>
 
-                                      <span className="truncate text-[11px] font-medium">
-                                        {childEl.content}
-                                      </span>
-                                    </div>
-
-                                    {/* Controles de Capa Hijo */}
-                                    <div className="flex items-center gap-0.5 shrink-0 ml-1">
-                                      <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleMoveLayerUp(childIdx);
-                                          }}
-                                          disabled={childIdx === 0}
-                                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                                        >
-                                          <ChevronUp size={10} />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleMoveLayerDown(childIdx);
-                                          }}
-                                          disabled={childIdx === elements.length - 1}
-                                          className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                                        >
-                                          <ChevronDown size={10} />
-                                        </button>
-                                      </div>
-
-                                      <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleElementVisibility(childEl.id);
-                                          }}
-                                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                        >
-                                          {childEl.visible === false ? <EyeOff size={10} /> : <Eye size={10} />}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleElementLock(childEl.id);
-                                          }}
-                                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                        >
-                                          {childEl.locked ? <Lock size={10} /> : <Unlock size={10} />}
-                                        </button>
-                                      </div>
-
-                                      <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDuplicateElement(childEl.id);
-                                          }}
-                                          className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
-                                          title="Duplicar elemento"
-                                        >
-                                          <Copy size={10} />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteElement(childEl.id);
-                                          }}
-                                          className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                          title="Eliminar elemento"
-                                        >
-                                          <Trash2 size={10} />
-                                        </button>
-                                      </div>
-                                    </div>
+                                <div className="flex items-center gap-1 shrink-0 ml-1">
+                                  <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMoveGroupUp(gId);
+                                      }}
+                                      className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                      style={{ color: 'var(--text-main)' }}
+                                      title="Subir grupo de capas"
+                                    >
+                                      <ChevronUp size={10} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMoveGroupDown(gId);
+                                      }}
+                                      className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                      style={{ color: 'var(--text-main)' }}
+                                      title="Bajar grupo de capas"
+                                    >
+                                      <ChevronDown size={10} />
+                                    </button>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
 
-                    // Renderizado de Componente Padre (Exclusivo del Sobre) con Elementos Hijos Anidados
-                    if (el.isComponentParent) {
-                      const childElements = el.children || [];
-                      return (
-                        <div
-                          key={el.id}
-                          className="flex flex-col rounded-lg border overflow-hidden transition-all shadow-2xs"
-                          style={{
-                            backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-app)',
-                            borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
-                          }}
-                        >
-                          {/* Cabecera del Componente Padre (Marco Rígido) */}
+                                  <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleGroupVisibility(gId);
+                                      }}
+                                      className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                      style={{
+                                        color: groupChildren.every((c) => c.visible === false)
+                                          ? 'var(--text-muted)'
+                                          : 'var(--text-main)',
+                                      }}
+                                      title="Mostrar/Ocultar capas del grupo"
+                                    >
+                                      {groupChildren.every((c) => c.visible === false) ? (
+                                        <EyeOff size={10} />
+                                      ) : (
+                                        <Eye size={10} />
+                                      )}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleUngroupSelected(gId);
+                                      }}
+                                      className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-amber-500 cursor-pointer"
+                                      title="Desagrupar estas capas"
+                                    >
+                                      <Unlink size={10} />
+                                    </button>
+                                  </div>
+
+                                  <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteGroup(gId);
+                                      }}
+                                      className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                      style={{ color: 'var(--danger)' }}
+                                      title="Eliminar grupo completo"
+                                    >
+                                      <Trash2 size={10} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {!isCollapsed && (
+                                <div className="p-1 space-y-1 bg-black/5 dark:bg-white/5">
+                                  {groupChildren.map((childEl) => {
+                                    const childIdx = elements.findIndex((item) => item.id === childEl.id);
+
+                                    return (
+                                      <div
+                                        key={childEl.id}
+                                        onClick={(e) =>
+                                          handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey)
+                                        }
+                                        className="flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ml-1.5 hover:opacity-90 shadow-2xs"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--text-main)',
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          {childEl.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                                          {childEl.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
+                                          {childEl.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
+                                          {childEl.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
+                                          {childEl.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
+                                          {childEl.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
+                                          {childEl.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+
+                                          <span className="truncate text-[11px] font-medium">
+                                            {childEl.content}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-0.5 shrink-0 ml-1">
+                                          <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleMoveLayerUp(childIdx);
+                                              }}
+                                              disabled={childIdx === 0}
+                                              className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                            >
+                                              <ChevronUp size={10} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleMoveLayerDown(childIdx);
+                                              }}
+                                              disabled={childIdx === elements.length - 1}
+                                              className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                            >
+                                              <ChevronDown size={10} />
+                                            </button>
+                                          </div>
+
+                                          <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleElementVisibility(childEl.id);
+                                              }}
+                                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                            >
+                                              {childEl.visible === false ? <EyeOff size={10} /> : <Eye size={10} />}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleElementLock(childEl.id);
+                                              }}
+                                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                            >
+                                              {childEl.locked ? <Lock size={10} /> : <Unlock size={10} />}
+                                            </button>
+                                          </div>
+
+                                          <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDuplicateElement(childEl.id);
+                                              }}
+                                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                                              title="Duplicar elemento"
+                                            >
+                                              <Copy size={10} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteElement(childEl.id);
+                                              }}
+                                              className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                              title="Eliminar elemento"
+                                            >
+                                              <Trash2 size={10} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Renderizado de Componente Padre (Exclusivo del Sobre) con Elementos Hijos Anidados
+                        if (el.isComponentParent) {
+                          const childElements = el.children || [];
+                          return (
+                            <div
+                              key={el.id}
+                              className="flex flex-col rounded-lg border overflow-hidden transition-all shadow-2xs"
+                              style={{
+                                backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-app)',
+                                borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                              }}
+                            >
+                              <div
+                                onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+                                className="flex items-center justify-between p-2 cursor-pointer border-b"
+                                style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <Box size={13} className="shrink-0 text-amber-500" />
+                                  <span className="truncate text-[11px] font-extrabold text-amber-500">
+                                    {el.componentName || 'Componente'}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMoveLayerUp(idx);
+                                      }}
+                                      disabled={idx === 0}
+                                      className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                      title="Subir posición de la capa"
+                                    >
+                                      <ChevronUp size={11} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMoveLayerDown(idx);
+                                      }}
+                                      disabled={idx === elements.length - 1}
+                                      className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                      title="Bajar posición de la capa"
+                                    >
+                                      <ChevronDown size={11} />
+                                    </button>
+                                  </div>
+
+                                  <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleElementVisibility(el.id);
+                                      }}
+                                      className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                      title="Mostrar/Ocultar Componente"
+                                    >
+                                      {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDuplicateElement(el.id);
+                                      }}
+                                      className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                                      title="Duplicar Componente"
+                                    >
+                                      <Copy size={11} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="p-1.5 space-y-1 bg-black/5 dark:bg-white/5">
+                                {childElements.map((childEl: CanvasElement, childIdx: number) => {
+                                  const isChildSelected = selectedElementId === childEl.id;
+                                  return (
+                                    <div
+                                      key={childEl.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey);
+                                      }}
+                                      className={`flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ${
+                                        isChildSelected ? 'shadow-xs border-amber-500 bg-amber-500/15 text-amber-600 font-bold' : 'hover:bg-black/5 dark:hover:bg-white/5 border-transparent opacity-90'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        {childEl.type === 'image' && <ImageIcon size={12} className="shrink-0 text-blue-500" />}
+                                        {childEl.type === 'video' && <Video size={12} className="shrink-0 text-purple-500" />}
+                                        {childEl.type === 'text' && <Type size={12} className="shrink-0 text-emerald-500" />}
+                                        {childEl.type === 'shape' && <Square size={12} className="shrink-0 text-amber-500" />}
+
+                                        <span className="truncate text-[10.5px]">
+                                          {childEl.content ? childEl.content.substring(0, 20) : `Elemento ${childEl.type}`}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-0.5 shrink-0 ml-1">
+                                        <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleMoveComponentChildUp(el.id, childEl.id);
+                                            }}
+                                            disabled={childIdx === 0}
+                                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                            title="Subir posición dentro del componente"
+                                          >
+                                            <ChevronUp size={10} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleMoveComponentChildDown(el.id, childEl.id);
+                                            }}
+                                            disabled={childIdx === childElements.length - 1}
+                                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
+                                            title="Bajar posición dentro del componente"
+                                          >
+                                            <ChevronDown size={10} />
+                                          </button>
+                                        </div>
+
+                                        <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleComponentChildVisibility(el.id, childEl.id);
+                                            }}
+                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                            title="Mostrar/Ocultar elemento"
+                                          >
+                                            {childEl.visible === false ? <EyeOff size={10} /> : <Eye size={10} />}
+                                          </button>
+                                        </div>
+
+                                        <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDuplicateElement(childEl.id);
+                                            }}
+                                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
+                                            title="Duplicar elemento del componente"
+                                          >
+                                            <Copy size={10} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteElement(childEl.id);
+                                            }}
+                                            className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                            title="Eliminar elemento del componente"
+                                          >
+                                            <Trash2 size={10} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Renderizado de Elemento Independiente (Sin Grupo)
+                        return (
                           <div
+                            key={el.id}
                             onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
-                            className="flex items-center justify-between p-2 cursor-pointer border-b"
-                            style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                            className={`flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ${
+                              isSelected ? 'shadow-xs' : 'hover:opacity-90'
+                            }`}
+                            style={{
+                              backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                              borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                              color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                            }}
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <Box size={13} className="shrink-0 text-amber-500" />
-                              <span className="truncate text-[11px] font-extrabold text-amber-500">
-                                {el.componentName || 'Componente'}
+                              {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
+                              {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
+                              {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
+                              {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
+                              {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
+                              {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
+                              {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+
+                              <span className={`truncate text-[11px] ${isSelected ? 'font-black' : 'font-medium'}`}>
+                                {el.componentName || el.content || (el.type === 'image' ? 'Imagen' : el.type)}
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-1 shrink-0 ml-1">
+                              <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -2737,7 +2991,7 @@ export default function InvitationDesigner() {
                                   }}
                                   disabled={idx === 0}
                                   className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                                  title="Subir posición de la capa"
+                                  style={{ color: 'var(--text-main)' }}
                                 >
                                   <ChevronUp size={11} />
                                 </button>
@@ -2749,13 +3003,13 @@ export default function InvitationDesigner() {
                                   }}
                                   disabled={idx === elements.length - 1}
                                   className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                                  title="Bajar posición de la capa"
+                                  style={{ color: 'var(--text-main)' }}
                                 >
                                   <ChevronDown size={11} />
                                 </button>
                               </div>
 
-                              <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -2763,10 +3017,48 @@ export default function InvitationDesigner() {
                                     toggleElementVisibility(el.id);
                                   }}
                                   className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                  title="Mostrar/Ocultar Componente"
+                                  style={{ color: el.visible === false ? 'var(--text-muted)' : 'var(--text-main)' }}
                                 >
                                   {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
                                 </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedElementIds.length >= 2) {
+                                      handleGroupSelected();
+                                    } else {
+                                      handleSelectElement(el.id, true);
+                                    }
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{
+                                    color: selectedElementIds.length >= 2 ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                  }}
+                                  title={
+                                    selectedElementIds.length >= 2
+                                      ? `Agrupar ${selectedElementIds.length} capas seleccionadas`
+                                      : 'Selecciona más capas para agrupar con la cadena'
+                                  }
+                                >
+                                  <Unlink size={11} className="opacity-60 shrink-0" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleElementLock(el.id);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{ color: el.locked ? 'var(--warning)' : 'var(--text-muted)' }}
+                                >
+                                  {el.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                                </button>
+                              </div>
+
+                              <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -2774,516 +3066,302 @@ export default function InvitationDesigner() {
                                     handleDuplicateElement(el.id);
                                   }}
                                   className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
-                                  title="Duplicar Componente"
+                                  title="Duplicar elemento"
                                 >
                                   <Copy size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteElement(el.id);
+                                  }}
+                                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                  style={{ color: 'var(--danger)' }}
+                                  title="Eliminar elemento"
+                                >
+                                  <Trash2 size={11} />
                                 </button>
                               </div>
                             </div>
                           </div>
+                        );
+                      });
+                    })()
+                  )}
+                </div>
+              )}
+            </div>
 
-                          {/* Lista de Elementos Hijos (Imagenes, Video, Texto, etc.) seleccionables y editables */}
-                          <div className="p-1.5 space-y-1 bg-black/5 dark:bg-white/5">
-                            {childElements.map((childEl: CanvasElement, childIdx: number) => {
-                              const isChildSelected = selectedElementId === childEl.id;
-                              return (
-                                <div
-                                  key={childEl.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelectElement(childEl.id, e.shiftKey || e.ctrlKey || e.metaKey);
-                                  }}
-                                  className={`flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ${
-                                    isChildSelected ? 'shadow-xs border-amber-500 bg-amber-500/15 text-amber-600 font-bold' : 'hover:bg-black/5 dark:hover:bg-white/5 border-transparent opacity-90'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    {childEl.type === 'image' && <ImageIcon size={12} className="shrink-0 text-blue-500" />}
-                                    {childEl.type === 'video' && <Video size={12} className="shrink-0 text-purple-500" />}
-                                    {childEl.type === 'text' && <Type size={12} className="shrink-0 text-emerald-500" />}
-                                    {childEl.type === 'shape' && <Square size={12} className="shrink-0 text-amber-500" />}
+            {/* ITEM ACORDEÓN 2: Escenas */}
+            <div className={`flex flex-col min-h-0 ${activeLeftSection === 'scenes' ? 'flex-1 overflow-hidden' : 'shrink-0'}`}>
+              <div
+                onClick={() => setActiveLeftSection('scenes')}
+                className="flex items-center justify-between p-3 cursor-pointer select-none border-b transition-colors hover:bg-black/5 dark:hover:bg-white/5 shrink-0"
+                style={{
+                  backgroundColor: activeLeftSection === 'scenes' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                  borderColor: 'var(--border-color)',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Layout size={15} style={{ color: activeLeftSection === 'scenes' ? 'var(--primary-accent)' : 'var(--text-muted)' }} />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                    Escenas
+                  </h3>
+                </div>
 
-                                    <span className="truncate text-[10.5px]">
-                                      {childEl.content ? childEl.content.substring(0, 20) : `Elemento ${childEl.type}`}
-                                    </span>
-                                  </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
+                    style={{
+                      backgroundColor: 'var(--bg-app)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    {scenes.filter((s) => !s.isEnvelope).length}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddScene();
+                      setActiveLeftSection('scenes');
+                    }}
+                    className="p-1 rounded-md transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                    style={{ color: 'var(--primary-accent)' }}
+                    title="Añadir Escena"
+                  >
+                    <Plus size={13} />
+                  </button>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${activeLeftSection === 'scenes' ? 'rotate-0' : '-rotate-90'}`}
+                    style={{ color: 'var(--text-muted)' }}
+                  />
+                </div>
+              </div>
 
-                                  {/* Controles del Elemento Hijo dentro del Componente */}
-                                  <div className="flex items-center gap-0.5 shrink-0 ml-1">
-                                    {/* Flechas Subir / Bajar dentro del Componente */}
-                                    <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleMoveComponentChildUp(el.id, childEl.id);
-                                        }}
-                                        disabled={childIdx === 0}
-                                        className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                                        title="Subir posición dentro del componente"
-                                      >
-                                        <ChevronUp size={10} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleMoveComponentChildDown(el.id, childEl.id);
-                                        }}
-                                        disabled={childIdx === childElements.length - 1}
-                                        className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                                        title="Bajar posición dentro del componente"
-                                      >
-                                        <ChevronDown size={10} />
-                                      </button>
-                                    </div>
+              {activeLeftSection === 'scenes' && (
+                <div className="flex-1 overflow-y-auto p-3 flex flex-col">
+                  <div className="space-y-2">
+                    {scenes.map((scene, idx) => {
+                      if (scene.isEnvelope) return null;
 
-                                    {/* Ojo & Candado */}
-                                    <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleComponentChildVisibility(el.id, childEl.id);
-                                        }}
-                                        className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                        title="Mostrar/Ocultar elemento"
-                                      >
-                                        {childEl.visible === false ? <EyeOff size={10} /> : <Eye size={10} />}
-                                      </button>
-                                    </div>
+                      const isActive = activeSceneId === scene.id;
+                      const isEditing = editingSceneId === scene.id;
 
-                                    {/* Duplicar & Eliminar Elemento Hijo */}
-                                    <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDuplicateElement(childEl.id);
-                                        }}
-                                        className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
-                                        title="Duplicar elemento del componente"
-                                      >
-                                        <Copy size={10} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteElement(childEl.id);
-                                        }}
-                                        className="p-0.5 rounded text-red-500 hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                                        title="Eliminar elemento del componente"
-                                      >
-                                        <Trash2 size={10} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                      return (
+                        <div
+                          key={scene.id}
+                          onClick={() => handleSwitchScene(scene.id)}
+                          className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs cursor-pointer"
+                          style={{
+                            backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
+                            borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editingSceneName}
+                                onChange={(e) => setEditingSceneName(e.target.value)}
+                                onBlur={() => handleRenameScene(scene.id, editingSceneName)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRenameScene(scene.id, editingSceneName);
+                                  if (e.key === 'Escape') setEditingSceneId(null);
+                                }}
+                                autoFocus
+                                className="flex-1 text-xs font-bold bg-transparent outline-none border-b mr-2"
+                                style={{ borderColor: 'var(--primary-accent)', color: 'var(--text-main)' }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <span
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingSceneId(scene.id);
+                                  setEditingSceneName(scene.name);
+                                }}
+                                className="text-xs font-bold truncate flex-1"
+                                style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
+                                title="Doble clic para renombrar"
+                              >
+                                {scene.name}
+                              </span>
+                            )}
+
+                            <div className="flex items-center gap-0.5 shrink-0 ml-2 border rounded-md p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveSceneUp(idx);
+                                }}
+                                disabled={idx === 0 || (idx === 1 && scenes[0].isEnvelope)}
+                                className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
+                                style={{ color: 'var(--text-main)' }}
+                                title="Subir"
+                              >
+                                <ChevronUp size={11} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveSceneDown(idx);
+                                }}
+                                disabled={idx === scenes.length - 1}
+                                className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
+                                style={{ color: 'var(--text-main)' }}
+                                title="Bajar"
+                              >
+                                <ChevronDown size={11} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteScene(scene.id);
+                                }}
+                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ml-0.5"
+                                style={{ color: 'var(--danger)' }}
+                                title="Eliminar Escena"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
-                    }
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
-                    // Renderizado de Elemento Independiente (Sin Grupo)
+            {/* ITEM ACORDEÓN 3: Sobre */}
+            <div className={`flex flex-col min-h-0 ${activeLeftSection === 'envelope' ? 'flex-1 overflow-hidden' : 'shrink-0'}`}>
+              <div
+                onClick={() => setActiveLeftSection('envelope')}
+                className="flex items-center justify-between p-3 cursor-pointer select-none border-b transition-colors hover:bg-black/5 dark:hover:bg-white/5 shrink-0"
+                style={{
+                  backgroundColor: activeLeftSection === 'envelope' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                  borderColor: 'var(--border-color)',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Mail size={15} style={{ color: activeLeftSection === 'envelope' ? 'var(--primary-accent)' : 'var(--text-muted)' }} />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                    Sobre
+                  </h3>
+                </div>
+
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${activeLeftSection === 'envelope' ? 'rotate-0' : '-rotate-90'}`}
+                  style={{ color: 'var(--text-muted)' }}
+                />
+              </div>
+
+              {activeLeftSection === 'envelope' && (
+                <div className="flex-1 overflow-y-auto p-3 flex flex-col">
+                  {(() => {
+                    const envelopeScene = scenes.find((s) => s.isEnvelope);
+                    if (!envelopeScene) return null;
+                    const isActive = activeSceneId === envelopeScene.id;
+
                     return (
                       <div
-                        key={el.id}
-                        onClick={(e) => handleSelectElement(el.id, e.shiftKey || e.ctrlKey || e.metaKey)}
-                        className={`flex items-center justify-between p-1.5 rounded-md border text-[11px] cursor-pointer transition-all ${
-                          isSelected ? 'shadow-xs' : 'hover:opacity-90'
-                        }`}
+                        key={envelopeScene.id}
+                        onClick={() => handleSwitchScene(envelopeScene.id)}
+                        className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs cursor-pointer"
                         style={{
-                          backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'var(--bg-app)',
-                          borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
-                          color: isSelected ? 'var(--primary-accent)' : 'var(--text-main)',
+                          backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
+                          borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
                         }}
                       >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {el.type === 'text' && <Type size={13} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />}
-                          {el.type === 'image' && <ImageIcon size={13} className="shrink-0 text-blue-500" />}
-                          {el.type === 'video' && <Video size={13} className="shrink-0 text-purple-500" />}
-                          {el.type === 'shape' && <Square size={13} className="shrink-0 text-emerald-500" />}
-                          {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
-                          {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
-                          {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
-
-                          <span className={`truncate text-[11px] ${isSelected ? 'font-black' : 'font-medium'}`}>
-                            {el.componentName || el.content || (el.type === 'image' ? 'Imagen' : el.type)}
+                        <div className="flex items-center justify-between">
+                          <span
+                            className="text-xs font-bold truncate flex-1"
+                            style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
+                          >
+                            {envelopeScene.name}
                           </span>
-                        </div>
 
-                        {/* Controles de Capa Suelta */}
-                        <div className="flex items-center gap-1 shrink-0 ml-1">
-                          <div className="flex items-center rounded-md border p-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <div className="flex bg-black/10 dark:bg-white/5 rounded-md border border-black/10 dark:border-white/10 p-0.5" onClick={(e) => e.stopPropagation()}>
                             <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMoveLayerUp(idx);
+                              onClick={() => {
+                                const newScenes = [...scenes];
+                                const envIdx = newScenes.findIndex((s) => s.isEnvelope);
+                                newScenes[envIdx] = {
+                                  ...newScenes[envIdx],
+                                  envelopeSettings: { ...newScenes[envIdx].envelopeSettings, orientation: 'vertical' },
+                                };
+                                setScenes(newScenes);
                               }}
-                              disabled={idx === 0}
-                              className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                              style={{ color: 'var(--text-main)' }}
-                            >
-                              <ChevronUp size={11} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMoveLayerDown(idx);
-                              }}
-                              disabled={idx === elements.length - 1}
-                              className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 cursor-pointer"
-                              style={{ color: 'var(--text-main)' }}
-                            >
-                              <ChevronDown size={11} />
-                            </button>
-                          </div>
-
-                          <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleElementVisibility(el.id);
-                              }}
-                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                              style={{ color: el.visible === false ? 'var(--text-muted)' : 'var(--text-main)' }}
-                            >
-                              {el.visible === false ? <EyeOff size={11} /> : <Eye size={11} />}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (selectedElementIds.length >= 2) {
-                                  handleGroupSelected();
-                                } else {
-                                  handleSelectElement(el.id, true);
-                                }
-                              }}
-                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                              className="px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all"
                               style={{
-                                color: selectedElementIds.length >= 2 ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                backgroundColor:
+                                  !envelopeScene.envelopeSettings?.orientation ||
+                                  envelopeScene.envelopeSettings.orientation === 'vertical'
+                                    ? 'var(--primary-accent)'
+                                    : 'transparent',
+                                color:
+                                  !envelopeScene.envelopeSettings?.orientation ||
+                                  envelopeScene.envelopeSettings.orientation === 'vertical'
+                                    ? '#ffffff'
+                                    : 'var(--text-muted)',
+                                boxShadow:
+                                  !envelopeScene.envelopeSettings?.orientation ||
+                                  envelopeScene.envelopeSettings.orientation === 'vertical'
+                                    ? '0 1px 2px rgba(0,0,0,0.1)'
+                                    : 'none',
                               }}
-                              title={
-                                selectedElementIds.length >= 2
-                                  ? `Agrupar ${selectedElementIds.length} capas seleccionadas`
-                                  : 'Selecciona más capas para agrupar con la cadena'
-                              }
                             >
-                              <Unlink size={11} className="opacity-60 shrink-0" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleElementLock(el.id);
-                              }}
-                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                              style={{ color: el.locked ? 'var(--warning)' : 'var(--text-muted)' }}
-                            >
-                              {el.locked ? <Lock size={11} /> : <Unlock size={11} />}
-                            </button>
-                          </div>
-
-                          <div className="flex items-center rounded-md border p-0.5 gap-0.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDuplicateElement(el.id);
-                              }}
-                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-blue-500 cursor-pointer"
-                              title="Duplicar elemento"
-                            >
-                              <Copy size={11} />
+                              VERT
                             </button>
                             <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteElement(el.id);
+                              onClick={() => {
+                                const newScenes = [...scenes];
+                                const envIdx = newScenes.findIndex((s) => s.isEnvelope);
+                                newScenes[envIdx] = {
+                                  ...newScenes[envIdx],
+                                  envelopeSettings: { ...newScenes[envIdx].envelopeSettings, orientation: 'horizontal' },
+                                };
+                                setScenes(newScenes);
                               }}
-                              className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                              style={{ color: 'var(--danger)' }}
-                              title="Eliminar elemento"
+                              className="px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all"
+                              style={{
+                                backgroundColor:
+                                  envelopeScene.envelopeSettings?.orientation === 'horizontal'
+                                    ? 'var(--primary-accent)'
+                                    : 'transparent',
+                                color:
+                                  envelopeScene.envelopeSettings?.orientation === 'horizontal'
+                                    ? '#ffffff'
+                                    : 'var(--text-muted)',
+                                boxShadow:
+                                  envelopeScene.envelopeSettings?.orientation === 'horizontal'
+                                    ? '0 1px 2px rgba(0,0,0,0.1)'
+                                    : 'none',
+                              }}
                             >
-                              <Trash2 size={11} />
+                              HORIZ
                             </button>
                           </div>
                         </div>
                       </div>
                     );
-                  });
-                })()
+                  })()}
+                </div>
               )}
-            </div>
-          </div>
-
-          {/* Resizer */}
-          <div
-            onPointerDown={(e) => {
-              e.preventDefault();
-              setIsResizingScenes(true);
-            }}
-            className="h-1.5 w-full cursor-row-resize shrink-0 transition-colors hover:bg-amber-500/50 touch-none"
-            style={{ backgroundColor: 'var(--border-color)' }}
-          />
-
-          {/* 3. SECCIÓN ESCENAS */}
-          <div
-            className="flex flex-col shrink-0"
-            style={{ height: scenesPanelHeight }}
-          >
-            <div
-              className="flex items-center justify-between p-3 border-b shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-color)',
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Layout size={15} style={{ color: 'var(--primary-accent)' }} />
-                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                  Escenas
-                </h3>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border"
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    borderColor: 'var(--border-color)',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {scenes.filter((s) => !s.isEnvelope).length}
-                </span>
-                <button
-                  onClick={handleAddScene}
-                  className="p-1 rounded-md transition-colors hover:bg-black/10 dark:hover:bg-white/10"
-                  style={{ color: 'var(--primary-accent)' }}
-                  title="Añadir Escena"
-                >
-                  <Plus size={13} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col">
-              <div className="space-y-2">
-                {scenes.map((scene, idx) => {
-                  if (scene.isEnvelope) return null;
-
-                  const isActive = activeSceneId === scene.id;
-                  const isEditing = editingSceneId === scene.id;
-                  
-                  return (
-                    <div
-                      key={scene.id}
-                      onClick={() => handleSwitchScene(scene.id)}
-                      className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs cursor-pointer"
-                      style={{
-                        backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
-                        borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editingSceneName}
-                            onChange={(e) => setEditingSceneName(e.target.value)}
-                            onBlur={() => handleRenameScene(scene.id, editingSceneName)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleRenameScene(scene.id, editingSceneName);
-                              if (e.key === 'Escape') setEditingSceneId(null);
-                            }}
-                            autoFocus
-                            className="flex-1 text-xs font-bold bg-transparent outline-none border-b mr-2"
-                            style={{ borderColor: 'var(--primary-accent)', color: 'var(--text-main)' }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span
-                            onDoubleClick={(e) => {
-                              e.stopPropagation();
-                              setEditingSceneId(scene.id);
-                              setEditingSceneName(scene.name);
-                            }}
-                            className="text-xs font-bold truncate flex-1"
-                            style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
-                            title="Doble clic para renombrar"
-                          >
-                            {scene.name}
-                          </span>
-                        )}
-
-                        <div className="flex items-center gap-0.5 shrink-0 ml-2 border rounded-md p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }} onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveSceneUp(idx);
-                            }}
-                            disabled={idx === 0 || (idx === 1 && scenes[0].isEnvelope)}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
-                            style={{ color: 'var(--text-main)' }}
-                            title="Subir"
-                          >
-                            <ChevronUp size={11} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveSceneDown(idx);
-                            }}
-                            disabled={idx === scenes.length - 1}
-                            className="p-0.5 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20"
-                            style={{ color: 'var(--text-main)' }}
-                            title="Bajar"
-                          >
-                            <ChevronDown size={11} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteScene(scene.id);
-                            }}
-                            className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 ml-0.5"
-                            style={{ color: 'var(--danger)' }}
-                            title="Eliminar Escena"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-              </div>
-            </div>
-          </div>
-          {/* 4. SECCIÓN SOBRE (Elemento Fijo) */}
-          <div
-            className="flex flex-col shrink-0 border-t"
-            style={{
-              backgroundColor: 'var(--bg-sidebar)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <div
-              className="flex items-center justify-between p-3 border-b shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-color)',
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Mail size={15} style={{ color: 'var(--primary-accent)' }} />
-                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                  Sobre
-                </h3>
-              </div>
-            </div>
-
-            <div className="p-3">
-              {(() => {
-                const envelopeScene = scenes.find(s => s.isEnvelope);
-                if (!envelopeScene) return null;
-                const isActive = activeSceneId === envelopeScene.id;
-
-                return (
-                  <div
-                    key={envelopeScene.id}
-                    onClick={() => handleSwitchScene(envelopeScene.id)}
-                    className="flex flex-col p-2 rounded-lg border transition-all hover:shadow-xs cursor-pointer"
-                    style={{
-                      backgroundColor: isActive ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-card)',
-                      borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className="text-xs font-bold truncate flex-1"
-                        style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-main)' }}
-                      >
-                        {envelopeScene.name}
-                      </span>
-                      
-                      <div className="flex bg-black/10 dark:bg-white/5 rounded-md border border-black/10 dark:border-white/10 p-0.5" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            const newScenes = [...scenes];
-                            const envIdx = newScenes.findIndex(s => s.isEnvelope);
-                            newScenes[envIdx] = {
-                              ...newScenes[envIdx],
-                              envelopeSettings: { ...newScenes[envIdx].envelopeSettings, orientation: 'vertical' }
-                            };
-                            setScenes(newScenes);
-                          }}
-                          className="px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all"
-                          style={{
-                            backgroundColor: (!envelopeScene.envelopeSettings?.orientation || envelopeScene.envelopeSettings.orientation === 'vertical') 
-                              ? 'var(--primary-accent)' 
-                              : 'transparent',
-                            color: (!envelopeScene.envelopeSettings?.orientation || envelopeScene.envelopeSettings.orientation === 'vertical') 
-                              ? '#ffffff' 
-                              : 'var(--text-muted)',
-                            boxShadow: (!envelopeScene.envelopeSettings?.orientation || envelopeScene.envelopeSettings.orientation === 'vertical') 
-                              ? '0 1px 2px rgba(0,0,0,0.1)' 
-                              : 'none',
-                          }}
-                        >
-                          VERT
-                        </button>
-                        <button
-                          onClick={() => {
-                            const newScenes = [...scenes];
-                            const envIdx = newScenes.findIndex(s => s.isEnvelope);
-                            newScenes[envIdx] = {
-                              ...newScenes[envIdx],
-                              envelopeSettings: { ...newScenes[envIdx].envelopeSettings, orientation: 'horizontal' }
-                            };
-                            setScenes(newScenes);
-                          }}
-                          className="px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all"
-                          style={{
-                            backgroundColor: (envelopeScene.envelopeSettings?.orientation === 'horizontal') 
-                              ? 'var(--primary-accent)' 
-                              : 'transparent',
-                            color: (envelopeScene.envelopeSettings?.orientation === 'horizontal') 
-                              ? '#ffffff' 
-                              : 'var(--text-muted)',
-                            boxShadow: (envelopeScene.envelopeSettings?.orientation === 'horizontal') 
-                              ? '0 1px 2px rgba(0,0,0,0.1)' 
-                              : 'none',
-                          }}
-                        >
-                          HORIZ
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
           </div>
         </aside>
 
-        {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema) */}
+        {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema estilo Floating Deck) */}
         <main
           ref={mainContainerRef}
-          className="flex-1 relative overflow-auto p-6 flex"
-          style={{ backgroundColor: 'var(--bg-app)' }}
+          className="flex-1 relative overflow-auto p-6 flex border rounded-2xl shadow-xl backdrop-blur-md transition-all"
+          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
@@ -3359,6 +3437,20 @@ export default function InvitationDesigner() {
               <Maximize size={13} style={{ color: 'var(--primary-accent)' }} />
               Ajustar
             </button>
+          </div>
+
+          {/* Tamaño de Lienzo flotante (Esquina superior derecha del área del diseñador) */}
+          <div
+            className="absolute top-4 right-4 z-30 flex items-center gap-1.5 rounded-xl px-3 py-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold pointer-events-auto"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-main)',
+            }}
+          >
+            <Smartphone size={14} style={{ color: 'var(--primary-accent)' }} />
+            <span>Lienzo Vertical</span>
+            <span className="text-[10px] font-mono opacity-60">1080 × 1920 px (9:16)</span>
           </div>
 
           {/* Wrapper flexible m-auto sin padding excesivo */}
@@ -3781,11 +3873,30 @@ export default function InvitationDesigner() {
             </div>
           </div>
         </div>
-      </main>
 
-        {/* Right Panel: Inspector de Propiedades estilo Jitter */}
+        {/* Timeline Bar Scoped al Diseñador Central */}
+          <DesignerTimelineBar
+            elements={elements}
+            selectedElementId={selectedElementId}
+            onSelectElement={(id) => {
+              setSelectedElementId(id);
+              setSelectedElementIds([id]);
+            }}
+            onUpdateElement={updateSelectedElementBatch}
+            currentTime={timelineTime}
+            setCurrentTime={setTimelineTime}
+            isPlaying={isPlaying}
+            setIsPlaying={setIsPlaying}
+            totalDuration={totalDuration}
+            setTotalDuration={setTotalDuration}
+            isExpanded={isTimelineExpanded}
+            setIsExpanded={setIsTimelineExpanded}
+          />
+        </main>
+
+        {/* Right Panel: Inspector de Propiedades estilo Floating Deck */}
         <aside
-          className="w-72 shrink-0 border-l flex flex-col z-30"
+          className="w-72 shrink-0 border rounded-2xl shadow-xl backdrop-blur-md flex flex-col z-30 overflow-hidden transition-all"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -3813,7 +3924,10 @@ export default function InvitationDesigner() {
                 <Palette size={15} /> Diseño
               </button>
               <button
-                onClick={() => setInspectorTab('animation')}
+                onClick={() => {
+                  setInspectorTab('animation');
+                  setIsTimelineExpanded(true);
+                }}
                 className={`flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
                   inspectorTab === 'animation' ? 'font-black' : 'hover:opacity-80'
                 }`}
@@ -6562,14 +6676,17 @@ export default function InvitationDesigner() {
                 </div>
               </div>
             ) : (
-              /* TAB: ANIMACIÓN ESTILO JITTER */
+              /* TAB: ANIMACIÓN */
               <div className="p-3 space-y-4 text-xs">
-                <div className="p-3 rounded-xl border flex items-center justify-between gap-2" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
-                  <div className="flex items-center gap-2">
-                    <Zap size={18} style={{ color: 'var(--primary-accent)' }} />
+                {/* Cabecera Informativa con Estado de Bloqueo SuperAdmin */}
+                <div className="p-3 rounded-xl border flex items-center justify-between gap-2 shadow-2xs" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)' }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                      <Zap size={18} />
+                    </div>
                     <div>
-                      <p className="font-extrabold" style={{ color: 'var(--primary-accent)' }}>Jitter Motion Engine</p>
-                      <p className="text-[10px]" style={{ color: 'var(--text-main)' }}>Configura la animación de entrada y salida del elemento.</p>
+                      <p className="font-extrabold text-xs" style={{ color: 'var(--primary-accent)' }}>Animaciones del Elemento</p>
+                      <p className="text-[10px] opacity-80" style={{ color: 'var(--text-main)' }}>Configura entrada, salida, tiempos y curvas</p>
                     </div>
                   </div>
 
@@ -6577,7 +6694,7 @@ export default function InvitationDesigner() {
                     <button
                       type="button"
                       onClick={() => toggleSectionLock('animation')}
-                      className={`p-1 rounded-md border transition-all cursor-pointer shrink-0 ${
+                      className={`p-1.5 rounded-md border transition-all cursor-pointer shrink-0 ${
                         selectedElement.lockedSections?.animation
                           ? 'bg-amber-500/20 text-amber-500 border-amber-500/40 shadow-xs'
                           : 'hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 border-transparent'
@@ -6594,163 +6711,345 @@ export default function InvitationDesigner() {
                 </div>
 
                 <div className={`space-y-4 transition-opacity ${!isSuperAdmin && selectedElement.lockedSections?.animation ? 'opacity-60 pointer-events-none select-none' : ''}`}>
-
-                {/* Animación de Entrada (In) */}
-                <div>
-                  <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    EFECTO DE ENTRADA (IN)
-                  </label>
-                  <select
-                    value={selectedElement.animIn || 'slideInUp'}
-                    onChange={(e) => updateSelectedElement('animIn', e.target.value)}
-                    className="w-full rounded-lg px-3 py-2 border outline-none font-bold"
+                  
+                  {/* Botón de Reproducir / Probar Animación */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateSelectedElement('previewKey', Date.now());
+                    }}
+                    className="w-full py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] border cursor-pointer"
                     style={{
-                      backgroundColor: 'var(--bg-app)',
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-main)',
+                      backgroundColor: 'var(--primary-accent)',
+                      borderColor: 'var(--primary-accent)',
+                      color: '#ffffff',
                     }}
                   >
-                    <option value="none">Sin animación</option>
-                    <option value="fadeIn">Fade In (Disolución)</option>
-                    <option value="slideInUp">Slide In Up (Deslizar desde abajo)</option>
-                    <option value="slideInLeft">Slide In Left (Deslizar desde izquierda)</option>
-                    <option value="zoomIn">Zoom In (Escalado elástico)</option>
-                    <option value="bounceIn">Bounce In (Rebote dinámico)</option>
-                    <option value="spinIn">Spin In (Rotación 3D)</option>
-                  </select>
-                </div>
+                    <Play size={14} className="fill-white" />
+                    <span>Probar Animaciones</span>
+                  </button>
 
-                {/* Animación de Salida (Out) */}
-                <div>
-                  <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    EFECTO DE SALIDA (OUT)
-                  </label>
-                  <select
-                    value={selectedElement.animOut || 'none'}
-                    onChange={(e) => updateSelectedElement('animOut', e.target.value)}
-                    className="w-full rounded-lg px-3 py-2 border outline-none font-bold"
-                    style={{
-                      backgroundColor: 'var(--bg-app)',
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-main)',
-                    }}
-                  >
-                    <option value="none">Sin animación</option>
-                    <option value="fadeOut">Fade Out (Desvanecer)</option>
-                    <option value="slideOutDown">Slide Out Down (Deslizar abajo)</option>
-                    <option value="slideOutRight">Slide Out Right (Deslizar derecha)</option>
-                    <option value="zoomOut">Zoom Out (Reducir)</option>
-                  </select>
-                </div>
+                  {/* ACCORDION DE ANIMACIONES */}
+                  <div className="space-y-2">
+                    
+                    {/* 1. SECCIÓN INICIO / ENTRADA */}
+                    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                      <button
+                        type="button"
+                        onClick={() => updateSelectedElement('animAccordion', selectedElement.animAccordion === 'in' ? null : 'in')}
+                        className="w-full px-3 py-2.5 flex items-center justify-between font-bold text-xs cursor-pointer transition-colors"
+                        style={{ backgroundColor: (selectedElement.animAccordion || 'in') === 'in' ? 'var(--primary-accent-light)' : 'transparent' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Zap size={14} className="text-emerald-500" />
+                          <span style={{ color: 'var(--text-main)' }}>1. Inicio (Entrada)</span>
+                          {selectedElement.animIn && selectedElement.animIn !== 'none' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-normal border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                              {selectedElement.animIn}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform duration-200 ${
+                            (selectedElement.animAccordion || 'in') === 'in' ? 'rotate-180 text-[var(--primary-accent)]' : 'text-gray-400'
+                          }`}
+                        />
+                      </button>
 
-                {/* Tiempos de Animación: Duración y Retraso */}
-                <div className="grid grid-cols-2 gap-2 font-mono">
-                  <div>
-                    <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      Duración (seg)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      max="5"
-                      value={selectedElement.animDuration || 0.8}
-                      onChange={(e) => updateSelectedElement('animDuration', parseFloat(e.target.value) || 0.8)}
-                      className="w-full rounded-lg px-2.5 py-1.5 border outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
-                    />
+                      {(selectedElement.animAccordion || 'in') === 'in' && (
+                        <div className="p-3 border-t space-y-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+                          
+                          {/* Fila 1: 2 Selects (Efecto y Dirección) con icono a la izquierda */}
+                          <div className="grid grid-cols-2 gap-2 font-mono">
+                            <div className="flex items-center gap-1.5" title="Efecto de Entrada">
+                              <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorSelect
+                                  value={selectedElement.animInType || 'slide'}
+                                  onChange={(val) => {
+                                    updateSelectedElement('animInType', val);
+                                    const dir = selectedElement.animInDir || 'up';
+                                    let combined = 'slideInUp';
+                                    if (val === 'none') combined = 'none';
+                                    else if (val === 'fade') combined = 'fadeIn';
+                                    else if (val === 'slide') combined = dir === 'up' ? 'slideInUp' : dir === 'down' ? 'slideInDown' : dir === 'left' ? 'slideInLeft' : 'slideInRight';
+                                    else if (val === 'zoom') combined = 'zoomIn';
+                                    else if (val === 'bounce') combined = 'bounceIn';
+                                    else if (val === 'spin') combined = 'spinIn';
+                                    updateSelectedElement('animIn', combined);
+                                  }}
+                                  options={ANIM_EFFECT_TYPE_OPTIONS}
+                                  buttonClassName="h-7 px-2 text-[10px] font-semibold"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5" title="Dirección de Entrada">
+                              <Compass size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorSelect
+                                  value={selectedElement.animInDir || 'up'}
+                                  onChange={(dir) => {
+                                    updateSelectedElement('animInDir', dir);
+                                    const type = selectedElement.animInType || 'slide';
+                                    let combined = 'slideInUp';
+                                    if (type === 'slide') combined = dir === 'up' ? 'slideInUp' : dir === 'down' ? 'slideInDown' : dir === 'left' ? 'slideInLeft' : 'slideInRight';
+                                    else if (type === 'fade') combined = 'fadeIn';
+                                    else if (type === 'zoom') combined = 'zoomIn';
+                                    else if (type === 'bounce') combined = 'bounceIn';
+                                    else if (type === 'spin') combined = 'spinIn';
+                                    updateSelectedElement('animIn', combined);
+                                  }}
+                                  options={ANIM_DIRECTION_OPTIONS}
+                                  buttonClassName="h-7 px-2 text-[10px] font-semibold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Fila 2: Curva Easing de Entrada */}
+                          <div className="flex items-center gap-1.5" title="Curva de Aceleración (Easing)">
+                            <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                            <div className="flex-1 min-w-0">
+                              <InspectorSelect
+                                value={selectedElement.animEasingIn || selectedElement.animEasing || 'ease-out'}
+                                onChange={(val) => updateSelectedElement('animEasingIn', val)}
+                                options={ANIM_EASING_OPTIONS}
+                                buttonClassName="h-7 px-2.5 text-[10px]"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Fila 3: Duración & Retraso de Entrada en la misma fila */}
+                          <div className="pt-1 border-t grid grid-cols-2 gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-1 min-w-0" title="Duración de Entrada">
+                              <Clock size={12} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <input
+                                type="range"
+                                min="0.1"
+                                max="5.0"
+                                step="0.1"
+                                value={selectedElement.animDuration || 0.8}
+                                onChange={(e) => updateSelectedElement('animDuration', parseFloat(e.target.value) || 0.8)}
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                {(selectedElement.animDuration || 0.8).toFixed(1)}s
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 min-w-0" title="Retraso de Inicio (Delay)">
+                              <Sliders size={12} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <input
+                                type="range"
+                                min="0.0"
+                                max="10.0"
+                                step="0.1"
+                                value={selectedElement.animStartTime || 0}
+                                onChange={(e) => updateSelectedElement('animStartTime', parseFloat(e.target.value) || 0)}
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                {(selectedElement.animStartTime || 0).toFixed(1)}s
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. SECCIÓN DURANTE / LOOP */}
+                    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                      <button
+                        type="button"
+                        onClick={() => updateSelectedElement('animAccordion', selectedElement.animAccordion === 'idle' ? null : 'idle')}
+                        className="w-full px-3 py-2.5 flex items-center justify-between font-bold text-xs cursor-pointer transition-colors"
+                        style={{ backgroundColor: selectedElement.animAccordion === 'idle' ? 'var(--primary-accent-light)' : 'transparent' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Waves size={14} className="text-blue-500" />
+                          <span style={{ color: 'var(--text-main)' }}>2. Durante (Permanencia / Bucle)</span>
+                          {selectedElement.animIdle && selectedElement.animIdle !== 'none' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-normal border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                              {selectedElement.animIdle}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform duration-200 ${
+                            selectedElement.animAccordion === 'idle' ? 'rotate-180 text-[var(--primary-accent)]' : 'text-gray-400'
+                          }`}
+                        />
+                      </button>
+
+                      {selectedElement.animAccordion === 'idle' && (
+                        <div className="p-3 border-t space-y-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+                          
+                          {/* Fila 1: 2 Selects (Efecto y Dirección) con icono a la izquierda */}
+                          <div className="grid grid-cols-2 gap-2 font-mono">
+                            <div className="flex items-center gap-1.5" title="Efecto de Durante">
+                              <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorSelect
+                                  value={selectedElement.animIdle || 'none'}
+                                  onChange={(val) => updateSelectedElement('animIdle', val)}
+                                  options={ANIM_IDLE_OPTIONS}
+                                  buttonClassName="h-7 px-2 text-[10px] font-semibold"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5" title="Dirección de Durante">
+                              <Compass size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorSelect
+                                  value={selectedElement.animIdleDir || 'center'}
+                                  onChange={(val) => updateSelectedElement('animIdleDir', val)}
+                                  options={ANIM_DIRECTION_OPTIONS}
+                                  buttonClassName="h-7 px-2 text-[10px] font-semibold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Fila 2: Curva Easing de Durante */}
+                          <div className="flex items-center gap-1.5" title="Curva de Aceleración (Easing)">
+                            <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                            <div className="flex-1 min-w-0">
+                              <InspectorSelect
+                                value={selectedElement.animEasingIdle || 'ease-in-out'}
+                                onChange={(val) => updateSelectedElement('animEasingIdle', val)}
+                                options={ANIM_EASING_OPTIONS}
+                                buttonClassName="h-7 px-2.5 text-[10px]"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Fila 3: Duración de Durante */}
+                          <div className="space-y-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-1.5" title="Duración de Durante">
+                              <Clock size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <input
+                                type="range"
+                                min="0.5"
+                                max="10.0"
+                                step="0.5"
+                                value={selectedElement.animIdleDuration || 3.0}
+                                onChange={(e) => updateSelectedElement('animIdleDuration', parseFloat(e.target.value) || 3.0)}
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                              <span className="text-[9px] font-mono font-bold w-9 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                {(selectedElement.animIdleDuration || 3.0).toFixed(1)}s
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. SECCIÓN FINAL / SALIDA */}
+                    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                      <button
+                        type="button"
+                        onClick={() => updateSelectedElement('animAccordion', selectedElement.animAccordion === 'out' ? null : 'out')}
+                        className="w-full px-3 py-2.5 flex items-center justify-between font-bold text-xs cursor-pointer transition-colors"
+                        style={{ backgroundColor: selectedElement.animAccordion === 'out' ? 'var(--primary-accent-light)' : 'transparent' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Zap size={14} className="text-rose-500" />
+                          <span style={{ color: 'var(--text-main)' }}>3. Final (Salida)</span>
+                          {selectedElement.animOut && selectedElement.animOut !== 'none' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-normal border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                              {selectedElement.animOut}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform duration-200 ${
+                            selectedElement.animAccordion === 'out' ? 'rotate-180 text-[var(--primary-accent)]' : 'text-gray-400'
+                          }`}
+                        />
+                      </button>
+
+                      {selectedElement.animAccordion === 'out' && (
+                        <div className="p-3 border-t space-y-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+                          
+                          {/* Fila 1: 2 Selects (Efecto y Dirección) con icono a la izquierda */}
+                          <div className="grid grid-cols-2 gap-2 font-mono">
+                            <div className="flex items-center gap-1.5" title="Efecto de Salida">
+                              <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorSelect
+                                  value={selectedElement.animOutType || 'slide'}
+                                  onChange={(val) => {
+                                    updateSelectedElement('animOutType', val);
+                                    const dir = selectedElement.animOutDir || 'down';
+                                    let combined = 'slideOutDown';
+                                    if (val === 'none') combined = 'none';
+                                    else if (val === 'fade') combined = 'fadeOut';
+                                    else if (val === 'slide') combined = dir === 'down' ? 'slideOutDown' : dir === 'up' ? 'slideOutUp' : dir === 'right' ? 'slideOutRight' : 'slideOutLeft';
+                                    else if (val === 'zoom') combined = 'zoomOut';
+                                    updateSelectedElement('animOut', combined);
+                                  }}
+                                  options={ANIM_EFFECT_TYPE_OPTIONS}
+                                  buttonClassName="h-7 px-2 text-[10px] font-semibold"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5" title="Dirección de Salida">
+                              <Compass size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorSelect
+                                  value={selectedElement.animOutDir || 'down'}
+                                  onChange={(dir) => {
+                                    updateSelectedElement('animOutDir', dir);
+                                    const type = selectedElement.animOutType || 'slide';
+                                    let combined = 'slideOutDown';
+                                    if (type === 'slide') combined = dir === 'down' ? 'slideOutDown' : dir === 'up' ? 'slideOutUp' : dir === 'right' ? 'slideOutRight' : 'slideOutLeft';
+                                    else if (type === 'fade') combined = 'fadeOut';
+                                    else if (type === 'zoom') combined = 'zoomOut';
+                                    updateSelectedElement('animOut', combined);
+                                  }}
+                                  options={ANIM_DIRECTION_OPTIONS}
+                                  buttonClassName="h-7 px-2 text-[10px] font-semibold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Fila 2: Curva Easing de Salida */}
+                          <div className="flex items-center gap-1.5" title="Curva de Aceleración (Easing)">
+                            <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                            <div className="flex-1 min-w-0">
+                              <InspectorSelect
+                                value={selectedElement.animEasingOut || selectedElement.animEasing || 'ease-in'}
+                                onChange={(val) => updateSelectedElement('animEasingOut', val)}
+                                options={ANIM_EASING_OPTIONS}
+                                buttonClassName="h-7 px-2.5 text-[10px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                   </div>
-                  <div>
-                    <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                      Retraso Delay (seg)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="5"
-                      value={selectedElement.animDelay || 0}
-                      onChange={(e) => updateSelectedElement('animDelay', parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-lg px-2.5 py-1.5 border outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-app)',
-                        borderColor: 'var(--border-color)',
-                        color: 'var(--text-main)',
-                      }}
-                    />
-                  </div>
-                </div>
 
-                {/* Easing Curves */}
-                <div>
-                  <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Curva Easing de Transición
-                  </label>
-                  <select
-                    value={selectedElement.animEasing || 'ease-out'}
-                    onChange={(e) => updateSelectedElement('animEasing', e.target.value)}
-                    className="w-full rounded-lg px-3 py-2 border outline-none"
-                    style={{
-                      backgroundColor: 'var(--bg-app)',
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-main)',
-                    }}
-                  >
-                    <option value="ease">Ease</option>
-                    <option value="ease-in">Ease In</option>
-                    <option value="ease-out">Ease Out</option>
-                    <option value="ease-in-out">Ease In Out</option>
-                    <option value="cubic-bezier">Elastic Cubic Bezier</option>
-                  </select>
                 </div>
               </div>
-            </div>
           )}
         </div>
         </aside>
       </div>
 
-      {/* 3. Bottom Timeline Motion Bar (Línea de tiempo adaptable al tema) */}
-      <footer
-        className="h-12 border-t px-6 flex items-center justify-between text-xs shrink-0 z-40"
-        style={{
-          backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-color)',
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-white shadow-xs"
-            style={{ backgroundColor: 'var(--primary-accent)' }}
-          >
-            {isPlaying ? <Pause size={15} /> : <Play size={15} />}
-          </button>
-          <span className="font-mono font-bold" style={{ color: 'var(--text-muted)' }}>00:00 / 00:05</span>
-        </div>
 
-        <div className="flex-1 max-w-xl mx-8 flex items-center gap-3">
-          <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>Timeline</span>
-          <input
-            type="range"
-            min="0"
-            max="5"
-            step="0.1"
-            value={timelineTime}
-            onChange={(e) => setTimelineTime(parseFloat(e.target.value))}
-            className="w-full cursor-pointer"
-            style={{ accentColor: 'var(--primary-accent)' }}
-          />
-        </div>
-
-        <div className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-          Lienzo Vertical <strong style={{ color: 'var(--primary-accent)' }}>1080px × 1920px (9:16)</strong>
-        </div>
-      </footer>
 
       {/* Modal de Advertencia de Cambios sin Guardar */}
       {showUnsavedModal && (
