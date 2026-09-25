@@ -64,7 +64,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
 }) => {
   const playerRef = useRef<HTMLVideoElement | null>(null);
   
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [durationInSeconds, setDurationInSeconds] = useState(0);
   const [videoWidth, setVideoWidth] = useState(720);
   const [videoHeight, setVideoHeight] = useState(1280);
@@ -99,6 +99,33 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
     startTimeRef.current = startTime;
     endTimeRef.current = endTime;
   }, [startTime, endTime]);
+
+  // Resetear estados cuando se abre el modal con un nuevo elemento de video
+  useEffect(() => {
+    if (isOpen) {
+      const initialStart = Number(element.videoStartTime) || 0;
+      const initialEnd = Number(element.videoEndTime) || 0;
+      const initialMuted = element.videoMuted !== false;
+      const initialSpeed = Number(element.videoSpeed) || 1;
+      const initialLoop = (element.videoLoopMode as string) || 'once';
+
+      setStartTime(initialStart);
+      setEndTime(initialEnd);
+      startTimeRef.current = initialStart;
+      endTimeRef.current = initialEnd;
+      setIsMuted(initialMuted);
+      setSpeed(initialSpeed);
+      setLoopMode(initialLoop);
+      setTrimmedVideoUrl(null);
+      setIsPlaying(false);
+      setIsVideoLoading(true);
+
+      if (playerRef.current) {
+        playerRef.current.pause();
+        playerRef.current.currentTime = initialStart;
+      }
+    }
+  }, [isOpen, element.id, element.content]);
 
   // Bucle de reproducción acotado de precisión extrema con requestAnimationFrame
   useEffect(() => {
@@ -758,15 +785,16 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       src={element.content ? (element.content.startsWith('/') ? `${window.location.origin}${element.content}` : element.content) : ''}
                       className="w-full h-full object-contain cursor-pointer"
                       controls={false}
-                      autoPlay
                       playsInline
                       muted={isMuted}
                       onLoadedMetadata={(e: React.SyntheticEvent<HTMLVideoElement>) => {
                         const video = e.currentTarget;
                         video.playbackRate = speed;
-                        if (startTimeRef.current > 0) {
-                          video.currentTime = startTimeRef.current;
-                        }
+                        video.currentTime = startTimeRef.current;
+                      }}
+                      onLoadedData={(e: React.SyntheticEvent<HTMLVideoElement>) => {
+                        const video = e.currentTarget;
+                        video.currentTime = startTimeRef.current;
                       }}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
@@ -1098,7 +1126,7 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                       </label>
                       <button
                         onClick={() => {
-                          const testSec = 2.0;
+                          const testSec = 4.0;
                           setStartTime(testSec);
                           startTimeRef.current = testSec;
                           if (endTime <= testSec) {
@@ -1109,31 +1137,16 @@ export const VideoEditorModal: React.FC<VideoEditorModalProps> = ({
                           if (trimmedVideoUrl) setTrimmedVideoUrl(null);
                           if (playerRef.current) {
                             const v = playerRef.current;
-                            try {
-                              v.pause();
-                              v.currentTime = testSec;
-                              const onSeeked = () => {
-                                v.removeEventListener('seeked', onSeeked);
-                                v.play().catch(() => {});
-                                setIsPlaying(true);
-                              };
-                              v.addEventListener('seeked', onSeeked, { once: true });
-                              // Fallback por si 'seeked' fue instantáneo
-                              setTimeout(() => {
-                                v.removeEventListener('seeked', onSeeked);
-                                if (v.paused) {
-                                  v.play().catch(() => {});
-                                  setIsPlaying(true);
-                                }
-                              }, 150);
-                            } catch (e) {}
+                            v.pause();
+                            v.currentTime = testSec;
+                            setIsPlaying(false);
                           }
                         }}
                         className="px-2 py-1 rounded text-[10px] font-bold border bg-purple-600/20 text-purple-400 border-purple-500/40 hover:bg-purple-600/30 transition-colors flex items-center gap-1"
-                        title="Probar reproducción desde el segundo 2.0"
+                        title="Ir y congelar en el fotograma del segundo 4.0"
                       >
                         <Play size={10} fill="currentColor" />
-                        Probar Seg 2.0
+                        Ir a Seg 4.0
                       </button>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">

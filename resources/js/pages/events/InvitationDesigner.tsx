@@ -43,6 +43,10 @@ import {
   FlipHorizontal,
   FlipVertical,
   Move,
+  MoveHorizontal,
+  MoveVertical,
+  ArrowLeftRight,
+  ArrowUpDown,
   RotateCw,
   Plus,
   Upload,
@@ -55,8 +59,10 @@ import {
   ChevronRight,
   Ratio,
   Minus,
-  Moon,
   Sun,
+  Contrast,
+  Droplet,
+  Wand2,
   Circle,
   Waves,
   Spline,
@@ -4000,59 +4006,26 @@ export default function InvitationDesigner() {
                             onConfigureVideo={() => setShowVideoEditorModal(true)}
                           />
 
-                          {/* BOTÓN DESTACADO ABRIR EDITOR DE VIDEO */}
-                          <button
-                            type="button"
-                            onClick={() => setShowVideoEditorModal(true)}
-                            className="w-full py-2.5 px-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-                            style={{
-                              backgroundColor: 'var(--primary-accent-light)',
-                              borderColor: 'var(--primary-accent)',
-                              color: 'var(--primary-accent)',
-                            }}
-                          >
-                            <Video size={16} />
-                            <span>Abrir Editor de Video (Recorte & Fotogramas)</span>
-                          </button>
-
-                          {/* MODO DE REPRODUCCIÓN DIRECTO EN EL INSPECTOR */}
-                          <div className="p-3 rounded-xl border space-y-2" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                            <span className="block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
-                              Modo de Reproducción
-                            </span>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { id: 'loop', label: 'Bucle', desc: 'Continuo' },
-                                { id: 'pingpong', label: 'Ping-Pong', desc: 'Rebote' },
-                                { id: 'once', label: 'Una Vez', desc: 'Pausa' },
-                              ].map((m) => {
-                                const isActive = (selectedElement.videoLoopMode || 'loop') === m.id;
-                                return (
-                                  <button
-                                    key={m.id}
-                                    type="button"
-                                    onClick={() => updateSelectedElement('videoLoopMode', m.id)}
-                                    className="p-2 rounded-lg border transition-all text-center cursor-pointer flex flex-col items-center justify-center"
-                                    style={{
-                                      backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                                      borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
-                                      color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
-                                    }}
-                                  >
-                                    <span className="text-[11px] font-bold">{m.label}</span>
-                                    <span className="text-[8px] opacity-75">{m.desc}</span>
-                                  </button>
-                                );
-                              })}
+                          {/* CONTROLES DE REPRODUCCIÓN EN UNA SOLA FILA: SWITCH BUCLE + BOTONES VELOCIDAD */}
+                          <div className="p-3 rounded-xl border flex items-center justify-between gap-3" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            {/* Switch Bucle */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <label className="relative inline-flex items-center cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={(selectedElement.videoLoopMode || 'loop') === 'loop'}
+                                  onChange={(e) => updateSelectedElement('videoLoopMode', e.target.checked ? 'loop' : 'once')}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-8 h-4.5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[var(--primary-accent)]"></div>
+                              </label>
+                              <span className="text-[11px] font-extrabold" style={{ color: 'var(--text-main)' }}>
+                                Bucle
+                              </span>
                             </div>
-                          </div>
 
-                          {/* VELOCIDAD DE REPRODUCCIÓN DIRECTA EN EL INSPECTOR */}
-                          <div className="p-3 rounded-xl border space-y-2" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                            <span className="block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--primary-accent)' }}>
-                              Velocidad ({(selectedElement.videoSpeed || 1)}x)
-                            </span>
-                            <div className="grid grid-cols-4 gap-1.5">
+                            {/* Botones de Velocidad */}
+                            <div className="flex items-center gap-1 shrink-0">
                               {[0.5, 1, 1.5, 2].map((s) => {
                                 const isActive = (selectedElement.videoSpeed || 1) === s;
                                 return (
@@ -4060,7 +4033,7 @@ export default function InvitationDesigner() {
                                     key={s}
                                     type="button"
                                     onClick={() => updateSelectedElement('videoSpeed', s)}
-                                    className="py-1.5 rounded-lg text-xs font-extrabold border transition-all cursor-pointer flex items-center justify-center"
+                                    className="px-2 py-1 rounded-md text-[10px] font-extrabold border transition-all cursor-pointer"
                                     style={{
                                       backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-card)',
                                       borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
@@ -4849,116 +4822,123 @@ export default function InvitationDesigner() {
                         </div>
                       </div>
 
-                      {/* Coordenadas X, Y, W, H */}
+                      {/* Coordenadas X, Y arriba | W, H abajo (Iconos al lado del control) */}
                       <div className="grid grid-cols-2 gap-2 font-mono">
-                        <div>
-                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            X
-                          </label>
-                          <InspectorNumberInput
-                            value={selectedElement.x}
-                            canvasDimension={1080}
-                            onChange={(val) => updateSelectedElement('x', val)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            Y
-                          </label>
-                          <InspectorNumberInput
-                            value={selectedElement.y}
-                            canvasDimension={1920}
-                            onChange={(val) => updateSelectedElement('y', val)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            W
-                          </label>
-                          <InspectorNumberInput
-                            value={selectedElement.width}
-                            min={10}
-                            canvasDimension={1080}
-                            onChange={(val) => updateSelectedElement('width', val)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            H
-                          </label>
-                          <InspectorNumberInput
-                            value={selectedElement.height}
-                            min={10}
-                            canvasDimension={1920}
-                            onChange={(val) => updateSelectedElement('height', val)}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Rotación y Opacidad */}
-                      <div className="grid grid-cols-2 gap-2 font-mono pt-1">
-                        <div>
-                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            Rotación (°)
-                          </label>
-                          <InspectorNumberInput
-                            value={selectedElement.rotation || 0}
-                            min={-360}
-                            max={360}
-                            step={1}
-                            onChange={(val) => updateSelectedElement('rotation', val)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            Opacidad (%)
-                          </label>
-                          <InspectorNumberInput
-                            value={selectedElement.opacity !== undefined ? selectedElement.opacity : 100}
-                            min={0}
-                            max={100}
-                            step={5}
-                            onChange={(val) => updateSelectedElement('opacity', val)}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Profundidad 3D */}
-                      <div className="font-mono pt-3 pb-1 border-t mt-3" style={{ borderColor: 'var(--border-color)' }}>
-                        <div 
-                          className="flex items-center justify-between mb-2 cursor-pointer group" 
-                          onClick={() => updateSelectedElement('parallaxEnabled', !selectedElement.parallaxEnabled)}
-                        >
-                          <label className="font-extrabold uppercase text-[10px] cursor-pointer group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
-                            Efecto Parallax (3D)
-                          </label>
-                          <div 
-                            className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200"
-                            style={{
-                              backgroundColor: selectedElement.parallaxEnabled ? 'var(--primary-accent)' : 'transparent',
-                              borderColor: selectedElement.parallaxEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
-                              borderWidth: '1.5px',
-                              boxShadow: selectedElement.parallaxEnabled ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
-                            }}
-                          >
-                            {selectedElement.parallaxEnabled && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
-                          </div>
-                        </div>
-
-                        {selectedElement.parallaxEnabled && (
-                          <div className="pl-1 animate-fade-in mt-2">
-                            <label className="block font-extrabold mb-1 uppercase text-[10px]" style={{ color: 'var(--text-muted)' }} title="Intensidad del efecto al mover el móvil (-100 a 100)">
-                              Profundidad
-                            </label>
+                        {/* Fila 1: X e Y */}
+                        <div className="flex items-center gap-1.5" title="Posición X (Horizontal)">
+                          <MoveHorizontal size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
                             <InspectorNumberInput
-                              value={selectedElement.depth || 0}
-                              min={-100}
-                              max={100}
-                              step={5}
-                              onChange={(val) => updateSelectedElement('depth', val)}
+                              value={selectedElement.x}
+                              canvasDimension={1080}
+                              onChange={(val) => updateSelectedElement('x', val)}
                             />
                           </div>
-                        )}
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Posición Y (Vertical)">
+                          <MoveVertical size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <InspectorNumberInput
+                              value={selectedElement.y}
+                              canvasDimension={1920}
+                              onChange={(val) => updateSelectedElement('y', val)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Fila 2: W e H */}
+                        <div className="flex items-center gap-1.5" title="Anchura (W)">
+                          <ArrowLeftRight size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <InspectorNumberInput
+                              value={selectedElement.width}
+                              min={10}
+                              canvasDimension={1080}
+                              onChange={(val) => updateSelectedElement('width', val)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Altura (H)">
+                          <ArrowUpDown size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <InspectorNumberInput
+                              value={selectedElement.height}
+                              min={10}
+                              canvasDimension={1920}
+                              onChange={(val) => updateSelectedElement('height', val)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Rotación y Opacidad con Iconos al lado del control */}
+                      <div className="grid grid-cols-2 gap-2 font-mono pt-1">
+                        <div className="flex items-center gap-1.5" title="Rotación en grados (°)">
+                          <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <InspectorNumberInput
+                              value={selectedElement.rotation || 0}
+                              min={-360}
+                              max={360}
+                              step={1}
+                              onChange={(val) => updateSelectedElement('rotation', val)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Opacidad en porcentaje (%)">
+                          <Eye size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <InspectorNumberInput
+                              value={selectedElement.opacity !== undefined ? selectedElement.opacity : 100}
+                              min={0}
+                              max={100}
+                              step={1}
+                              onChange={(val) => updateSelectedElement('opacity', val)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Profundidad Parallax (Todo en una fila) */}
+                      <div className="font-mono pt-3 pb-1 border-t mt-3" style={{ borderColor: 'var(--border-color)' }}>
+                        <div className="flex items-center justify-between gap-2">
+                          {/* Lado Izquierdo: Checkbox + Parallax */}
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer group select-none shrink-0" 
+                            onClick={() => updateSelectedElement('parallaxEnabled', !selectedElement.parallaxEnabled)}
+                          >
+                            <div 
+                              className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200 shrink-0"
+                              style={{
+                                backgroundColor: selectedElement.parallaxEnabled ? 'var(--primary-accent)' : 'transparent',
+                                borderColor: selectedElement.parallaxEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                                borderWidth: '1.5px',
+                                boxShadow: selectedElement.parallaxEnabled ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                              }}
+                            >
+                              {selectedElement.parallaxEnabled && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                            </div>
+                            <span className="font-extrabold text-[11px] group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                              Parallax
+                            </span>
+                          </div>
+
+                          {/* Lado Derecho: Icono Capas + Control de Profundidad (solamente si está activo Parallax) */}
+                          {selectedElement.parallaxEnabled && (
+                            <div className="flex items-center gap-1.5 shrink-0" title="Intensidad del efecto Parallax (-100 a 100)">
+                              <Layers size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="w-20">
+                                <InspectorNumberInput
+                                  value={selectedElement.depth || 0}
+                                  min={-100}
+                                  max={100}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('depth', val)}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                     </div>
@@ -5112,37 +5092,37 @@ export default function InvitationDesigner() {
                           {/* FILA CONJUNTA: ESCALA A LA IZQUIERDA Y SELECT DE REPETICIÓN A LA DERECHA (solo para Imagen) */}
                           <div className={`grid ${selectedElement.type === 'image' ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-1 font-mono`}>
                             {/* Control Escala de Imagen tomando en cuenta su tamaño original */}
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Escala (%)
-                              </label>
-                              <InspectorNumberInput
-                                value={(() => {
-                                  const baseW = selectedElement.initialWidth || selectedElement.naturalWidth || selectedElement.width || 200;
-                                  if (!baseW) return 100;
-                                  return Math.round((selectedElement.width / baseW) * 100);
-                                })()}
-                                min={10}
-                                max={500}
-                                step={5}
-                                onChange={(scaleVal) => {
-                                  // Base sobre la cual calcular el porcentaje (initialWidth o width si no existe)
-                                  const baseW = selectedElement.initialWidth || selectedElement.naturalWidth || selectedElement.width || 200;
-                                  const baseH = selectedElement.initialHeight || selectedElement.naturalHeight || selectedElement.height || 200;
-                                  const currentAspect = selectedElement.width > 0 && selectedElement.height > 0 ? selectedElement.height / selectedElement.width : baseH / baseW;
-                                  
-                                  const targetW = Math.round(baseW * (scaleVal / 100));
-                                  const targetH = Math.round(targetW * currentAspect);
+                            <div className="flex items-center gap-1.5" title="Escala del elemento (%)">
+                              <ZoomIn size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorNumberInput
+                                  value={(() => {
+                                    const baseW = selectedElement.initialWidth || selectedElement.naturalWidth || selectedElement.width || 200;
+                                    if (!baseW) return 100;
+                                    return Math.round((selectedElement.width / baseW) * 100);
+                                  })()}
+                                  min={10}
+                                  max={500}
+                                  step={5}
+                                  onChange={(scaleVal) => {
+                                    // Base sobre la cual calcular el porcentaje (initialWidth o width si no existe)
+                                    const baseW = selectedElement.initialWidth || selectedElement.naturalWidth || selectedElement.width || 200;
+                                    const baseH = selectedElement.initialHeight || selectedElement.naturalHeight || selectedElement.height || 200;
+                                    const currentAspect = selectedElement.width > 0 && selectedElement.height > 0 ? selectedElement.height / selectedElement.width : baseH / baseW;
+                                    
+                                    const targetW = Math.round(baseW * (scaleVal / 100));
+                                    const targetH = Math.round(targetW * currentAspect);
 
-                                  updateSelectedElementBatch({
-                                    imgScale: scaleVal,
-                                    initialWidth: baseW,
-                                    initialHeight: baseH,
-                                    width: Math.max(10, targetW),
-                                    height: Math.max(10, targetH),
-                                  });
-                                }}
-                              />
+                                    updateSelectedElementBatch({
+                                      imgScale: scaleVal,
+                                      initialWidth: baseW,
+                                      initialHeight: baseH,
+                                      width: Math.max(10, targetW),
+                                      height: Math.max(10, targetH),
+                                    });
+                                  }}
+                                />
+                              </div>
                             </div>
 
                             {/* Select de Repetición / Patrón (solo si es tipo imagen) */}
@@ -5182,75 +5162,74 @@ export default function InvitationDesigner() {
                             selectedElement.objectFit === 'repeat-x' ||
                             selectedElement.objectFit === 'repeat-y') && (
                             <div className="pt-2 font-mono">
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Tamaño del Azulejo Patrón (px)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.repeatTileSize || 100}
-                                min={10}
-                                max={1000}
-                                step={10}
-                                onChange={(val) => updateSelectedElement('repeatTileSize', val)}
-                              />
+                              <div className="flex items-center gap-1.5" title="Tamaño del Azulejo Patrón (px)">
+                                <Ratio size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <InspectorNumberInput
+                                    value={selectedElement.repeatTileSize || 100}
+                                    min={10}
+                                    max={1000}
+                                    step={10}
+                                    onChange={(val) => updateSelectedElement('repeatTileSize', val)}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           )}
 
                           {/* CONTROLES DE POSICIONAMIENTO E ENCUADRE INTERNO DE LA IMAGEN DENTRO DE LA MÁSCARA/CONTENEDOR */}
                           <div className="pt-2 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
-                            <span className="block font-extrabold uppercase text-[9px] tracking-wider text-amber-500">
-                              Ajuste Interno dentro de la Máscara
-                            </span>
                             <div className="grid grid-cols-2 gap-2 font-mono">
-                              <div>
-                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                  Mover X (px)
-                                </label>
-                                <InspectorNumberInput
-                                  value={selectedElement.mediaX || 0}
-                                  min={-1000}
-                                  max={1000}
-                                  step={5}
-                                  onChange={(val) => updateSelectedElement('mediaX', val)}
-                                />
+                              <div className="flex items-center gap-1.5" title="Desplazamiento horizontal interno X (px)">
+                                <MoveHorizontal size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <InspectorNumberInput
+                                    value={selectedElement.mediaX || 0}
+                                    min={-1000}
+                                    max={1000}
+                                    step={5}
+                                    onChange={(val) => updateSelectedElement('mediaX', val)}
+                                  />
+                                </div>
                               </div>
-                              <div>
-                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                  Mover Y (px)
-                                </label>
-                                <InspectorNumberInput
-                                  value={selectedElement.mediaY || 0}
-                                  min={-1000}
-                                  max={1000}
-                                  step={5}
-                                  onChange={(val) => updateSelectedElement('mediaY', val)}
-                                />
+                              <div className="flex items-center gap-1.5" title="Desplazamiento vertical interno Y (px)">
+                                <MoveVertical size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <InspectorNumberInput
+                                    value={selectedElement.mediaY || 0}
+                                    min={-1000}
+                                    max={1000}
+                                    step={5}
+                                    onChange={(val) => updateSelectedElement('mediaY', val)}
+                                  />
+                                </div>
                               </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 font-mono">
-                              <div>
-                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                  Zoom Interno (%)
-                                </label>
-                                <InspectorNumberInput
-                                  value={selectedElement.mediaScale ?? 100}
-                                  min={10}
-                                  max={500}
-                                  step={5}
-                                  onChange={(val) => updateSelectedElement('mediaScale', val)}
-                                />
+                              <div className="flex items-center gap-1.5" title="Zoom / Escala interna (%)">
+                                <ZoomIn size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <InspectorNumberInput
+                                    value={selectedElement.mediaScale ?? 100}
+                                    min={10}
+                                    max={500}
+                                    step={5}
+                                    onChange={(val) => updateSelectedElement('mediaScale', val)}
+                                  />
+                                </div>
                               </div>
-                              <div>
-                                <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                  Rotación Interna (°)
-                                </label>
-                                <InspectorNumberInput
-                                  value={selectedElement.mediaRotation || 0}
-                                  min={-360}
-                                  max={360}
-                                  step={5}
-                                  onChange={(val) => updateSelectedElement('mediaRotation', val)}
-                                />
+                              <div className="flex items-center gap-1.5" title="Rotación interna en grados (°)">
+                                <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <InspectorNumberInput
+                                    value={selectedElement.mediaRotation || 0}
+                                    min={-360}
+                                    max={360}
+                                    step={5}
+                                    onChange={(val) => updateSelectedElement('mediaRotation', val)}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -5262,89 +5241,107 @@ export default function InvitationDesigner() {
                             Filtros de Color & Ajuste
                           </span>
 
-                          {/* Brillo & Contraste */}
+                          {/* Brillo & Contraste con Iconos */}
                           <div className="grid grid-cols-2 gap-2 font-mono">
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Brillo (%)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.imgBrightness !== undefined ? selectedElement.imgBrightness : 100}
-                                min={0}
-                                max={200}
-                                step={5}
-                                onChange={(val) => updateSelectedElement('imgBrightness', val)}
-                              />
+                            <div className="flex items-center gap-1.5" title="Brillo en porcentaje (0% a 200%)">
+                              <Sun size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorNumberInput
+                                  value={selectedElement.imgBrightness !== undefined ? selectedElement.imgBrightness : 100}
+                                  min={0}
+                                  max={200}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('imgBrightness', val)}
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Contraste (%)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.imgContrast !== undefined ? selectedElement.imgContrast : 100}
-                                min={0}
-                                max={200}
-                                step={5}
-                                onChange={(val) => updateSelectedElement('imgContrast', val)}
-                              />
+                            <div className="flex items-center gap-1.5" title="Contraste en porcentaje (0% a 200%)">
+                              <Contrast size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorNumberInput
+                                  value={selectedElement.imgContrast !== undefined ? selectedElement.imgContrast : 100}
+                                  min={0}
+                                  max={200}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('imgContrast', val)}
+                                />
+                              </div>
                             </div>
                           </div>
 
-                          {/* Saturación & Desenfoque */}
+                          {/* Saturación & Desenfoque (Blur) con Iconos */}
                           <div className="grid grid-cols-2 gap-2 font-mono">
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Saturación (%)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.imgSaturate !== undefined ? selectedElement.imgSaturate : 100}
-                                min={0}
-                                max={200}
-                                step={5}
-                                onChange={(val) => updateSelectedElement('imgSaturate', val)}
-                              />
+                            <div className="flex items-center gap-1.5" title="Saturación en porcentaje (0% a 200%)">
+                              <Droplet size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorNumberInput
+                                  value={selectedElement.imgSaturate !== undefined ? selectedElement.imgSaturate : 100}
+                                  min={0}
+                                  max={200}
+                                  step={5}
+                                  onChange={(val) => updateSelectedElement('imgSaturate', val)}
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="block font-extrabold mb-1 uppercase text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                Blur (px)
-                              </label>
-                              <InspectorNumberInput
-                                value={selectedElement.imgBlur || 0}
-                                min={0}
-                                max={20}
-                                step={1}
-                                onChange={(val) => updateSelectedElement('imgBlur', val)}
-                              />
+                            <div className="flex items-center gap-1.5" title="Desenfoque Blur (0px a 20px)">
+                              <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="flex-1 min-w-0">
+                                <InspectorNumberInput
+                                  value={selectedElement.imgBlur || 0}
+                                  min={0}
+                                  max={20}
+                                  step={1}
+                                  onChange={(val) => updateSelectedElement('imgBlur', val)}
+                                />
+                              </div>
                             </div>
                           </div>
 
-                          {/* Toggles de Efectos Rápidos: B&N y Sepia */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-1.5">
-                            <button
-                              type="button"
+                          {/* Toggles de Efectos Rápidos: B&N y Sepia (Con Checkbox estilizado) */}
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t mt-1" style={{ borderColor: 'var(--border-color)' }}>
+                            {/* Checkbox Blanco y Negro */}
+                            <div 
+                              className="flex items-center gap-2 cursor-pointer group select-none shrink-0" 
                               onClick={() => updateSelectedElement('imgGrayscale', !selectedElement.imgGrayscale)}
-                              className="py-1 px-2 rounded-lg border text-[9px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                              style={{
-                                backgroundColor: selectedElement.imgGrayscale ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                                borderColor: selectedElement.imgGrayscale ? 'var(--primary-accent)' : 'var(--border-color)',
-                                color: selectedElement.imgGrayscale ? 'var(--primary-accent)' : 'var(--text-main)',
-                              }}
+                              title="Convertir imagen/video a Blanco y Negro"
                             >
-                              Blanco y Negro
-                            </button>
+                              <div 
+                                className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200 shrink-0"
+                                style={{
+                                  backgroundColor: selectedElement.imgGrayscale ? 'var(--primary-accent)' : 'transparent',
+                                  borderColor: selectedElement.imgGrayscale ? 'var(--primary-accent)' : 'var(--border-color)',
+                                  borderWidth: '1.5px',
+                                  boxShadow: selectedElement.imgGrayscale ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                                }}
+                              >
+                                {selectedElement.imgGrayscale && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                              </div>
+                              <span className="font-extrabold text-[11px] group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                                B&N
+                              </span>
+                            </div>
 
-                            <button
-                              type="button"
+                            {/* Checkbox Sepia */}
+                            <div 
+                              className="flex items-center gap-2 cursor-pointer group select-none shrink-0" 
                               onClick={() => updateSelectedElement('imgSepia', !selectedElement.imgSepia)}
-                              className="py-1 px-2 rounded-lg border text-[9px] font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                              style={{
-                                backgroundColor: selectedElement.imgSepia ? 'var(--primary-accent-light)' : 'var(--bg-card)',
-                                borderColor: selectedElement.imgSepia ? 'var(--primary-accent)' : 'var(--border-color)',
-                                color: selectedElement.imgSepia ? 'var(--primary-accent)' : 'var(--text-main)',
-                              }}
+                              title="Aplicar filtro tono Sepia vintage"
                             >
-                              Tono Sepia
-                            </button>
+                              <div 
+                                className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200 shrink-0"
+                                style={{
+                                  backgroundColor: selectedElement.imgSepia ? 'var(--primary-accent)' : 'transparent',
+                                  borderColor: selectedElement.imgSepia ? 'var(--primary-accent)' : 'var(--border-color)',
+                                  borderWidth: '1.5px',
+                                  boxShadow: selectedElement.imgSepia ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                                }}
+                              >
+                                {selectedElement.imgSepia && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                              </div>
+                              <span className="font-extrabold text-[11px] group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                                Sepia
+                              </span>
+                            </div>
                           </div>
 
                           {/* 3. SECCIÓN PATRÓN DE DISEÑO REPETITIVO (SVG / TEXTURAS PARA FIGURAS/SHAPES) */}
@@ -5450,20 +5447,29 @@ export default function InvitationDesigner() {
 
                           {/* 4. SECCIÓN CHROMA KEY (EFECTO PANTALLA VERDE / ELIMINAR FONDO DE VIDEO O IMAGEN) */}
                           {(selectedElement.type === 'video' || selectedElement.type === 'image') && (
-                            <div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
-                              <div className="flex items-center justify-between">
-                                <span className="font-extrabold uppercase text-[9px] tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
-                                  <Sparkles size={11} /> Chroma Key (Fondo Transparente)
-                                </span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={!!selectedElement.chromaKeyEnabled}
-                                    onChange={(e) => updateSelectedElement('chromaKeyEnabled', e.target.checked)}
-                                    className="sr-only peer"
-                                  />
-                                  <div className="w-7 h-4 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all transition-colors" style={{ backgroundColor: selectedElement.chromaKeyEnabled ? 'var(--primary-accent)' : 'var(--border-color)' }}></div>
-                                </label>
+                            <div className="pt-2 border-t mt-2" style={{ borderColor: 'var(--border-color)' }}>
+                              {/* Fila Principal: Check + Chroma Key a la Izquierda */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div 
+                                  className="flex items-center gap-2 cursor-pointer group select-none shrink-0" 
+                                  onClick={() => updateSelectedElement('chromaKeyEnabled', !selectedElement.chromaKeyEnabled)}
+                                  title="Activar/Desactivar efecto Chroma Key"
+                                >
+                                  <div 
+                                    className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200 shrink-0"
+                                    style={{
+                                      backgroundColor: selectedElement.chromaKeyEnabled ? 'var(--primary-accent)' : 'transparent',
+                                      borderColor: selectedElement.chromaKeyEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                                      borderWidth: '1.5px',
+                                      boxShadow: selectedElement.chromaKeyEnabled ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                                    }}
+                                  >
+                                    {selectedElement.chromaKeyEnabled && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                                  </div>
+                                  <span className="font-extrabold text-[11px] group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                                    Chroma Key
+                                  </span>
+                                </div>
                               </div>
 
                               {selectedElement.chromaKeyEnabled && (
@@ -6032,79 +6038,93 @@ export default function InvitationDesigner() {
                       }`}
                       style={{ borderColor: 'var(--border-color)' }}
                     >
-                      <StylePickerPopover
-                        label="Estilo del contenedor"
-                        elementType="container"
-                        styleConfig={{
-                          backgroundColor: selectedElement.backgroundColor,
-                          borderColor: selectedElement.containerBorderColor || '#E07A5F',
-                          borderWidth: selectedElement.containerBorderWidth ?? 0,
-                          borderStyle: selectedElement.containerBorderStyle || 'solid',
-                          borderRadius: selectedElement.containerBorderRadius ?? 0,
-                          shadowColor: selectedElement.containerShadowColor || '#212121',
-                          shadowBlur: selectedElement.containerShadowBlur ?? 0,
-                          shadowOffsetX: selectedElement.containerShadowOffsetX ?? 0,
-                          shadowOffsetY: selectedElement.containerShadowOffsetY ?? 0,
-                        }}
-                        onChange={(updatedStyles) => {
-                          const mapped: any = {};
-                          if (updatedStyles.backgroundColor !== undefined) mapped.backgroundColor = updatedStyles.backgroundColor;
-                          if (updatedStyles.borderColor !== undefined) mapped.containerBorderColor = updatedStyles.borderColor;
-                          if (updatedStyles.borderWidth !== undefined) mapped.containerBorderWidth = updatedStyles.borderWidth;
-                          if (updatedStyles.borderStyle !== undefined) mapped.containerBorderStyle = updatedStyles.borderStyle;
-                          if (updatedStyles.borderRadius !== undefined) mapped.containerBorderRadius = updatedStyles.borderRadius;
-                          if (updatedStyles.shadowColor !== undefined) mapped.containerShadowColor = updatedStyles.shadowColor;
-                          if (updatedStyles.shadowBlur !== undefined) mapped.containerShadowBlur = updatedStyles.shadowBlur;
-                          if (updatedStyles.shadowOffsetX !== undefined) mapped.containerShadowOffsetX = updatedStyles.shadowOffsetX;
-                          if (updatedStyles.shadowOffsetY !== undefined) mapped.containerShadowOffsetY = updatedStyles.shadowOffsetY;
+                      {/* Fila conjunta: Estilo del Contenedor (con icono Palette) a la izquierda y Redondez (con icono Square) a la derecha */}
+                      <div className="grid grid-cols-2 gap-2 font-mono items-center">
+                        {/* Estilo del contenedor con icono de paleta a la izquierda */}
+                        <div className="flex items-center gap-1.5" title="Estilo del contenedor (Fondo, borde y sombra)">
+                          <Palette size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <StylePickerPopover
+                              label=""
+                              elementType="container"
+                              styleConfig={{
+                                backgroundColor: selectedElement.backgroundColor,
+                                borderColor: selectedElement.containerBorderColor || '#E07A5F',
+                                borderWidth: selectedElement.containerBorderWidth ?? 0,
+                                borderStyle: selectedElement.containerBorderStyle || 'solid',
+                                borderRadius: selectedElement.containerBorderRadius ?? 0,
+                                shadowColor: selectedElement.containerShadowColor || '#212121',
+                                shadowBlur: selectedElement.containerShadowBlur ?? 0,
+                                shadowOffsetX: selectedElement.containerShadowOffsetX ?? 0,
+                                shadowOffsetY: selectedElement.containerShadowOffsetY ?? 0,
+                              }}
+                              onChange={(updatedStyles) => {
+                                const mapped: any = {};
+                                if (updatedStyles.backgroundColor !== undefined) mapped.backgroundColor = updatedStyles.backgroundColor;
+                                if (updatedStyles.borderColor !== undefined) mapped.containerBorderColor = updatedStyles.borderColor;
+                                if (updatedStyles.borderWidth !== undefined) mapped.containerBorderWidth = updatedStyles.borderWidth;
+                                if (updatedStyles.borderStyle !== undefined) mapped.containerBorderStyle = updatedStyles.borderStyle;
+                                if (updatedStyles.borderRadius !== undefined) mapped.containerBorderRadius = updatedStyles.borderRadius;
+                                if (updatedStyles.shadowColor !== undefined) mapped.containerShadowColor = updatedStyles.shadowColor;
+                                if (updatedStyles.shadowBlur !== undefined) mapped.containerShadowBlur = updatedStyles.shadowBlur;
+                                if (updatedStyles.shadowOffsetX !== undefined) mapped.containerShadowOffsetX = updatedStyles.shadowOffsetX;
+                                if (updatedStyles.shadowOffsetY !== undefined) mapped.containerShadowOffsetY = updatedStyles.shadowOffsetY;
 
-                          Object.entries(mapped).forEach(([key, val]) => {
-                            updateSelectedElement(key as any, val);
-                          });
-                        }}
-                      />
-
-                      {/* Control directo de Redondez de Bordes */}
-                      <div className="pt-1">
-                        <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          Redondez (px)
-                        </label>
-                        <InspectorNumberInput
-                          value={selectedElement.containerBorderRadius ?? selectedElement.borderRadius ?? 0}
-                          min={0}
-                          max={200}
-                          step={1}
-                          onChange={(val) => {
-                            updateSelectedElement('containerBorderRadius', val);
-                            updateSelectedElement('borderRadius', val);
-                          }}
-                        />
-                      </div>
-                    {/* Efecto Esmerilado (Glassmorphism) */}
-                      <div className="pt-2 border-t mt-2" style={{ borderColor: 'var(--border-color)' }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="font-bold text-[10px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                            Efecto Esmerilado (Glass)
-                          </label>
-                          <button
-                            onClick={() => updateSelectedElement('backdropBlurEnabled', !selectedElement.backdropBlurEnabled)}
-                            className={`w-8 h-4 rounded-full flex items-center transition-colors px-0.5 ${
-                              selectedElement.backdropBlurEnabled ? 'justify-end' : 'justify-start'
-                            }`}
-                            style={{
-                              backgroundColor: selectedElement.backdropBlurEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
-                            }}
-                          >
-                            <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
-                          </button>
+                                Object.entries(mapped).forEach(([key, val]) => {
+                                  updateSelectedElement(key as any, val);
+                                });
+                              }}
+                            />
+                          </div>
                         </div>
-                        {selectedElement.backdropBlurEnabled && (
-                          <div className="space-y-2.5 mt-2.5 p-2 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                            <div className="flex items-center justify-between gap-2">
-                              <label className="font-bold text-[9.5px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-muted)' }}>
-                                Tinta Glass
-                              </label>
-                              <div className="w-28">
+
+                        {/* Control directo de Redondez de Bordes con icono a la izquierda */}
+                        <div className="flex items-center gap-1.5" title="Redondez de esquinas (px)">
+                          <Square size={13} className="shrink-0 opacity-70 rounded-md" style={{ color: 'var(--text-muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <InspectorNumberInput
+                              value={selectedElement.containerBorderRadius ?? selectedElement.borderRadius ?? 0}
+                              min={0}
+                              max={200}
+                              step={1}
+                              onChange={(val) => {
+                                updateSelectedElement('containerBorderRadius', val);
+                                updateSelectedElement('borderRadius', val);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Efecto Esmerilado (Glassmorphism) */}
+                      <div className="pt-2 border-t mt-2" style={{ borderColor: 'var(--border-color)' }}>
+                        {/* Fila Principal: Check + Glass a la Izquierda | Selector de Color a la Derecha */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer group select-none shrink-0" 
+                            onClick={() => updateSelectedElement('backdropBlurEnabled', !selectedElement.backdropBlurEnabled)}
+                          >
+                            <div 
+                              className="w-4 h-4 rounded-[4px] flex items-center justify-center transition-all duration-200 shrink-0"
+                              style={{
+                                backgroundColor: selectedElement.backdropBlurEnabled ? 'var(--primary-accent)' : 'transparent',
+                                borderColor: selectedElement.backdropBlurEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                                borderWidth: '1.5px',
+                                boxShadow: selectedElement.backdropBlurEnabled ? '0 0 0 2px rgba(var(--primary-accent-rgb), 0.2)' : 'none'
+                              }}
+                            >
+                              {selectedElement.backdropBlurEnabled && <Check size={12} color="#ffffff" strokeWidth={3.5} />}
+                            </div>
+                            <span className="font-extrabold text-[11px] group-hover:opacity-80 transition-opacity" style={{ color: 'var(--text-main)' }}>
+                              Glass
+                            </span>
+                          </div>
+
+                          {/* Color / Tinta Glass a la Derecha de la fila principal con Icono de Paleta a la Izquierda */}
+                          {selectedElement.backdropBlurEnabled && (
+                            <div className="flex items-center gap-1.5 shrink-0" title="Tinta del cristal (Color de fondo traslúcido)">
+                              <Palette size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
+                              <div className="w-20">
                                 <ColorPickerPopover
                                   value={selectedElement.backdropColor || selectedElement.backgroundColor || '#FFFFFF'}
                                   onChange={(val) => {
@@ -6116,38 +6136,37 @@ export default function InvitationDesigner() {
                                 />
                               </div>
                             </div>
+                          )}
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-2 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
-                              <div>
-                                <label className="block font-bold mb-1 text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                  Blur: {selectedElement.backdropBlurAmount ?? 10}px
-                                </label>
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="40"
-                                  step="1"
-                                  value={selectedElement.backdropBlurAmount ?? 10}
-                                  onChange={(e) => updateSelectedElement('backdropBlurAmount', Number(e.target.value))}
-                                  className="w-full h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
-                                  style={{ accentColor: 'var(--primary-accent)' }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block font-bold mb-1 text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                                  Opacidad: {selectedElement.backdropOpacity ?? 30}%
-                                </label>
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="100"
-                                  step="1"
-                                  value={selectedElement.backdropOpacity ?? 30}
-                                  onChange={(e) => updateSelectedElement('backdropOpacity', Number(e.target.value))}
-                                  className="w-full h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
-                                  style={{ accentColor: 'var(--primary-accent)' }}
-                                />
-                              </div>
+                        {/* Fila Inferior: Desenfoque (Blur) y Opacidad (Sliders con Iconos y Tooltip) */}
+                        {selectedElement.backdropBlurEnabled && (
+                          <div className="grid grid-cols-2 gap-2 pt-2 mt-2 border-t font-mono" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-1.5" title={`Desenfoque Blur: ${selectedElement.backdropBlurAmount ?? 10}px`}>
+                              <Sparkles size={13} className="opacity-70 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                              <input
+                                type="range"
+                                min="0"
+                                max="40"
+                                step="1"
+                                value={selectedElement.backdropBlurAmount ?? 10}
+                                onChange={(e) => updateSelectedElement('backdropBlurAmount', Number(e.target.value))}
+                                className="w-full h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
+                            </div>
+                            <div className="flex items-center gap-1.5" title={`Opacidad de tinta: ${selectedElement.backdropOpacity ?? 30}%`}>
+                              <Eye size={13} className="opacity-70 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={selectedElement.backdropOpacity ?? 30}
+                                onChange={(e) => updateSelectedElement('backdropOpacity', Number(e.target.value))}
+                                className="w-full h-1 bg-black/20 dark:bg-white/20 rounded-lg appearance-none cursor-pointer"
+                                style={{ accentColor: 'var(--primary-accent)' }}
+                              />
                             </div>
                           </div>
                         )}

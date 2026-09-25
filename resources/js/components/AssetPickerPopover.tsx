@@ -211,43 +211,45 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
         >
           {(value && (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:') || value.startsWith('/storage/'))) ? (
             is3dType ? (() => {
-              const matchedAsset = assets.find((a) => a.url === value);
-              const baseRotX = (selectedElementSettings?.modelBaseRotX !== undefined ? selectedElementSettings.modelBaseRotX : matchedAsset?.settings?.modelBaseRotX) ?? 0;
-              const baseRotY = (selectedElementSettings?.modelBaseRotY !== undefined ? selectedElementSettings.modelBaseRotY : matchedAsset?.settings?.modelBaseRotY) ?? 0;
-              const baseRotZ = (selectedElementSettings?.modelBaseRotZ !== undefined ? selectedElementSettings.modelBaseRotZ : matchedAsset?.settings?.modelBaseRotZ) ?? 0;
-              const baseScale = (selectedElementSettings?.modelBaseScale !== undefined ? selectedElementSettings.modelBaseScale : matchedAsset?.settings?.modelBaseScale) ?? 1;
-              const pivotX = (selectedElementSettings?.modelPivotX !== undefined ? selectedElementSettings.modelPivotX : matchedAsset?.settings?.modelPivotX) ?? 0;
-              const pivotY = (selectedElementSettings?.modelPivotY !== undefined ? selectedElementSettings.modelPivotY : matchedAsset?.settings?.modelPivotY) ?? 0;
-              const pivotZ = (selectedElementSettings?.modelPivotZ !== undefined ? selectedElementSettings.modelPivotZ : matchedAsset?.settings?.modelPivotZ) ?? 0;
+                const matchedAsset = assets.find((a) => a.url === value);
+                const baseRotX = (selectedElementSettings?.modelBaseRotX !== undefined ? selectedElementSettings.modelBaseRotX : matchedAsset?.settings?.modelBaseRotX) ?? 0;
+                const baseRotY = (selectedElementSettings?.modelBaseRotY !== undefined ? selectedElementSettings.modelBaseRotY : matchedAsset?.settings?.modelBaseRotY) ?? 0;
+                const baseRotZ = (selectedElementSettings?.modelBaseRotZ !== undefined ? selectedElementSettings.modelBaseRotZ : matchedAsset?.settings?.modelBaseRotZ) ?? 0;
+                const baseScale = (selectedElementSettings?.modelBaseScale !== undefined ? selectedElementSettings.modelBaseScale : matchedAsset?.settings?.modelBaseScale) ?? 1;
+                const pivotX = (selectedElementSettings?.modelPivotX !== undefined ? selectedElementSettings.modelPivotX : matchedAsset?.settings?.modelPivotX) ?? 0;
+                const pivotY = (selectedElementSettings?.modelPivotY !== undefined ? selectedElementSettings.modelPivotY : matchedAsset?.settings?.modelPivotY) ?? 0;
+                const pivotZ = (selectedElementSettings?.modelPivotZ !== undefined ? selectedElementSettings.modelPivotZ : matchedAsset?.settings?.modelPivotZ) ?? 0;
 
-              return React.createElement('model-viewer', {
-                src: value,
-                alt: 'Modelo 3D',
-                'auto-rotate': true,
-                'camera-controls': true,
-                orientation: `${baseRotX}deg ${baseRotY}deg ${baseRotZ}deg`,
-                scale: `${baseScale} ${baseScale} ${baseScale}`,
-                'camera-target': `${pivotX}m ${pivotY}m ${pivotZ}m`,
-                bounds: 'tight',
-                style: { width: '100%', height: '100%', borderRadius: '0.5rem', outline: 'none' }
-              });
-            })() : isVideoType ? (
-              <video
-                src={value}
-                controls
-                muted
-                className="max-h-full max-w-full object-contain p-1 rounded-lg"
-              />
-            ) : !hasImgError ? (
-              <img
-                src={value}
-                alt="Vista previa"
-                onError={() => setHasImgError(true)}
-                className="max-h-full max-w-full object-contain p-1 rounded-lg"
-              />
-            ) : (
-              <div className="text-[10px] text-red-500 font-bold p-2 text-center">Error al cargar imagen</div>
-            )
+                return React.createElement('model-viewer', {
+                  src: value,
+                  alt: 'Modelo 3D',
+                  'auto-rotate': true,
+                  'camera-controls': true,
+                  orientation: `${baseRotX}deg ${baseRotY}deg ${baseRotZ}deg`,
+                  scale: `${baseScale} ${baseScale} ${baseScale}`,
+                  'camera-target': `${pivotX}m ${pivotY}m ${pivotZ}m`,
+                  bounds: 'tight',
+                  style: { width: '100%', height: '100%', borderRadius: '0.5rem', outline: 'none' }
+                });
+              })() : isVideoType ? (
+                <video
+                  src={value}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="max-h-full max-w-full object-contain p-1 rounded-lg pointer-events-none"
+                />
+              ) : !hasImgError ? (
+                <img
+                  src={value}
+                  alt="Vista previa"
+                  onError={() => setHasImgError(true)}
+                  className="max-h-full max-w-full object-contain p-1 rounded-lg"
+                />
+              ) : (
+                <div className="text-[10px] text-red-500 font-bold p-2 text-center">Error al cargar imagen</div>
+              )
           ) : (
             <button
               type="button"
@@ -410,20 +412,38 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
               </span>
             </div>
           ) : (
-            [...assets]
-              .sort((a, b) => {
-                const aSel = a.url === value;
-                const bSel = b.url === value;
-                if (aSel && !bSel) return -1;
-                if (!aSel && bSel) return 1;
-                return 0;
-              })
-              .map((asset, idx) => {
-                const isSelected = value === asset.url;
-                const isAssetVideo = asset.type === 'video' || asset.url.endsWith('.mp4') || asset.url.endsWith('.webm') || asset.url.endsWith('.ogg');
+            assets.map((asset, idx) => {
+              const cleanPath = (str: string) => {
+                if (!str) return '';
+                return str
+                  .split('?')[0]
+                  .split('#')[0]
+                  .replace(/^https?:\/\/[^\/]+/, '')
+                  .replace(/^blob:https?:\/\/[^\/]+/, '')
+                  .replace(/^\/?storage\//, '')
+                  .replace(/^\/+/, '')
+                  .replace(/\/+/g, '/')
+                  .toLowerCase()
+                  .trim();
+              };
+
+              const vClean = cleanPath(value);
+              const aClean = cleanPath(asset.url);
+              const fClean = cleanPath(asset.file_path);
+
+              const isSelected = !!vClean && (
+                value === asset.url ||
+                vClean === aClean ||
+                (fClean !== '' && (vClean === fClean || vClean.endsWith('/' + fClean)))
+              );
               return (
                 <div
                   key={asset.id}
+                  ref={(el) => {
+                    if (isSelected && el) {
+                      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }
+                  }}
                   onClick={() => {
                     onChange(asset.url);
                     if (onSelectAsset) {
@@ -435,12 +455,14 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                     setDeleteConfirmIndex(idx);
                   }}
                   className={`group/item relative shrink-0 h-14 min-w-[50px] max-w-[90px] rounded-lg border flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-2xs overflow-hidden p-1 ${
-                    isSelected ? 'ring-2 ring-emerald-500 shadow-md' : 'opacity-90 hover:opacity-100'
+                    isSelected
+                      ? 'shadow-md scale-105 z-10'
+                      : 'opacity-80 hover:opacity-100'
                   }`}
                   title={`${asset.name} | Un clic para aplicar | Doble clic para eliminar de la BD`}
                   style={{
                     backgroundColor: 'var(--bg-app)',
-                    borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                    borderColor: 'var(--border-color)',
                   }}
                 >
                   {asset.type === 'video' || (typeof asset.url === 'string' && (asset.url.endsWith('.mp4') || asset.url.endsWith('.webm') || asset.url.endsWith('.ogg'))) ? (
@@ -470,10 +492,9 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
                     />
                   )}
 
-
-                  {/* Badge de seleccionado */}
+                  {/* Badge de seleccionado (arriba a la izquierda) */}
                   {isSelected && (
-                    <div className="absolute top-0.5 right-0.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-2xs">
+                    <div className="absolute top-0.5 left-0.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-2xs z-20">
                       <Check size={8} strokeWidth={3} />
                     </div>
                   )}
@@ -483,6 +504,8 @@ export const AssetPickerPopover: React.FC<AssetPickerPopoverProps> = ({
           )}
         </div>
       </div>
+
+
 
       {/* MODAL PERSONALIZADO DEL PROYECTO PARA ELIMINACIÓN DEFINITIVA EN LA BD */}
       {deleteConfirmIndex !== null && assets[deleteConfirmIndex] && (
