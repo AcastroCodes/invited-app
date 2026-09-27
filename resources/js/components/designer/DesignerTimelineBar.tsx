@@ -18,6 +18,9 @@ import {
   Circle,
   Heart,
   Star,
+  Box,
+  Music,
+  Smartphone,
 } from 'lucide-react';
 import { CanvasElement } from '../../types/designerTypes';
 
@@ -126,19 +129,23 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
     };
   }, [isScrubbing, totalDuration]);
 
-  // Helper to get element icon
+  // Helper to get element icon matching the Capas section
   const getElementIcon = (el: CanvasElement) => {
     switch (el.type) {
       case 'text':
-        return <Type size={12} className="shrink-0 text-blue-400" />;
+        return <Type size={12} className="shrink-0" style={{ color: 'var(--primary-accent)' }} />;
       case 'image':
-        return <ImageIcon size={12} className="shrink-0 text-emerald-400" />;
+        return <ImageIcon size={12} className="shrink-0 text-blue-500" />;
       case 'video':
-        return <Video size={12} className="shrink-0 text-purple-400" />;
+        return <Video size={12} className="shrink-0 text-purple-500" />;
       case 'shape':
-        return <Square size={12} className="shrink-0 text-amber-400" />;
+        return <Square size={12} className="shrink-0 text-emerald-500" />;
+      case '3d':
+        return <Box size={12} className="shrink-0 text-amber-500" />;
+      case 'audio':
+        return <Music size={12} className="shrink-0 text-rose-500" />;
       case 'button':
-        return <Sparkles size={12} className="shrink-0 text-pink-400" />;
+        return <Smartphone size={12} className="shrink-0" style={{ color: 'var(--success)' }} />;
       default:
         return <Layers size={12} className="shrink-0 text-gray-400" />;
     }
@@ -153,7 +160,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
 
   return (
     <div
-      className="absolute bottom-4 left-4 right-4 z-30 transition-all duration-300 pointer-events-auto rounded-2xl border shadow-xl backdrop-blur-md overflow-hidden flex flex-col"
+      className="relative w-full z-30 transition-all duration-300 pointer-events-auto rounded-2xl border shadow-xl backdrop-blur-md overflow-hidden flex flex-col shrink-0"
       style={{
         backgroundColor: 'var(--bg-card)',
         borderColor: 'var(--border-color)',
@@ -248,7 +255,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
           {/* Regla de Tiempo (Ruler / Scrubber) */}
           <div className="flex items-center gap-2 mb-1">
             <div className="w-36 shrink-0 text-[9px] font-extrabold uppercase tracking-wider pl-1" style={{ color: 'var(--text-muted)' }}>
-              Capas / Capa
+              Capa / Tiempo
             </div>
             <div
               ref={rulerRef}
@@ -287,52 +294,69 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
           ) : (
             elements.map((el) => {
               const isSelected = selectedElementId === el.id;
+              const hasIn = !!((el.animInType && el.animInType !== 'none') || (el.animIn && el.animIn !== 'none'));
+              const hasIdle = !!((el.animIdleType && el.animIdleType !== 'none') || (el.animIdle && el.animIdle !== 'none'));
+              const hasOut = !!((el.animOutType && el.animOutType !== 'none') || (el.animOut && el.animOut !== 'none'));
+              const hasAnyAnim = hasIn || hasIdle || hasOut;
+
               const startSec = el.animStartTime ?? 0;
-              const inDuration = el.animDuration ?? 0.8;
-              const idleDuration = el.animIdleDuration ?? 3.0;
-              const outDuration = el.animOutDuration ?? 0.8;
+              const inDuration = hasIn ? (el.animDuration ?? 0.8) : 0;
+              const idleDuration = hasIdle ? (el.animIdleDuration ?? 3.0) : 0;
+              const outDuration = hasOut ? (el.animOutDuration ?? 0.8) : 0;
+
+              const totalAnimDuration = inDuration + idleDuration + outDuration;
 
               const inStartPct = Math.max(0, (startSec / totalDuration) * 100);
-              const inWidthPct = Math.min(100 - inStartPct, (inDuration / totalDuration) * 100);
-              const idleWidthPct = Math.min(100 - (inStartPct + inWidthPct), (idleDuration / totalDuration) * 100);
-              const outWidthPct = Math.min(100 - (inStartPct + inWidthPct + idleWidthPct), (outDuration / totalDuration) * 100);
+              const totalWidthPct = Math.min(100 - inStartPct, (totalAnimDuration / totalDuration) * 100);
 
-              // Handlers para arrastrar y cambiar tamaño de bloques de animación
+              const inSharePct = totalAnimDuration > 0 ? (inDuration / totalAnimDuration) * 100 : 0;
+              const idleSharePct = totalAnimDuration > 0 ? (idleDuration / totalAnimDuration) * 100 : 0;
+              const outSharePct = totalAnimDuration > 0 ? (outDuration / totalAnimDuration) * 100 : 0;
+
+              // Handlers para arrastrar y cambiar tamaño estilo editor de video profesional (Premiere / CapCut)
               const handleStartDragTrack = (e: React.PointerEvent, type: 'move' | 'resizeIn' | 'resizeIdle' | 'resizeOut') => {
                 e.stopPropagation();
                 e.preventDefault();
                 onSelectElement(el.id);
 
-                const trackElement = (e.currentTarget.closest('.track-container') as HTMLElement) || rulerRef.current;
+                const currentTarget = e.currentTarget as HTMLElement;
+                try {
+                  currentTarget.setPointerCapture(e.pointerId);
+                } catch {}
+
+                const trackElement = (currentTarget.closest('.track-container') as HTMLElement) || rulerRef.current;
                 if (!trackElement) return;
 
                 const trackRect = trackElement.getBoundingClientRect();
                 const startX = e.clientX;
-                const initialStartSec = startSec;
-                const initialInDuration = inDuration;
-                const initialIdleDuration = idleDuration;
-                const initialOutDuration = outDuration;
+                const initialStartSec = el.animStartTime ?? 0;
+                const initialInDuration = el.animDuration ?? 0.8;
+                const initialIdleDuration = el.animIdleDuration ?? 3.0;
+                const initialOutDuration = el.animOutDuration ?? 0.8;
 
                 const handlePointerMove = (moveEvent: PointerEvent) => {
                   const deltaX = moveEvent.clientX - startX;
                   const deltaSec = (deltaX / trackRect.width) * totalDuration;
 
                   if (type === 'move') {
-                    const newStartTime = Math.max(0, Math.min(totalDuration - 0.5, Math.round((initialStartSec + deltaSec) * 10) / 10));
+                    const newStartTime = Math.max(0, Math.min(totalDuration - 0.1, Math.round((initialStartSec + deltaSec) * 10) / 10));
                     onUpdateElement(el.id, { animStartTime: newStartTime });
                   } else if (type === 'resizeIn') {
-                    const newDuration = Math.max(0.1, Math.min(10.0, Math.round((initialInDuration + deltaSec) * 10) / 10));
+                    const newDuration = Math.max(0.1, Math.min(totalDuration - initialStartSec, Math.round((initialInDuration + deltaSec) * 10) / 10));
                     onUpdateElement(el.id, { animDuration: newDuration });
                   } else if (type === 'resizeIdle') {
-                    const newIdleDuration = Math.max(0.2, Math.min(15.0, Math.round((initialIdleDuration + deltaSec) * 10) / 10));
+                    const newIdleDuration = Math.max(0.2, Math.min(totalDuration - initialStartSec, Math.round((initialIdleDuration + deltaSec) * 10) / 10));
                     onUpdateElement(el.id, { animIdleDuration: newIdleDuration });
                   } else if (type === 'resizeOut') {
-                    const newOutDuration = Math.max(0.1, Math.min(10.0, Math.round((initialOutDuration + deltaSec) * 10) / 10));
+                    const newOutDuration = Math.max(0.1, Math.min(totalDuration - initialStartSec, Math.round((initialOutDuration + deltaSec) * 10) / 10));
                     onUpdateElement(el.id, { animOutDuration: newOutDuration });
                   }
                 };
 
-                const handlePointerUp = () => {
+                const handlePointerUp = (upEvent: PointerEvent) => {
+                  try {
+                    currentTarget.releasePointerCapture(upEvent.pointerId);
+                  } catch {}
                   window.removeEventListener('pointermove', handlePointerMove);
                   window.removeEventListener('pointerup', handlePointerUp);
                 };
@@ -345,8 +369,8 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                 <div
                   key={el.id}
                   onClick={() => onSelectElement(el.id)}
-                  className={`flex items-center gap-2 p-1.5 rounded-lg border transition-all cursor-pointer ${
-                    isSelected ? 'ring-1' : 'hover:opacity-90'
+                  className={`flex items-center gap-2 p-1.5 rounded-lg border transition-all cursor-pointer hover:opacity-90 ${
+                    isSelected ? 'ring-2 ring-[var(--primary-accent)]' : ''
                   }`}
                   style={{
                     backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'var(--bg-app)',
@@ -362,89 +386,116 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                   </div>
 
                   {/* Pista Temporal con Bloques Interactivos (IN / DURANTE / OUT) */}
-                  <div className="track-container flex-1 h-7 relative bg-black/10 dark:bg-white/10 rounded-lg overflow-hidden flex items-center p-0.5">
-                    {/* Contenedor del Bloque Completo del Elemento (Desplazable) */}
-                    <div
-                      onPointerDown={(e) => handleStartDragTrack(e, 'move')}
-                      className="absolute top-0.5 bottom-0.5 flex items-center rounded-lg cursor-grab active:cursor-grabbing group/track"
-                      style={{
-                        left: `${inStartPct}%`,
-                        width: `${inWidthPct + idleWidthPct + outWidthPct}%`,
-                      }}
-                      title="Haz clic y arrastra para mover el tiempo de inicio (Retraso/Delay)"
-                    >
-                      {/* 1. Pieza ENTRADA (IN) */}
-                      <div
-                        className="h-full flex items-center justify-between px-1 text-[8px] font-black text-emerald-950 dark:text-emerald-100 relative z-10 rounded-l-md shadow-xs border border-emerald-500/50 backdrop-blur-xs group/in"
-                        style={{
-                          width: `${(inWidthPct / (inWidthPct + idleWidthPct + outWidthPct)) * 100}%`,
-                          backgroundColor: 'rgba(34, 197, 94, 0.45)',
-                        }}
-                        title={`Entrada: ${el.animIn || 'slideInUp'} (${inDuration.toFixed(1)}s)`}
-                      >
-                        <span className="truncate flex items-center gap-1 pointer-events-none">
-                          <Zap size={9} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                          <span className="hidden sm:inline">IN:</span> {inDuration.toFixed(1)}s
-                        </span>
-
-                        {/* Handle para redimensionar Duración de IN */}
-                        <div
-                          onPointerDown={(e) => handleStartDragTrack(e, 'resizeIn')}
-                          className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-40 flex items-center justify-center opacity-80 hover:opacity-100"
-                          title="Arrastra para cambiar la duración de entrada"
-                        >
-                          <div className="w-1.5 h-3.5 bg-emerald-600 rounded-full shadow-xs border border-white" />
-                        </div>
+                  <div className="track-container flex-1 h-7 relative bg-black/10 dark:bg-white/10 rounded-lg overflow-hidden flex items-center p-0.5 select-none">
+                    {!hasAnyAnim ? (
+                      <div className="w-full text-center text-[9px] font-semibold opacity-40 italic" style={{ color: 'var(--text-muted)' }}>
+                        Sin animación configurada
                       </div>
-
-                      {/* 2. Pieza DURANTE (LOOP / IDLE) */}
+                    ) : (
+                      /* Contenedor del Bloque Completo del Elemento (Mover Retraso/Delay) */
                       <div
-                        className="h-full flex items-center justify-between px-1 text-[8px] font-black text-blue-950 dark:text-blue-100 relative z-0 shadow-xs border border-blue-500/50 backdrop-blur-xs group/idle"
+                        onPointerDown={(e) => handleStartDragTrack(e, 'move')}
+                        className="absolute top-0.5 bottom-0.5 flex items-center rounded-lg cursor-grab active:cursor-grabbing group/track transition-shadow"
                         style={{
-                          width: `${(idleWidthPct / (inWidthPct + idleWidthPct + outWidthPct)) * 100}%`,
-                          backgroundColor: 'rgba(59, 130, 246, 0.45)',
+                          left: `${inStartPct}%`,
+                          width: `${Math.max(4, totalWidthPct)}%`,
                         }}
-                        title={`Durante: ${el.animIdle || 'Estático'} (${idleDuration.toFixed(1)}s)`}
+                        title={`Arrastrar para mover (Inicio: ${startSec.toFixed(1)}s)`}
                       >
-                        <span className="truncate flex items-center gap-1 pointer-events-none">
-                          <Waves size={9} className="shrink-0 text-blue-600 dark:text-blue-400" />
-                          <span className="hidden sm:inline">DUR:</span> {idleDuration.toFixed(1)}s
-                        </span>
+                        {/* 1. Pieza ENTRADA (IN) */}
+                        {hasIn && (
+                          <div
+                            className={`h-full flex items-center justify-between px-2 text-[9px] font-black text-emerald-950 dark:text-emerald-100 relative z-10 border border-emerald-500/70 shadow-xs backdrop-blur-xs group/in ${
+                              !hasIdle && !hasOut ? 'rounded-md' : 'rounded-l-md'
+                            }`}
+                            style={{
+                              width: `${inSharePct}%`,
+                              backgroundColor: 'rgba(34, 197, 94, 0.65)',
+                            }}
+                            title={`Entrada: ${el.animIn} (${inDuration.toFixed(1)}s)`}
+                          >
+                            <span className="truncate flex items-center gap-1 pointer-events-none">
+                              <Zap size={10} className="shrink-0 text-emerald-800 dark:text-emerald-200" />
+                              <span className="hidden sm:inline">IN:</span> {inDuration.toFixed(1)}s
+                            </span>
 
-                        {/* Handle para redimensionar Duración de DURANTE */}
-                        <div
-                          onPointerDown={(e) => handleStartDragTrack(e, 'resizeIdle')}
-                          className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-40 flex items-center justify-center opacity-80 hover:opacity-100"
-                          title="Arrastra para cambiar la duración de durante"
-                        >
-                          <div className="w-1.5 h-3.5 bg-blue-600 rounded-full shadow-xs border border-white" />
-                        </div>
+                            {/* Agarradera de cambio de tamaño de IN (Borde Derecho) */}
+                            <div
+                              onPointerDown={(e) => handleStartDragTrack(e, 'resizeIn')}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-ew-resize z-40 flex items-center justify-center group-hover/in:scale-110 transition-transform"
+                              title="Modificar duración de Entrada (IN)"
+                            >
+                              <div className="w-2 h-4 bg-emerald-400 hover:bg-emerald-300 rounded-sm shadow-md border border-white/80 flex flex-col justify-center items-center gap-0.5">
+                                <div className="w-0.5 h-0.5 bg-black/40 rounded-full" />
+                                <div className="w-0.5 h-0.5 bg-black/40 rounded-full" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2. Pieza DURANTE (DURANTE / IDLE) */}
+                        {hasIdle && (
+                          <div
+                            className={`h-full flex items-center justify-between px-2 text-[9px] font-black text-blue-950 dark:text-blue-100 relative z-0 border border-blue-500/70 shadow-xs backdrop-blur-xs group/idle ${
+                              !hasIn && !hasOut ? 'rounded-md' : !hasIn ? 'rounded-l-md' : !hasOut ? 'rounded-r-md' : ''
+                            }`}
+                            style={{
+                              width: `${idleSharePct}%`,
+                              backgroundColor: 'rgba(59, 130, 246, 0.65)',
+                            }}
+                            title={`Durante: ${el.animIdle} (${idleDuration.toFixed(1)}s)`}
+                          >
+                            <span className="truncate flex items-center gap-1 pointer-events-none">
+                              <Waves size={10} className="shrink-0 text-blue-800 dark:text-blue-200" />
+                              <span className="hidden sm:inline">DUR:</span> {idleDuration.toFixed(1)}s
+                            </span>
+
+                            {/* Agarradera de cambio de tamaño de DURANTE (Borde Derecho) */}
+                            <div
+                              onPointerDown={(e) => handleStartDragTrack(e, 'resizeIdle')}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-ew-resize z-40 flex items-center justify-center group-hover/idle:scale-110 transition-transform"
+                              title="Modificar duración de Durante (DUR)"
+                            >
+                              <div className="w-2 h-4 bg-blue-400 hover:bg-blue-300 rounded-sm shadow-md border border-white/80 flex flex-col justify-center items-center gap-0.5">
+                                <div className="w-0.5 h-0.5 bg-black/40 rounded-full" />
+                                <div className="w-0.5 h-0.5 bg-black/40 rounded-full" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Pieza SALIDA (OUT) */}
+                        {hasOut && (
+                          <div
+                            className={`h-full flex items-center justify-between px-2 text-[9px] font-black text-rose-950 dark:text-rose-100 relative z-0 border border-rose-500/70 shadow-xs backdrop-blur-xs group/out ${
+                              !hasIn && !hasIdle ? 'rounded-md' : 'rounded-r-md'
+                            }`}
+                            style={{
+                              width: `${outSharePct}%`,
+                              backgroundColor: 'rgba(239, 68, 68, 0.65)',
+                            }}
+                            title={`Salida: ${el.animOut} (${outDuration.toFixed(1)}s)`}
+                          >
+                            <span className="truncate flex items-center gap-1 pointer-events-none">
+                              <Zap size={10} className="shrink-0 text-rose-800 dark:text-rose-200" />
+                              <span className="hidden sm:inline">OUT:</span> {outDuration.toFixed(1)}s
+                            </span>
+
+                            {/* Agarradera de cambio de tamaño de OUT (Borde Derecho) */}
+                            <div
+                              onPointerDown={(e) => handleStartDragTrack(e, 'resizeOut')}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-ew-resize z-40 flex items-center justify-center group-hover/out:scale-110 transition-transform"
+                              title="Modificar duración de Salida (OUT)"
+                            >
+                              <div className="w-2 h-4 bg-rose-400 hover:bg-rose-300 rounded-sm shadow-md border border-white/80 flex flex-col justify-center items-center gap-0.5">
+                                <div className="w-0.5 h-0.5 bg-black/40 rounded-full" />
+                                <div className="w-0.5 h-0.5 bg-black/40 rounded-full" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-
-                      {/* 3. Pieza SALIDA (OUT) */}
-                      <div
-                        className="h-full flex items-center justify-between px-1 text-[8px] font-black text-rose-950 dark:text-rose-100 relative z-0 rounded-r-md shadow-xs border border-rose-500/50 backdrop-blur-xs group/out"
-                        style={{
-                          width: `${(outWidthPct / (inWidthPct + idleWidthPct + outWidthPct)) * 100}%`,
-                          backgroundColor: 'rgba(239, 68, 68, 0.45)',
-                        }}
-                        title={`Salida: ${el.animOut || 'Sin salida'} (${outDuration.toFixed(1)}s)`}
-                      >
-                        <span className="truncate flex items-center gap-1 pointer-events-none">
-                          <Zap size={9} className="shrink-0 text-rose-600 dark:text-rose-400" />
-                          <span className="hidden sm:inline">OUT:</span> {outDuration.toFixed(1)}s
-                        </span>
-
-                        {/* Handle para redimensionar Duración de OUT */}
-                        <div
-                          onPointerDown={(e) => handleStartDragTrack(e, 'resizeOut')}
-                          className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-40 flex items-center justify-center opacity-80 hover:opacity-100"
-                          title="Arrastra para cambiar la duración de salida"
-                        >
-                          <div className="w-1.5 h-3.5 bg-rose-600 rounded-full shadow-xs border border-white" />
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               );

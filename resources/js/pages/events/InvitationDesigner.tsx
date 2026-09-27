@@ -270,6 +270,7 @@ const ANIM_IN_OPTIONS: SelectOption[] = [
 
 const ANIM_IDLE_OPTIONS: SelectOption[] = [
   { value: 'none', label: 'Sin efecto' },
+  { value: 'show', label: 'Mostrar (Show)' },
   { value: 'float', label: 'Flotar (Float)' },
   { value: 'pulse', label: 'Pulso (Pulse)' },
   { value: 'shimmer', label: 'Destello (Shimmer)' },
@@ -303,6 +304,7 @@ interface InspectorSelectProps {
   options: SelectOption[];
   className?: string;
   buttonClassName?: string;
+  disabled?: boolean;
 }
 
 const InspectorSelect: React.FC<InspectorSelectProps> = ({
@@ -311,6 +313,7 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
   options,
   className = '',
   buttonClassName = 'h-7 px-2 text-[10px]',
+  disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -331,21 +334,24 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
     <div ref={containerRef} className={`relative select-none ${className}`}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full rounded-lg border font-bold outline-none cursor-pointer flex items-center justify-between transition-all ${buttonClassName}`}
+        disabled={disabled}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full rounded-lg border font-bold outline-none flex items-center justify-between transition-all ${
+          disabled ? 'opacity-40 cursor-not-allowed bg-black/5 dark:bg-white/5' : 'cursor-pointer'
+        } ${buttonClassName}`}
         style={{
-          backgroundColor: 'var(--bg-app)',
-          borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',
-          color: 'var(--text-main)',
+          backgroundColor: disabled ? 'var(--bg-card)' : 'var(--bg-app)',
+          borderColor: isOpen && !disabled ? 'var(--primary-accent)' : 'var(--border-color)',
+          color: disabled ? 'var(--text-muted)' : 'var(--text-main)',
         }}
       >
-        <span className="truncate text-[10px] leading-tight">{selectedOpt?.label}</span>
+        <span className="truncate text-[10px] leading-tight">{disabled ? 'N/A' : selectedOpt?.label}</span>
         <ChevronDown size={11} className={`transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} />
       </button>
 
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border shadow-xl overflow-hidden py-1 max-h-56 overflow-y-auto"
+          className="absolute left-0 top-full mt-1 z-50 min-w-full w-max max-w-[220px] rounded-lg border shadow-xl overflow-hidden py-1 max-h-56 overflow-y-auto"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -386,6 +392,113 @@ const InspectorSelect: React.FC<InspectorSelectProps> = ({
           })}
         </div>
       )}
+    </div>
+  );
+};
+
+/* Componente de Badge Numérico Editable */
+interface EditableNumberBadgeProps {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  suffix?: string;
+  disabled?: boolean;
+  onChange: (val: number) => void;
+}
+
+const EditableNumberBadge: React.FC<EditableNumberBadgeProps> = ({
+  value,
+  min,
+  max,
+  step = 0.1,
+  suffix = 's',
+  disabled = false,
+  onChange,
+}) => {
+  const [inputText, setInputText] = useState(value.toFixed(1));
+
+  useEffect(() => {
+    setInputText(value.toFixed(1));
+  }, [value]);
+
+  const handleCommit = () => {
+    let parsed = parseFloat(inputText);
+    if (isNaN(parsed)) parsed = value;
+    parsed = Math.max(min, Math.min(max, parsed));
+    const rounded = Math.round(parsed * 10) / 10;
+    setInputText(rounded.toFixed(1));
+    onChange(rounded);
+  };
+
+  const handleDecrement = () => {
+    if (disabled) return;
+    const next = Math.max(min, Math.round((value - step) * 10) / 10);
+    onChange(next);
+  };
+
+  const handleIncrement = () => {
+    if (disabled) return;
+    const next = Math.min(max, Math.round((value + step) * 10) / 10);
+    onChange(next);
+  };
+
+  return (
+    <div
+      className={`flex items-center h-6 rounded border overflow-hidden transition-all shrink-0 select-none ${
+        disabled ? 'opacity-40 cursor-not-allowed' : 'focus-within:ring-1 focus-within:ring-[var(--primary-accent)]'
+      }`}
+      style={{
+        backgroundColor: 'var(--bg-app)',
+        borderColor: 'var(--border-color)',
+        width: '58px',
+      }}
+    >
+      <button
+        type="button"
+        disabled={disabled || value <= min}
+        onClick={handleDecrement}
+        className="w-4 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Disminuir"
+      >
+        <Minus size={8} />
+      </button>
+
+      <input
+        type="text"
+        disabled={disabled}
+        value={inputText}
+        onChange={(e) => setInputText(e.target.value)}
+        onBlur={handleCommit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleCommit();
+            e.currentTarget.blur();
+          }
+        }}
+        className="w-full h-full text-center bg-transparent outline-none font-mono text-[9px] font-bold p-0 disabled:cursor-not-allowed"
+        style={{ color: 'var(--text-main)' }}
+      />
+
+      <button
+        type="button"
+        disabled={disabled || value >= max}
+        onClick={handleIncrement}
+        className="w-4 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Aumentar"
+      >
+        <Plus size={8} />
+      </button>
     </div>
   );
 };
@@ -455,7 +568,7 @@ interface CanvasElement {
   animation?: 'fade' | 'slideUp' | 'zoomIn' | 'bounce';
   animStartTime?: number;
   animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'slideInDown' | 'slideInRight' | 'zoomIn' | 'bounceIn' | 'spinIn';
-  animIdle?: 'none' | 'float' | 'pulse' | 'shimmer' | 'bounceLoop' | 'spinLoop' | 'heartbeat';
+  animIdle?: 'none' | 'show' | 'float' | 'pulse' | 'shimmer' | 'bounceLoop' | 'spinLoop' | 'heartbeat';
   animIdleDuration?: number;
   animOut?: 'none' | 'fadeOut' | 'slideOutDown' | 'slideOutUp' | 'slideOutRight' | 'slideOutLeft' | 'zoomOut' | 'fadeScale';
   animDuration?: number;
@@ -510,7 +623,158 @@ export interface Scene {
   transition?: 'none' | 'fade' | 'slideLeft' | 'slideRight' | 'slideUp' | 'slideDown' | 'zoomIn' | 'zoomOut';
   transitionDuration?: number;
   autoAdvance?: boolean;
-  autoAdvanceDelay?: number;
+}
+
+function calculateElementPlaybackStyle(
+  el: CanvasElement,
+  currentTime: number,
+  isPlaying: boolean,
+  totalDuration: number
+): { opacity: number; transform: string } {
+  const baseOpacity = el.opacity !== undefined ? el.opacity / 100 : 1;
+  const baseTransformParts = [
+    el.rotation ? `rotate(${el.rotation}deg)` : '',
+    el.flipH ? 'scaleX(-1)' : '',
+    el.flipV ? 'scaleY(-1)' : '',
+  ].filter(Boolean);
+
+  const hasIn = !!((el.animInType && el.animInType !== 'none') || (el.animIn && el.animIn !== 'none'));
+  const hasIdle = !!((el.animIdleType && el.animIdleType !== 'none') || (el.animIdle && el.animIdle !== 'none'));
+  const hasOut = !!((el.animOutType && el.animOutType !== 'none') || (el.animOut && el.animOut !== 'none'));
+
+  // Capas que no tengan NINGÚN efecto se muestran siempre visibles en todo momento
+  if (!hasIn && !hasIdle && !hasOut) {
+    return {
+      opacity: baseOpacity,
+      transform: baseTransformParts.join(' '),
+    };
+  }
+
+  // Si no se está reproduciendo y la línea de tiempo está en 0s (modo edición estática en el lienzo)
+  if (!isPlaying && currentTime === 0) {
+    return {
+      opacity: baseOpacity,
+      transform: baseTransformParts.join(' '),
+    };
+  }
+
+  const t = currentTime;
+  const inStart = el.animStartTime ?? 0;
+  const inDur = hasIn ? (el.animDuration ?? 0.8) : 0;
+  const inEnd = inStart + inDur;
+
+  const idleDur = hasIdle ? (el.animIdleDuration ?? 3.0) : 0;
+  const idleEnd = inEnd + idleDur;
+
+  const outDur = hasOut ? (el.animOutDuration ?? 0.8) : 0;
+  const outStart = el.animOutStartTime !== undefined ? el.animOutStartTime : idleEnd;
+  const outEnd = outStart + outDur;
+
+  // El final absoluto de la secuencia animada de este elemento
+  const animSequenceEnd = hasOut ? outEnd : (hasIdle ? idleEnd : inEnd);
+
+  let computedOpacity = baseOpacity;
+  let animTransforms: string[] = [];
+
+  const inType = el.animInType || (el.animIn === 'fadeIn' ? 'fade' : el.animIn === 'zoomIn' ? 'zoom' : el.animIn === 'bounceIn' ? 'bounce' : el.animIn === 'spinIn' ? 'spin' : el.animIn && el.animIn !== 'none' ? 'slide' : 'none');
+  const inDir = el.animInDir || (el.animIn === 'slideInDown' ? 'down' : el.animIn === 'slideInLeft' ? 'left' : el.animIn === 'slideInRight' ? 'right' : 'up');
+
+  const idleType = el.animIdleType || (el.animIdle && el.animIdle !== 'none' ? el.animIdle : 'none');
+
+  const outType = el.animOutType || (el.animOut === 'fadeOut' ? 'fade' : el.animOut === 'zoomOut' ? 'zoom' : el.animOut && el.animOut !== 'none' ? 'slide' : 'none');
+  const outDir = el.animOutDir || (el.animOut === 'slideOutUp' ? 'up' : el.animOut === 'slideOutLeft' ? 'left' : el.animOut === 'slideOutRight' ? 'right' : 'down');
+
+  // Si el tiempo está antes del inicio de la animación O después de que terminó toda su animación -> OCULTAR CAPA
+  if (t < inStart || t >= animSequenceEnd) {
+    return {
+      opacity: 0,
+      transform: [...baseTransformParts, 'scale(0)'].join(' '),
+    };
+  }
+
+  // 1. FASE DE ENTRADA (Inicio) - [inStart, inEnd]
+  if (hasIn && t >= inStart && t < inEnd) {
+    const p = Math.min(1, Math.max(0, (t - inStart) / inDur));
+    const easeP = 1 - (1 - p) * (1 - p); // easeOut
+
+    if (inType === 'fade') {
+      computedOpacity = baseOpacity * easeP;
+    } else if (inType === 'slide') {
+      computedOpacity = baseOpacity * easeP;
+      const offset = (1 - easeP) * 80;
+      if (inDir === 'up') animTransforms.push(`translateY(${offset}px)`);
+      else if (inDir === 'down') animTransforms.push(`translateY(${-offset}px)`);
+      else if (inDir === 'left') animTransforms.push(`translateX(${offset}px)`);
+      else if (inDir === 'right') animTransforms.push(`translateX(${-offset}px)`);
+      else animTransforms.push(`translateY(${offset}px)`);
+    } else if (inType === 'zoom') {
+      computedOpacity = baseOpacity * easeP;
+      const scaleVal = 0.2 + 0.8 * easeP;
+      animTransforms.push(`scale(${scaleVal})`);
+    } else if (inType === 'bounce') {
+      computedOpacity = baseOpacity * Math.min(1, p * 2);
+      const bounceOffset = -Math.sin(p * Math.PI) * 50 * (1 - p);
+      animTransforms.push(`translateY(${bounceOffset}px)`);
+    } else if (inType === 'spin') {
+      computedOpacity = baseOpacity * easeP;
+      const rotDeg = (1 - easeP) * 360;
+      animTransforms.push(`rotate(${rotDeg}deg)`);
+    }
+  }
+
+  // 2. FASE DURANTE (Idle / Loop) - [inEnd, idleEnd]
+  else if (hasIdle && t >= inEnd && t < idleEnd) {
+    computedOpacity = baseOpacity;
+    const loopProgress = (t - inEnd) / idleDur;
+
+    if (idleType === 'float') {
+      const translateY = Math.sin(loopProgress * Math.PI * 2) * 12;
+      animTransforms.push(`translateY(${translateY}px)`);
+    } else if (idleType === 'pulse') {
+      const scaleVal = 1 + Math.sin(loopProgress * Math.PI * 2) * 0.08;
+      animTransforms.push(`scale(${scaleVal})`);
+    } else if (idleType === 'bounceLoop') {
+      const translateY = -Math.abs(Math.sin(loopProgress * Math.PI * 2)) * 16;
+      animTransforms.push(`translateY(${translateY}px)`);
+    } else if (idleType === 'spinLoop') {
+      const rotDeg = loopProgress * 360;
+      animTransforms.push(`rotate(${rotDeg}deg)`);
+    } else if (idleType === 'heartbeat') {
+      const pulse = loopProgress < 0.3 ? Math.sin((loopProgress / 0.3) * Math.PI) * 0.15 : 0;
+      animTransforms.push(`scale(${1 + pulse})`);
+    } else if (idleType === 'shimmer') {
+      computedOpacity = baseOpacity * (0.6 + 0.4 * Math.sin(loopProgress * Math.PI * 2));
+    }
+  }
+
+  // 3. FASE DE SALIDA (Final) - [outStart, outEnd]
+  else if (hasOut && t >= outStart && t < outEnd) {
+    const p = Math.min(1, Math.max(0, (t - outStart) / outDur));
+    const easeP = p * p; // easeIn
+
+    if (outType === 'fade') {
+      computedOpacity = baseOpacity * (1 - easeP);
+    } else if (outType === 'slide') {
+      computedOpacity = baseOpacity * (1 - easeP);
+      const offset = easeP * 80;
+      if (outDir === 'down') animTransforms.push(`translateY(${offset}px)`);
+      else if (outDir === 'up') animTransforms.push(`translateY(${-offset}px)`);
+      else if (outDir === 'left') animTransforms.push(`translateX(${-offset}px)`);
+      else if (outDir === 'right') animTransforms.push(`translateX(${offset}px)`);
+      else animTransforms.push(`translateY(${offset}px)`);
+    } else if (outType === 'zoom') {
+      computedOpacity = baseOpacity * (1 - easeP);
+      const scaleVal = Math.max(0, 1 - easeP * 0.8);
+      animTransforms.push(`scale(${scaleVal})`);
+    }
+  }
+
+  const finalTransform = [...baseTransformParts, ...animTransforms].filter(Boolean).join(' ');
+
+  return {
+    opacity: computedOpacity,
+    transform: finalTransform || 'none',
+  };
 }
 
 export const DEFAULT_ENVELOPE_ELEMENTS: any[] = [
@@ -1552,6 +1816,11 @@ export default function InvitationDesigner() {
         borderRadius: 8,
         visible: true,
         locked: false,
+        animIn: 'none',
+        animInType: 'none',
+        animIdle: 'none',
+        animOut: 'none',
+        animOutType: 'none',
       };
 
       pushHistorySnapshot([newComponent, ...elements]);
@@ -1597,6 +1866,11 @@ export default function InvitationDesigner() {
       visible: true,
       locked: false,
       parentComponentId: selectedComp?.id,
+      animIn: 'none',
+      animInType: 'none',
+      animIdle: 'none',
+      animOut: 'none',
+      animOutType: 'none',
     };
 
     if (selectedComp) {
@@ -3357,14 +3631,16 @@ export default function InvitationDesigner() {
           </div>
         </aside>
 
-        {/* Center: Canvas Stage (Escenario Móvil 9:16 adaptable al tema estilo Floating Deck) */}
-        <main
-          ref={mainContainerRef}
-          className="flex-1 relative overflow-auto p-6 flex border rounded-2xl shadow-xl backdrop-blur-md transition-all"
-          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-        >
+        {/* Center Column: Canvas Stage + Timeline Bar (Organizados verticalmente) */}
+        <div className="flex-1 flex flex-col gap-3 min-h-0 min-w-0">
+          {/* Canvas Stage (Escenario Móvil 9:16 adaptable al tema estilo Floating Deck) */}
+          <main
+            ref={mainContainerRef}
+            className="flex-1 relative overflow-auto p-6 flex border rounded-2xl shadow-xl backdrop-blur-md transition-all min-h-0"
+            style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
           {/* Controls Zoom flotantes (Esquina superior izquierda del área del diseñador) */}
           <div
             className="absolute top-4 left-4 z-30 flex items-center gap-1.5 rounded-xl p-1.5 border shadow-sm backdrop-blur-xs text-xs font-bold pointer-events-auto"
@@ -3556,6 +3832,7 @@ export default function InvitationDesigner() {
                       {el.children.map((childEl, childIdx) => {
                         const isChildSelected = selectedElementId === childEl.id;
                         const childZIndex = el.children!.length - childIdx;
+                        const childPlaybackStyle = calculateElementPlaybackStyle(childEl, timelineTime, isPlaying, totalDuration);
 
                         return (
                           <div
@@ -3574,12 +3851,12 @@ export default function InvitationDesigner() {
                               width: `${childEl.width}px`,
                               height: `${childEl.height}px`,
                               zIndex: childZIndex,
-                              transform: [
+                              transform: childPlaybackStyle.transform !== 'none' ? childPlaybackStyle.transform : ([
                                 childEl.rotation ? `rotate(${childEl.rotation}deg)` : '',
                                 childEl.flipH ? 'scaleX(-1)' : '',
                                 childEl.flipV ? 'scaleY(-1)' : '',
-                              ].filter(Boolean).join(' ') || undefined,
-                              opacity: childEl.opacity !== undefined ? childEl.opacity / 100 : 1,
+                              ].filter(Boolean).join(' ') || undefined),
+                              opacity: childPlaybackStyle.opacity,
                               background: childEl.backgroundColor && childEl.backgroundColor.includes('gradient') ? childEl.backgroundColor : undefined,
                               backgroundColor: childEl.backgroundColor && !childEl.backgroundColor.includes('gradient') ? childEl.backgroundColor : 'transparent',
                               borderRadius: childEl.borderRadius ? `${childEl.borderRadius}px` : undefined,
@@ -3701,6 +3978,7 @@ export default function InvitationDesigner() {
                 }
 
                 const isSelected = selectedElementId === el.id;
+                const playbackStyle = calculateElementPlaybackStyle(el, timelineTime, isPlaying, totalDuration);
 
                 return (
                   <div
@@ -3724,12 +4002,12 @@ export default function InvitationDesigner() {
                       top: `${el.y}px`,
                       width: `${el.width}px`,
                       height: `${el.height}px`,
-                      transform: [
+                      transform: playbackStyle.transform !== 'none' ? playbackStyle.transform : ([
                         el.rotation ? `rotate(${el.rotation}deg)` : '',
                         el.flipH ? 'scaleX(-1)' : '',
                         el.flipV ? 'scaleY(-1)' : '',
-                      ].filter(Boolean).join(' ') || undefined,
-                      opacity: el.opacity !== undefined ? el.opacity / 100 : 1,
+                      ].filter(Boolean).join(' ') || undefined),
+                      opacity: playbackStyle.opacity,
                       fontSize: el.fontSize ? `${el.fontSize}px` : undefined,
                       fontWeight: el.fontWeight || 'normal',
                       fontFamily: el.fontFamily ? `'${el.fontFamily}', sans-serif` : undefined,
@@ -3874,7 +4152,9 @@ export default function InvitationDesigner() {
           </div>
         </div>
 
-        {/* Timeline Bar Scoped al Diseñador Central */}
+          </main>
+
+          {/* Timeline Bar Scoped al Diseñador Central */}
           <DesignerTimelineBar
             elements={elements}
             selectedElementId={selectedElementId}
@@ -3882,7 +4162,10 @@ export default function InvitationDesigner() {
               setSelectedElementId(id);
               setSelectedElementIds([id]);
             }}
-            onUpdateElement={updateSelectedElementBatch}
+            onUpdateElement={(id, updates) => {
+              setElements((prev) => updateElementRecursive(prev, id, updates));
+              setHasUnsavedChanges(true);
+            }}
             currentTime={timelineTime}
             setCurrentTime={setTimelineTime}
             isPlaying={isPlaying}
@@ -3892,11 +4175,11 @@ export default function InvitationDesigner() {
             isExpanded={isTimelineExpanded}
             setIsExpanded={setIsTimelineExpanded}
           />
-        </main>
+        </div>
 
         {/* Right Panel: Inspector de Propiedades estilo Floating Deck */}
         <aside
-          className="w-72 shrink-0 border rounded-2xl shadow-xl backdrop-blur-md flex flex-col z-30 overflow-hidden transition-all"
+          className="w-72 shrink-0 border rounded-2xl shadow-xl backdrop-blur-md flex flex-col z-30 transition-all"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -6733,7 +7016,7 @@ export default function InvitationDesigner() {
                   <div className="space-y-2">
                     
                     {/* 1. SECCIÓN INICIO / ENTRADA */}
-                    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                    <div className="rounded-xl border relative z-30" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       <button
                         type="button"
                         onClick={() => updateSelectedElement('animAccordion', selectedElement.animAccordion === 'in' ? null : 'in')}
@@ -6760,13 +7043,13 @@ export default function InvitationDesigner() {
                       {(selectedElement.animAccordion || 'in') === 'in' && (
                         <div className="p-3 border-t space-y-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
                           
-                          {/* Fila 1: 2 Selects (Efecto y Dirección) con icono a la izquierda */}
-                          <div className="grid grid-cols-2 gap-2 font-mono">
+                          {/* Selects: Efecto y Dirección uno debajo del otro */}
+                          <div className="flex flex-col gap-2 font-mono">
                             <div className="flex items-center gap-1.5" title="Efecto de Entrada">
                               <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <div className="flex-1 min-w-0">
                                 <InspectorSelect
-                                  value={selectedElement.animInType || 'slide'}
+                                  value={selectedElement.animInType || (selectedElement.animIn ? (selectedElement.animIn === 'fadeIn' ? 'fade' : selectedElement.animIn === 'zoomIn' ? 'zoom' : selectedElement.animIn === 'bounceIn' ? 'bounce' : selectedElement.animIn === 'spinIn' ? 'spin' : selectedElement.animIn === 'none' ? 'none' : 'slide') : 'none')}
                                   onChange={(val) => {
                                     updateSelectedElement('animInType', val);
                                     const dir = selectedElement.animInDir || 'up';
@@ -6785,14 +7068,15 @@ export default function InvitationDesigner() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5" title="Dirección de Entrada">
+                            <div className={`flex items-center gap-1.5 ${['none', 'fade', 'zoom', 'bounce', 'spin'].includes(selectedElement.animInType || 'none') ? 'opacity-40 pointer-events-none' : ''}`} title="Dirección de Entrada">
                               <Compass size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <div className="flex-1 min-w-0">
                                 <InspectorSelect
                                   value={selectedElement.animInDir || 'up'}
+                                  disabled={['none', 'fade', 'zoom', 'bounce', 'spin'].includes(selectedElement.animInType || 'none')}
                                   onChange={(dir) => {
                                     updateSelectedElement('animInDir', dir);
-                                    const type = selectedElement.animInType || 'slide';
+                                    const type = selectedElement.animInType || 'none';
                                     let combined = 'slideInUp';
                                     if (type === 'slide') combined = dir === 'up' ? 'slideInUp' : dir === 'down' ? 'slideInDown' : dir === 'left' ? 'slideInLeft' : 'slideInRight';
                                     else if (type === 'fade') combined = 'fadeIn';
@@ -6809,11 +7093,12 @@ export default function InvitationDesigner() {
                           </div>
 
                           {/* Fila 2: Curva Easing de Entrada */}
-                          <div className="flex items-center gap-1.5" title="Curva de Aceleración (Easing)">
+                          <div className={`flex items-center gap-1.5 ${(selectedElement.animInType || 'none') === 'none' ? 'opacity-40 pointer-events-none' : ''}`} title="Curva de Aceleración (Easing)">
                             <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                             <div className="flex-1 min-w-0">
                               <InspectorSelect
                                 value={selectedElement.animEasingIn || selectedElement.animEasing || 'ease-out'}
+                                disabled={(selectedElement.animInType || 'none') === 'none'}
                                 onChange={(val) => updateSelectedElement('animEasingIn', val)}
                                 options={ANIM_EASING_OPTIONS}
                                 buttonClassName="h-7 px-2.5 text-[10px]"
@@ -6822,7 +7107,7 @@ export default function InvitationDesigner() {
                           </div>
 
                           {/* Fila 3: Duración & Retraso de Entrada en la misma fila */}
-                          <div className="pt-1 border-t grid grid-cols-2 gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className={`pt-1 border-t grid grid-cols-2 gap-2 ${(selectedElement.animInType || 'none') === 'none' ? 'opacity-40 pointer-events-none' : ''}`} style={{ borderColor: 'var(--border-color)' }}>
                             <div className="flex items-center gap-1 min-w-0" title="Duración de Entrada">
                               <Clock size={12} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <input
@@ -6830,14 +7115,19 @@ export default function InvitationDesigner() {
                                 min="0.1"
                                 max="5.0"
                                 step="0.1"
+                                disabled={(selectedElement.animInType || 'none') === 'none'}
                                 value={selectedElement.animDuration || 0.8}
                                 onChange={(e) => updateSelectedElement('animDuration', parseFloat(e.target.value) || 0.8)}
-                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20 disabled:cursor-not-allowed"
                                 style={{ accentColor: 'var(--primary-accent)' }}
                               />
-                              <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: 'var(--text-muted)' }}>
-                                {(selectedElement.animDuration || 0.8).toFixed(1)}s
-                              </span>
+                              <EditableNumberBadge
+                                value={selectedElement.animDuration || 0.8}
+                                min={0.1}
+                                max={5.0}
+                                disabled={(selectedElement.animInType || 'none') === 'none'}
+                                onChange={(val) => updateSelectedElement('animDuration', val)}
+                              />
                             </div>
 
                             <div className="flex items-center gap-1 min-w-0" title="Retraso de Inicio (Delay)">
@@ -6852,9 +7142,12 @@ export default function InvitationDesigner() {
                                 className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
                                 style={{ accentColor: 'var(--primary-accent)' }}
                               />
-                              <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: 'var(--text-muted)' }}>
-                                {(selectedElement.animStartTime || 0).toFixed(1)}s
-                              </span>
+                              <EditableNumberBadge
+                                value={selectedElement.animStartTime || 0}
+                                min={0.0}
+                                max={10.0}
+                                onChange={(val) => updateSelectedElement('animStartTime', val)}
+                              />
                             </div>
                           </div>
                         </div>
@@ -6862,7 +7155,7 @@ export default function InvitationDesigner() {
                     </div>
 
                     {/* 2. SECCIÓN DURANTE / LOOP */}
-                    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                    <div className="rounded-xl border relative z-20" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       <button
                         type="button"
                         onClick={() => updateSelectedElement('animAccordion', selectedElement.animAccordion === 'idle' ? null : 'idle')}
@@ -6889,8 +7182,8 @@ export default function InvitationDesigner() {
                       {selectedElement.animAccordion === 'idle' && (
                         <div className="p-3 border-t space-y-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
                           
-                          {/* Fila 1: 2 Selects (Efecto y Dirección) con icono a la izquierda */}
-                          <div className="grid grid-cols-2 gap-2 font-mono">
+                          {/* Selects: Efecto y Dirección uno debajo del otro */}
+                          <div className="flex flex-col gap-2 font-mono">
                             <div className="flex items-center gap-1.5" title="Efecto de Durante">
                               <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <div className="flex-1 min-w-0">
@@ -6903,11 +7196,12 @@ export default function InvitationDesigner() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5" title="Dirección de Durante">
+                            <div className={`flex items-center gap-1.5 ${['none', 'show', 'float', 'pulse', 'wiggle', 'heartbeat', 'spin'].includes(selectedElement.animIdle || 'none') ? 'opacity-40 pointer-events-none' : ''}`} title="Dirección de Durante">
                               <Compass size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <div className="flex-1 min-w-0">
                                 <InspectorSelect
                                   value={selectedElement.animIdleDir || 'center'}
+                                  disabled={['none', 'show', 'float', 'pulse', 'wiggle', 'heartbeat', 'spin'].includes(selectedElement.animIdle || 'none')}
                                   onChange={(val) => updateSelectedElement('animIdleDir', val)}
                                   options={ANIM_DIRECTION_OPTIONS}
                                   buttonClassName="h-7 px-2 text-[10px] font-semibold"
@@ -6917,11 +7211,12 @@ export default function InvitationDesigner() {
                           </div>
 
                           {/* Fila 2: Curva Easing de Durante */}
-                          <div className="flex items-center gap-1.5" title="Curva de Aceleración (Easing)">
+                          <div className={`flex items-center gap-1.5 ${(selectedElement.animIdle || 'none') === 'none' ? 'opacity-40 pointer-events-none' : ''}`} title="Curva de Aceleración (Easing)">
                             <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                             <div className="flex-1 min-w-0">
                               <InspectorSelect
                                 value={selectedElement.animEasingIdle || 'ease-in-out'}
+                                disabled={(selectedElement.animIdle || 'none') === 'none'}
                                 onChange={(val) => updateSelectedElement('animEasingIdle', val)}
                                 options={ANIM_EASING_OPTIONS}
                                 buttonClassName="h-7 px-2.5 text-[10px]"
@@ -6930,7 +7225,7 @@ export default function InvitationDesigner() {
                           </div>
 
                           {/* Fila 3: Duración de Durante */}
-                          <div className="space-y-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className={`space-y-1 pt-1 border-t ${(selectedElement.animIdle || 'none') === 'none' ? 'opacity-40 pointer-events-none' : ''}`} style={{ borderColor: 'var(--border-color)' }}>
                             <div className="flex items-center gap-1.5" title="Duración de Durante">
                               <Clock size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <input
@@ -6938,14 +7233,20 @@ export default function InvitationDesigner() {
                                 min="0.5"
                                 max="10.0"
                                 step="0.5"
+                                disabled={(selectedElement.animIdle || 'none') === 'none'}
                                 value={selectedElement.animIdleDuration || 3.0}
                                 onChange={(e) => updateSelectedElement('animIdleDuration', parseFloat(e.target.value) || 3.0)}
-                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20 disabled:cursor-not-allowed"
                                 style={{ accentColor: 'var(--primary-accent)' }}
                               />
-                              <span className="text-[9px] font-mono font-bold w-9 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
-                                {(selectedElement.animIdleDuration || 3.0).toFixed(1)}s
-                              </span>
+                              <EditableNumberBadge
+                                value={selectedElement.animIdleDuration || 3.0}
+                                min={0.5}
+                                max={10.0}
+                                step={0.5}
+                                disabled={(selectedElement.animIdle || 'none') === 'none'}
+                                onChange={(val) => updateSelectedElement('animIdleDuration', val)}
+                              />
                             </div>
                           </div>
                         </div>
@@ -6953,7 +7254,7 @@ export default function InvitationDesigner() {
                     </div>
 
                     {/* 3. SECCIÓN FINAL / SALIDA */}
-                    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                    <div className="rounded-xl border relative z-10" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       <button
                         type="button"
                         onClick={() => updateSelectedElement('animAccordion', selectedElement.animAccordion === 'out' ? null : 'out')}
@@ -6980,13 +7281,13 @@ export default function InvitationDesigner() {
                       {selectedElement.animAccordion === 'out' && (
                         <div className="p-3 border-t space-y-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
                           
-                          {/* Fila 1: 2 Selects (Efecto y Dirección) con icono a la izquierda */}
-                          <div className="grid grid-cols-2 gap-2 font-mono">
+                          {/* Selects: Efecto y Dirección uno debajo del otro */}
+                          <div className="flex flex-col gap-2 font-mono">
                             <div className="flex items-center gap-1.5" title="Efecto de Salida">
                               <Sparkles size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <div className="flex-1 min-w-0">
                                 <InspectorSelect
-                                  value={selectedElement.animOutType || 'slide'}
+                                  value={selectedElement.animOutType || (selectedElement.animOut ? (selectedElement.animOut === 'fadeOut' ? 'fade' : selectedElement.animOut === 'zoomOut' ? 'zoom' : selectedElement.animOut === 'none' ? 'none' : 'slide') : 'none')}
                                   onChange={(val) => {
                                     updateSelectedElement('animOutType', val);
                                     const dir = selectedElement.animOutDir || 'down';
@@ -7003,14 +7304,15 @@ export default function InvitationDesigner() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5" title="Dirección de Salida">
+                            <div className={`flex items-center gap-1.5 ${['none', 'fade', 'zoom'].includes(selectedElement.animOutType || 'none') ? 'opacity-40 pointer-events-none' : ''}`} title="Dirección de Salida">
                               <Compass size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <div className="flex-1 min-w-0">
                                 <InspectorSelect
                                   value={selectedElement.animOutDir || 'down'}
+                                  disabled={['none', 'fade', 'zoom'].includes(selectedElement.animOutType || 'none')}
                                   onChange={(dir) => {
                                     updateSelectedElement('animOutDir', dir);
-                                    const type = selectedElement.animOutType || 'slide';
+                                    const type = selectedElement.animOutType || 'none';
                                     let combined = 'slideOutDown';
                                     if (type === 'slide') combined = dir === 'down' ? 'slideOutDown' : dir === 'up' ? 'slideOutUp' : dir === 'right' ? 'slideOutRight' : 'slideOutLeft';
                                     else if (type === 'fade') combined = 'fadeOut';
@@ -7025,11 +7327,12 @@ export default function InvitationDesigner() {
                           </div>
 
                           {/* Fila 2: Curva Easing de Salida */}
-                          <div className="flex items-center gap-1.5" title="Curva de Aceleración (Easing)">
+                          <div className={`flex items-center gap-1.5 ${(selectedElement.animOutType || 'none') === 'none' ? 'opacity-40 pointer-events-none' : ''}`} title="Curva de Aceleración (Easing)">
                             <RotateCw size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                             <div className="flex-1 min-w-0">
                               <InspectorSelect
                                 value={selectedElement.animEasingOut || selectedElement.animEasing || 'ease-in'}
+                                disabled={(selectedElement.animOutType || 'none') === 'none'}
                                 onChange={(val) => updateSelectedElement('animEasingOut', val)}
                                 options={ANIM_EASING_OPTIONS}
                                 buttonClassName="h-7 px-2.5 text-[10px]"
@@ -7038,7 +7341,7 @@ export default function InvitationDesigner() {
                           </div>
 
                           {/* Fila 3: Duración de Salida */}
-                          <div className="space-y-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className={`space-y-1 pt-1 border-t ${(selectedElement.animOutType || 'none') === 'none' ? 'opacity-40 pointer-events-none' : ''}`} style={{ borderColor: 'var(--border-color)' }}>
                             <div className="flex items-center gap-1.5" title="Duración de Salida">
                               <Clock size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
                               <input
@@ -7046,14 +7349,19 @@ export default function InvitationDesigner() {
                                 min="0.1"
                                 max="5.0"
                                 step="0.1"
+                                disabled={(selectedElement.animOutType || 'none') === 'none'}
                                 value={selectedElement.animOutDuration || 0.8}
                                 onChange={(e) => updateSelectedElement('animOutDuration', parseFloat(e.target.value) || 0.8)}
-                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20"
+                                className="flex-1 min-w-0 h-1.5 rounded-lg appearance-none cursor-pointer bg-black/20 dark:bg-white/20 disabled:cursor-not-allowed"
                                 style={{ accentColor: 'var(--primary-accent)' }}
                               />
-                              <span className="text-[9px] font-mono font-bold w-9 text-right shrink-0" style={{ color: 'var(--text-muted)' }}>
-                                {(selectedElement.animOutDuration || 0.8).toFixed(1)}s
-                              </span>
+                              <EditableNumberBadge
+                                value={selectedElement.animOutDuration || 0.8}
+                                min={0.1}
+                                max={5.0}
+                                disabled={(selectedElement.animOutType || 'none') === 'none'}
+                                onChange={(val) => updateSelectedElement('animOutDuration', val)}
+                              />
                             </div>
                           </div>
                         </div>
