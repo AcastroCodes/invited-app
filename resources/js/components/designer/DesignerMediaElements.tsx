@@ -14,6 +14,12 @@ import {
   Play,
   Pause,
   Volume2,
+  Puzzle,
+  Utensils,
+  Clock,
+  Navigation,
+  UserCheck,
+  CreditCard,
 } from 'lucide-react';
 import type { CanvasElement } from '../types/designerTypes';
 
@@ -921,4 +927,158 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
     </div>
   );
 };
+
+export const ComplementElementItem: React.FC<ElementRenderProps> = ({ element }) => {
+  const widgetType = element.widgetType || 'map';
+
+  const baseStyle: React.CSSProperties = {
+    backgroundColor: element.backgroundColor || 'rgba(15, 23, 42, 0.85)',
+    color: element.color || '#ffffff',
+    fontSize: element.fontSize ? `${element.fontSize}px` : '14px',
+    fontFamily: element.fontFamily || 'inherit',
+    borderWidth: element.borderWidth ? `${element.borderWidth}px` : '1px',
+    borderColor: element.borderColor || 'rgba(255, 255, 255, 0.2)',
+    borderStyle: element.borderStyle || 'solid',
+    borderRadius: element.borderRadius ? `${element.borderRadius}px` : '16px',
+    backdropFilter: 'blur(10px)',
+  };
+
+  if (widgetType === 'map') {
+    return (
+      <div className="w-full h-full flex flex-col justify-between p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30">
+            <MapPin size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-extrabold text-sm leading-tight truncate" style={{ color: element.color || '#ffffff' }}>
+              {element.mapTitle || element.content || 'Ubicación del Evento'}
+            </h4>
+            <p className="text-xs opacity-75 truncate mt-1" style={{ color: element.color || '#ffffff' }}>
+              {element.mapAddress || 'Av. Principal #123, Ciudad'}
+            </p>
+          </div>
+        </div>
+        <div className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm mt-2">
+          <Navigation size={14} />
+          <span>Ver Mapa / Cómo llegar</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (widgetType === 'rsvp') {
+    return (
+      <div className="w-full h-full flex flex-col justify-between p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
+        <div className="flex items-center gap-2.5 mb-1">
+          <UserCheck size={18} className="text-emerald-400 shrink-0" />
+          <h4 className="font-extrabold text-sm truncate" style={{ color: element.color || '#ffffff' }}>
+            {element.rsvpTitle || element.content || 'Confirmación de Asistencia'}
+          </h4>
+        </div>
+        <div className="space-y-2 my-1">
+          <div className="w-full h-7 rounded-lg bg-white/10 px-3 flex items-center text-xs opacity-70">
+            Tu Nombre Completo
+          </div>
+          {element.rsvpAllowPasses !== false && (
+            <div className="w-full h-7 rounded-lg bg-white/10 px-3 flex items-center justify-between text-xs opacity-70">
+              <span>Número de pases</span>
+              <span className="font-semibold">1 Pase</span>
+            </div>
+          )}
+        </div>
+        <div className="w-full py-2 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+          <CheckCircle2 size={14} />
+          <span>Confirmar Asistencia</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (widgetType === 'menu') {
+    const options = element.menuOptions && element.menuOptions.length > 0 ? element.menuOptions : ['Pollo a las Finas Hierbas', 'Filete de Res', 'Opción Vegetariana'];
+    return (
+      <div className="w-full h-full flex flex-col justify-between p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
+        <div className="flex items-center gap-2.5 mb-1">
+          <Utensils size={18} className="text-amber-400 shrink-0" />
+          <h4 className="font-extrabold text-sm truncate" style={{ color: element.color || '#ffffff' }}>
+            {element.menuTitle || element.content || 'Selección de Menú'}
+          </h4>
+        </div>
+        <div className="space-y-1.5 my-1">
+          {options.slice(0, 2).map((opt, i) => (
+            <div key={i} className="w-full py-1.5 px-2.5 rounded-lg bg-white/10 flex items-center gap-2 text-xs opacity-85 truncate">
+              <div className="w-2.5 h-2.5 rounded-full border-2 border-amber-400 shrink-0" />
+              <span className="truncate">{opt}</span>
+            </div>
+          ))}
+        </div>
+        <div className="w-full py-2 px-3 rounded-xl bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+          <span>Elegir Menú</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (widgetType === 'countdown') {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
+        <div className="flex items-center gap-2 mb-2.5">
+          <Clock size={16} className="text-cyan-400 shrink-0 animate-pulse" />
+          <span className="font-extrabold text-xs uppercase tracking-wider" style={{ color: element.color || '#ffffff' }}>
+            {element.content || 'Faltan para el Evento'}
+          </span>
+        </div>
+        <div className="flex items-center justify-center gap-2.5">
+          {[
+            { val: '12', label: 'DÍAS' },
+            { val: '08', label: 'HRS' },
+            { val: '45', label: 'MIN' },
+            { val: '30', label: 'SEG' },
+          ].map((item, i) => (
+            <div key={i} className="flex flex-col items-center px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 min-w-[46px]">
+              <span className="font-black text-base leading-tight text-cyan-300">{item.val}</span>
+              <span className="text-[8px] font-extrabold tracking-widest opacity-70 mt-0.5">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (widgetType === 'gift') {
+    return (
+      <div className="w-full h-full flex flex-col justify-between p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
+        <div className="flex items-center gap-2.5">
+          <Gift size={18} className="text-rose-400 shrink-0" />
+          <h4 className="font-extrabold text-sm truncate" style={{ color: element.color || '#ffffff' }}>
+            {element.giftTitle || element.content || 'Mesa de Regalos'}
+          </h4>
+        </div>
+        <div className="p-2.5 rounded-xl bg-white/10 text-xs opacity-85 space-y-1 my-1">
+          {element.giftType === 'bank' ? (
+            <>
+              <p className="font-mono text-xs truncate font-semibold">{element.giftBankDetails || 'CLABE: 012345678901234567'}</p>
+              <p className="text-[10px] opacity-70">Banco / Cuenta para Sobres</p>
+            </>
+          ) : (
+            <p className="truncate text-xs font-bold">Mesa de Regalos Digital en Línea</p>
+          )}
+        </div>
+        <div className="w-full py-2 px-3 rounded-xl bg-rose-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+          <CreditCard size={14} />
+          <span>Ver Mesa de Regalos</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center gap-2.5 p-4 select-none overflow-hidden transition-all shadow-xs" style={baseStyle}>
+      <Puzzle size={24} className="shrink-0 text-cyan-400" />
+      <span className="truncate text-sm font-bold">{element.content || 'Widget Universal'}</span>
+    </div>
+  );
+};
+
 

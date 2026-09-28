@@ -11,7 +11,8 @@ import {
   ShapeElementItem, 
   ButtonElementItem, 
   AudioElementItem,
-  ThreeDElementItem
+  ThreeDElementItem,
+  ComplementElementItem
 } from '../../components/designer/DesignerMediaElements';
 
 const ensureEnvelopeScene = (rawScenes: any[]): any[] => {
@@ -518,13 +519,14 @@ export default function InvitationViewer() {
           
           let innerElement = null;
           switch (el.type) {
-            case 'text': innerElement = <TextElementItem element={el} />; break;
+            case 'text': innerElement = <TextElementItem element={el} parentWidth={1080} parentHeight={1920} />; break;
             case 'image': innerElement = <ImageElementItem element={el} />; break;
             case 'video': innerElement = <VideoElementItem element={el} />; break;
             case 'shape': innerElement = <ShapeElementItem element={el} />; break;
             case 'button': innerElement = <ButtonElementItem element={el} />; break;
             case 'audio': innerElement = <AudioElementItem element={el} />; break;
             case '3d': innerElement = <ThreeDElementItem element={el} />; break;
+            case 'complement': innerElement = <ComplementElementItem element={el} />; break;
             default: break;
           }
 
@@ -599,10 +601,10 @@ export default function InvitationViewer() {
               style={{
                 // El mismo cálculo exacto de zIndex que en el diseñador para respetar las capas
                 zIndex: elements.length - index,
-                left: `${el.x}px`,
-                top: `${adjustedY}px`,
-                width: `${el.width}px`,
-                height: `${adjustedHeight}px`,
+                left: el.xUnit === '%' ? `${el.x}%` : `${el.x}px`,
+                top: el.yUnit === '%' ? `${adjustedY}%` : `${adjustedY}px`,
+                width: el.widthUnit === '%' ? `${el.width}%` : `${el.width}px`,
+                height: el.heightUnit === '%' ? `${adjustedHeight}%` : `${adjustedHeight}px`,
                 transform: [
                   hasParallax ? `translate(${translateX}px, ${translateY}px) scale(${parallaxScale})` : '',
                   el.rotation ? `rotate(${el.rotation}deg)` : '',
@@ -631,7 +633,7 @@ export default function InvitationViewer() {
                 WebkitBackdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
                 textAlign: el.textAlign || 'left',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: el.verticalAlign === 'top' ? 'flex-start' : el.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                 justifyContent: el.textAlign === 'center' ? 'center' : el.textAlign === 'right' ? 'flex-end' : 'flex-start',
                 pointerEvents: isInteractive ? 'auto' : 'none',
               }}

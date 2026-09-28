@@ -9,7 +9,7 @@ export interface ElementPermissions {
 
 export interface CanvasElement {
   id: string;
-  type: 'component' | 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
+  type: 'component' | 'text' | 'image' | 'video' | 'shape' | '3d' | 'audio' | 'button' | 'complement' | 'widget_rsvp' | 'widget_map' | 'widget_countdown';
   content: string;
   x: number;
   y: number;
@@ -77,6 +77,7 @@ export interface CanvasElement {
   backdropOpacity?: number;
   backdropColor?: string;
   textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   animationStartTime?: number;
   animationEndTime?: number;
   animationInDuration?: number;
@@ -89,6 +90,9 @@ export interface CanvasElement {
   animDelay?: number;
   animEasing?: 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';
   locked?: boolean;
+  isEditableInWidget?: boolean;
+  contentMode?: 'text' | 'db';
+  dbField?: string;
   visible?: boolean;
   objectFit?: string;
   imgScale?: number;
@@ -168,6 +172,30 @@ export interface CanvasElement {
   groupId?: string;
   groupName?: string;
   preFitState?: { x: number; y: number; width: number; height: number; objectFit?: string };
+  xUnit?: 'px' | '%';
+  yUnit?: 'px' | '%';
+  widthUnit?: 'px' | '%';
+  heightUnit?: 'px' | '%';
+  // Propiedades de Widgets Interactivos
+  isWidget?: boolean;
+  widgetType?: 'map' | 'rsvp' | 'menu' | 'countdown' | 'gift' | 'custom';
+  mapTitle?: string;
+  mapAddress?: string;
+  mapUrl?: string;
+  rsvpTitle?: string;
+  rsvpDeadline?: string;
+  rsvpAllowPasses?: boolean;
+  rsvpAllowMessage?: boolean;
+  menuTitle?: string;
+  menuOptions?: string[];
+  menuAllowDietary?: boolean;
+  countdownDate?: string;
+  countdownStyle?: 'cards' | 'circles' | 'minimal';
+  countdownEndText?: string;
+  giftTitle?: string;
+  giftType?: 'stores' | 'bank';
+  giftBankDetails?: string;
+  giftStoreUrl?: string;
 }
 
 export interface EnvelopeSettings {

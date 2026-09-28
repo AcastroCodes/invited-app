@@ -19,6 +19,7 @@ import {
   Pause,
   Trash2,
   Check,
+  CheckCircle2,
   ZoomIn,
   ZoomOut,
   Smartphone,
@@ -28,6 +29,8 @@ import {
   EyeOff,
   Lock,
   Unlock,
+  Database,
+  Brackets,
   Palette,
   Zap,
   AlignLeft,
@@ -89,6 +92,10 @@ import {
   Volume2,
   VolumeX,
   Film,
+  Puzzle,
+  UserCheck,
+  Utensils,
+  Gift,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -98,18 +105,19 @@ import { ColorPickerPopover } from '../../components/ColorPickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
 import { VideoEditorModal } from '../../components/VideoEditorModal';
 import AppSelect from '../../components/AppSelect';
-import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem } from '../../components/designer/DesignerMediaElements';
+import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem, ComplementElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
 import { ThreeDViewportCanvas } from '../../components/ThreeDViewportCanvas';
 import { DesignerTimelineBar } from '../../components/designer/DesignerTimelineBar';
 
 interface NumberInputProps {
   value: number;
-  onChange: (val: number) => void;
+  onChange: (val: number, unit?: 'px' | '%') => void;
   min?: number;
   max?: number;
   step?: number;
   prefix?: string;
+  unit?: string;
   isFloat?: boolean;
   canvasDimension?: number;
 }
@@ -121,6 +129,7 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
   max,
   step = 1,
   prefix,
+  unit,
   isFloat = false,
   canvasDimension,
 }) => {
@@ -135,13 +144,13 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
   const handleDecrement = () => {
     const nextVal = value - step;
     const clamped = min !== undefined ? Math.max(min, nextVal) : nextVal;
-    onChange(isFloat ? parseFloat(clamped.toFixed(2)) : Math.round(clamped));
+    onChange(isFloat || unit === '%' ? parseFloat(clamped.toFixed(1)) : Math.round(clamped));
   };
 
   const handleIncrement = () => {
     const nextVal = value + step;
     const clamped = max !== undefined ? Math.min(max, nextVal) : nextVal;
-    onChange(isFloat ? parseFloat(clamped.toFixed(2)) : Math.round(clamped));
+    onChange(isFloat || unit === '%' ? parseFloat(clamped.toFixed(1)) : Math.round(clamped));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,26 +163,39 @@ const InspectorNumberInput: React.FC<NumberInputProps> = ({
       onChange(min !== undefined ? min : 0);
       return;
     }
-    
-    if (raw.endsWith('%') && canvasDimension) {
+
+    // Si el usuario escribe un %, se extrae el número y se indica la unidad '%'
+    if (raw.endsWith('%')) {
       const percentage = parseFloat(raw.replace('%', ''));
       if (!isNaN(percentage)) {
-         let parsed = (percentage / 100) * canvasDimension;
-         if (min !== undefined) parsed = Math.max(min, parsed);
-         if (max !== undefined) parsed = Math.min(max, parsed);
-         onChange(isFloat ? parseFloat(parsed.toFixed(2)) : Math.round(parsed));
-         return;
+        let parsed = percentage;
+        if (min !== undefined) parsed = Math.max(min, parsed);
+        if (max !== undefined) parsed = Math.min(max, parsed);
+        onChange(parseFloat(parsed.toFixed(1)), '%');
+        return;
       }
     }
 
-    let parsed = isFloat ? parseFloat(raw) : parseInt(raw, 10);
+    // Si la unidad actual del campo es %, guardamos el número como porcentaje directamente (ej: 50 -> 50%)
+    if (unit === '%') {
+      const percentage = parseFloat(raw);
+      if (!isNaN(percentage)) {
+        let parsed = percentage;
+        if (min !== undefined) parsed = Math.max(min, parsed);
+        if (max !== undefined) parsed = Math.min(max, parsed);
+        onChange(parseFloat(parsed.toFixed(1)), '%');
+        return;
+      }
+    }
+
+    let parsed = isFloat || unit === '%' ? parseFloat(raw) : parseInt(raw, 10);
     if (isNaN(parsed)) {
       setInputValue(value.toString());
       return;
     }
     if (min !== undefined) parsed = Math.max(min, parsed);
     if (max !== undefined) parsed = Math.min(max, parsed);
-    onChange(isFloat ? parseFloat(parsed.toFixed(2)) : Math.round(parsed));
+    onChange(isFloat || unit === '%' ? parseFloat(parsed.toFixed(1)) : Math.round(parsed));
   };
 
   const handleBlur = () => evaluate();
@@ -565,6 +587,7 @@ interface CanvasElement {
   containerShadowOffsetY?: number;
   boxShadow?: string;
   textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   animation?: 'fade' | 'slideUp' | 'zoomIn' | 'bounce';
   animStartTime?: number;
   animIn?: 'none' | 'fadeIn' | 'slideInUp' | 'slideInLeft' | 'slideInDown' | 'slideInRight' | 'zoomIn' | 'bounceIn' | 'spinIn';
@@ -1128,7 +1151,46 @@ export default function InvitationDesigner() {
     setShowFontModal(false);
   };
 
+const DB_FIELDS = [
+  // Cuenta Regresiva / Countdown
+  { key: 'dias_restantes', label: 'Días Restantes', icon: '⏳', description: 'Días faltantes para el evento', category: 'countdown' },
+  { key: 'horas_restantes', label: 'Horas Restantes', icon: '⏰', description: 'Horas faltantes para el evento', category: 'countdown' },
+  { key: 'minutos_restantes', label: 'Minutos Restantes', icon: '⏱️', description: 'Minutos faltantes para el evento', category: 'countdown' },
+  { key: 'segundos_restantes', label: 'Segundos Restantes', icon: '⚡', description: 'Segundos faltantes en tiempo real', category: 'countdown' },
+  { key: 'fecha_evento', label: 'Fecha del Evento', icon: '📅', description: 'Fecha objetivo del contador / evento', category: 'countdown' },
+  { key: 'hora_evento', label: 'Hora del Evento', icon: '🕒', description: 'Hora de inicio programada', category: 'countdown' },
+
+  // RSVP / Confirmación
+  { key: 'nombre_invitado', label: 'Nombre del Invitado', icon: '👤', description: 'Nombre completo o de familia', category: 'rsvp' },
+  { key: 'pases_asignados', label: 'Pases Asignados', icon: '🎟️', description: 'Número de pases autorizados', category: 'rsvp' },
+  { key: 'confirmacion_status', label: 'Estado RSVP', icon: '✅', description: 'Estado actual (Confirmado / Pendiente)', category: 'rsvp' },
+  { key: 'adultos_confirmados', label: 'Adultos Confirmados', icon: '👥', description: 'Cantidad de adultos confirmados', category: 'rsvp' },
+  { key: 'ninos_confirmados', label: 'Niños Confirmados', icon: '🧒', description: 'Cantidad de niños confirmados', category: 'rsvp' },
+
+  // Mesa de Regalos / Datos Bancarios
+  { key: 'banco_nombre', label: 'Nombre del Banco', icon: '🏦', description: 'Banco para transferencia (ej: BBVA)', category: 'gift' },
+  { key: 'clabe_interbancaria', label: 'CLABE Interbancaria', icon: '💳', description: 'CLABE a 18 dígitos', category: 'gift' },
+  { key: 'titular_cuenta', label: 'Titular de Cuenta', icon: '✒️', description: 'Nombre del titular bancario', category: 'gift' },
+  { key: 'tienda_regalos_url', label: 'Enlace Mesa de Regalos', icon: '🎁', description: 'URL de tiendas en línea', category: 'gift' },
+
+  // Ubicación / Mapa
+  { key: 'lugar_evento', label: 'Lugar del Evento', icon: '📍', description: 'Salón o recinto de recepción', category: 'map' },
+  { key: 'direccion_evento', label: 'Dirección Física', icon: '🗺️', description: 'Dirección completa del evento', category: 'map' },
+  { key: 'mapa_url', label: 'Enlace GPS Maps/Waze', icon: '🧭', description: 'Enlace de navegación GPS', category: 'map' },
+
+  // General / Evento
+  { key: 'nombre_evento', label: 'Nombre del Evento', icon: '🎉', description: 'Título principal del evento', category: 'general' },
+  { key: 'mesa', label: 'Mesa de Recepción', icon: '🍽️', description: 'Número o nombre de mesa', category: 'general' },
+  { key: 'anfitriones', label: 'Anfitriones', icon: '👑', description: 'Nombres de los anfitriones', category: 'general' },
+  { key: 'codigo_qr', label: 'Código QR del Pase', icon: '📱', description: 'Código QR de acceso', category: 'general' },
+];
+
   // Studio UI states
+  const [showDbInspectorPopover, setShowDbInspectorPopover] = useState(false);
+  const [dbSearchQuery, setDbSearchQuery] = useState('');
+  const [isWidgetModalOpen, setIsWidgetModalOpen] = useState(false);
+  const [widgetModalType, setWidgetModalType] = useState<'map' | 'rsvp' | 'menu' | 'countdown' | 'gift' | 'custom'>('map');
+  const [widgetModalTitle, setWidgetModalTitle] = useState('');
   const [activeLeftTab, setActiveLeftTab] = useState<'layers' | 'text' | 'media' | 'widgets'>('layers');
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -1782,7 +1844,7 @@ export default function InvitationDesigner() {
     setSelectedElementIds([newEl.id]);
   };
 
-  const handleAddElementType = (elementType: 'component' | 'text' | 'image' | 'video' | 'shape' | '3d' | 'button' | 'audio') => {
+  const handleAddElementType = (elementType: 'component' | 'text' | 'image' | 'video' | 'shape' | '3d' | 'button' | 'audio' | 'complement') => {
     const defaultLabels: Record<string, string> = {
       component: 'Nuevo Componente',
       text: 'Nuevo Texto',
@@ -1792,6 +1854,7 @@ export default function InvitationDesigner() {
       '3d': 'Modelo 3D Interactivo',
       button: 'Botón Interactivo',
       audio: 'Música de Fondo',
+      complement: 'Widget Universal',
     };
 
     const selectedComp = elements.find(el => el.id === selectedElementId && el.isComponentParent);
@@ -1835,6 +1898,8 @@ export default function InvitationDesigner() {
       ? 200
       : elementType === '3d'
       ? 350
+      : elementType === 'complement'
+      ? 350
       : elementType === 'text'
       ? (selectedComp ? Math.min(250, selectedComp.width - 20) : 400)
       : 250;
@@ -1845,6 +1910,8 @@ export default function InvitationDesigner() {
       ? 200
       : elementType === '3d'
       ? 350
+      : elementType === 'complement'
+      ? 140
       : elementType === 'text'
       ? 60
       : 80;
@@ -2214,23 +2281,32 @@ export default function InvitationDesigner() {
     if (dragState.mode === 'move') {
       const activeEl = getSelectedElementRecursive(elements, selectedElementId);
       const activeGroupId = activeEl?.groupId;
+      const parentComp = activeEl?.parentComponentId ? getSelectedElementRecursive(elements, activeEl.parentComponentId) : null;
+      const pW = parentComp ? parentComp.width : (activeScene?.resolutionWidth || 1080);
+      const pH = parentComp ? parentComp.height : (activeScene?.resolutionHeight || 1920);
 
       setElements((prev) => {
         if (activeGroupId) {
           return prev.map((el) => {
             if (el.groupId === activeGroupId) {
+              const nextX = el.xUnit === '%' ? parseFloat((el.x + (deltaX / pW) * 100).toFixed(1)) : Math.round(el.x + (deltaX - ((dragState as any).lastDeltaX || 0)));
+              const nextY = el.yUnit === '%' ? parseFloat((el.y + (deltaY / pH) * 100).toFixed(1)) : Math.round(el.y + (deltaY - ((dragState as any).lastDeltaY || 0)));
               return {
                 ...el,
-                x: Math.round(el.x + (deltaX - ((dragState as any).lastDeltaX || 0))),
-                y: Math.round(el.y + (deltaY - ((dragState as any).lastDeltaY || 0))),
+                x: nextX,
+                y: nextY,
               };
             }
             return el;
           });
         }
+
+        const nextX = activeEl?.xUnit === '%' ? parseFloat((x + (deltaX / pW) * 100).toFixed(1)) : Math.round(x + deltaX);
+        const nextY = activeEl?.yUnit === '%' ? parseFloat((y + (deltaY / pH) * 100).toFixed(1)) : Math.round(y + deltaY);
+
         return updateElementRecursive(prev, selectedElementId, {
-          x: Math.round(x + deltaX),
-          y: Math.round(y + deltaY),
+          x: nextX,
+          y: nextY,
         });
       });
       setDragState((prev) => (prev ? { ...prev, lastDeltaX: deltaX, lastDeltaY: deltaY } as any : null));
@@ -2240,38 +2316,44 @@ export default function InvitationDesigner() {
       const keepRatio = currentEl?.keepAspectRatio;
       const h = dragState.handle;
 
+      const parentComp = currentEl?.parentComponentId ? getSelectedElementRecursive(elements, currentEl.parentComponentId) : null;
+      const pW = parentComp ? parentComp.width : (activeScene?.resolutionWidth || 1080);
+      const pH = parentComp ? parentComp.height : (activeScene?.resolutionHeight || 1920);
+
+      // Convertir dimensiones iniciales a píxeles exactos para la geometría de redimensionado
+      const initPixX = currentEl?.xUnit === '%' ? (x / 100) * pW : x;
+      const initPixY = currentEl?.yUnit === '%' ? (y / 100) * pH : y;
+      const initPixW = currentEl?.widthUnit === '%' ? (width / 100) * pW : width;
+      const initPixH = currentEl?.heightUnit === '%' ? (height / 100) * pH : height;
+
       // Ángulo de rotación en radianes
       const rad = ((rotation || 0) * Math.PI) / 180;
       const cosRot = Math.cos(rad);
       const sinRot = Math.sin(rad);
 
-      // Convertir el movimiento delta del ratón (pantalla) al espacio local desrotado (Eje X local horizontal, Eje Y local vertical)
-      // Matriz inversa de rotación:
-      // localDx = deltaX * cos(rad) + deltaY * sin(rad)
-      // localDy = -deltaX * sin(rad) + deltaY * cos(rad)
       const localDx = deltaX * cosRot + deltaY * sinRot;
       const localDy = -deltaX * sinRot + deltaY * cosRot;
 
-      let newWidth = width;
-      let newHeight = height;
+      let newWidth = initPixW;
+      let newHeight = initPixH;
 
-      if (h.includes('e')) newWidth = width + localDx;
-      if (h.includes('w')) newWidth = width - localDx;
-      if (h.includes('s')) newHeight = height + localDy;
-      if (h.includes('n')) newHeight = height - localDy;
+      if (h.includes('e')) newWidth = initPixW + localDx;
+      if (h.includes('w')) newWidth = initPixW - localDx;
+      if (h.includes('s')) newHeight = initPixH + localDy;
+      if (h.includes('n')) newHeight = initPixH - localDy;
 
       newWidth = Math.max(30, newWidth);
       newHeight = Math.max(20, newHeight);
 
-      if (keepRatio && width > 0 && height > 0) {
-        const aspect = width / height;
+      if (keepRatio && initPixW > 0 && initPixH > 0) {
+        const aspect = initPixW / initPixH;
         if (h === 'se' || h === 'nw') {
           const deltaSize = h === 'se' ? Math.max(localDx, localDy * aspect) : Math.max(-localDx, -localDy * aspect);
-          newWidth = Math.max(30, Math.round(width + deltaSize));
+          newWidth = Math.max(30, Math.round(initPixW + deltaSize));
           newHeight = Math.round(newWidth / aspect);
         } else if (h === 'ne' || h === 'sw') {
           const deltaSize = h === 'ne' ? Math.max(localDx, -localDy * aspect) : Math.max(-localDx, localDy * aspect);
-          newWidth = Math.max(30, Math.round(width + deltaSize));
+          newWidth = Math.max(30, Math.round(initPixW + deltaSize));
           newHeight = Math.round(newWidth / aspect);
         } else if (h.includes('e') || h.includes('w')) {
           newHeight = Math.round(newWidth / aspect);
@@ -2280,36 +2362,32 @@ export default function InvitationDesigner() {
         }
       }
 
-      // Ancla fija en espacio de escena (Centro inicial del elemento sin cambiar)
-      // El centro del elemento rotado con (x, y, width, height, rot):
-      // centerX = x + (width/2)*cosRot - (height/2)*sinRot
-      // centerY = y + (width/2)*sinRot + (height/2)*cosRot
-      // Queremos que el punto ancla opuesto permanezca INMÓVIL en la escena.
-      
-      // Vector del centro al ancla opuesto en coordenadas locales (0.5, 0.5 es centro)
-      let anchorLocalX = 0; // -0.5 (izquierda), 0 (centro), 0.5 (derecha)
-      let anchorLocalY = 0; // -0.5 (arriba), 0 (centro), 0.5 (abajo)
+      let anchorLocalX = 0;
+      let anchorLocalY = 0;
 
-      if (h.includes('w')) anchorLocalX = 0.5; // Ancla a la derecha (+0.5)
-      else if (h.includes('e')) anchorLocalX = -0.5; // Ancla a la izquierda (-0.5)
+      if (h.includes('w')) anchorLocalX = 0.5;
+      else if (h.includes('e')) anchorLocalX = -0.5;
 
-      if (h.includes('n')) anchorLocalY = 0.5; // Ancla abajo (+0.5)
-      else if (h.includes('s')) anchorLocalY = -0.5; // Ancla arriba (-0.5)
+      if (h.includes('n')) anchorLocalY = 0.5;
+      else if (h.includes('s')) anchorLocalY = -0.5;
 
-      // Coordenadas fijas del ancla en la escena basadas en el estado inicial antes de este tick
-      const initAnchorX = x + (width / 2 + anchorLocalX * width) * cosRot - (height / 2 + anchorLocalY * height) * sinRot;
-      const initAnchorY = y + (width / 2 + anchorLocalX * width) * sinRot + (height / 2 + anchorLocalY * height) * cosRot;
+      const initAnchorX = initPixX + (initPixW / 2 + anchorLocalX * initPixW) * cosRot - (initPixH / 2 + anchorLocalY * initPixH) * sinRot;
+      const initAnchorY = initPixY + (initPixW / 2 + anchorLocalX * initPixW) * sinRot + (initPixH / 2 + anchorLocalY * initPixH) * cosRot;
 
-      // Nueva esquina superior izquierda (newX, newY) para que el ancla rotado de la nueva caja siga coincidiendo exactamente con initAnchorX, initAnchorY
       const newX = initAnchorX - (newWidth / 2 + anchorLocalX * newWidth) * cosRot + (newHeight / 2 + anchorLocalY * newHeight) * sinRot;
       const newY = initAnchorY - (newWidth / 2 + anchorLocalX * newWidth) * sinRot - (newHeight / 2 + anchorLocalY * newHeight) * cosRot;
 
+      const finalX = currentEl?.xUnit === '%' ? parseFloat(((newX / pW) * 100).toFixed(1)) : Math.round(newX);
+      const finalY = currentEl?.yUnit === '%' ? parseFloat(((newY / pH) * 100).toFixed(1)) : Math.round(newY);
+      const finalW = currentEl?.widthUnit === '%' ? parseFloat(((newWidth / pW) * 100).toFixed(1)) : Math.round(newWidth);
+      const finalH = currentEl?.heightUnit === '%' ? parseFloat(((newHeight / pH) * 100).toFixed(1)) : Math.round(newHeight);
+
       setElements((prev) =>
         updateElementRecursive(prev, selectedElementId, {
-          x: Math.round(newX),
-          y: Math.round(newY),
-          width: Math.round(newWidth),
-          height: Math.round(newHeight),
+          x: finalX,
+          y: finalY,
+          width: finalW,
+          height: finalH,
         })
       );
       setHasUnsavedChanges(true);
@@ -2621,7 +2699,7 @@ export default function InvitationDesigner() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[9px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                    Insertar Elementos
+                    ELEMENTOS
                   </span>
                 </div>
 
@@ -2735,6 +2813,22 @@ export default function InvitationDesigner() {
                     <Music size={11} className="text-rose-500" />
                     <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
                       Audio
+                    </span>
+                  </button>
+
+                  {/* Widget */}
+                  <button
+                    onClick={() => handleAddElementType('complement')}
+                    className="group relative flex h-6 w-6 items-center justify-center rounded-md border transition-all hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Puzzle size={11} className="text-cyan-400" />
+                    <span className="pointer-events-none absolute left-1/2 -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-1 py-0.5 text-[9px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100 z-50">
+                      Widget
                     </span>
                   </button>
                 </div>
@@ -2959,6 +3053,7 @@ export default function InvitationDesigner() {
                                           {childEl.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
                                           {childEl.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
                                           {childEl.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                                          {childEl.type === 'complement' && <Puzzle size={13} className="shrink-0 text-cyan-400" />}
 
                                           <span className="truncate text-[11px] font-medium">
                                             {childEl.content}
@@ -3123,6 +3218,18 @@ export default function InvitationDesigner() {
                                     >
                                       <Copy size={11} />
                                     </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteElement(el.id);
+                                      }}
+                                      className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                                      style={{ color: 'var(--danger)' }}
+                                      title="Eliminar Componente"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -3249,6 +3356,7 @@ export default function InvitationDesigner() {
                               {el.type === '3d' && <Box size={13} className="shrink-0 text-amber-500" />}
                               {el.type === 'audio' && <Music size={13} className="shrink-0 text-rose-500" />}
                               {el.type === 'button' && <Smartphone size={13} className="shrink-0" style={{ color: 'var(--success)' }} />}
+                              {el.type === 'complement' && <Puzzle size={13} className="shrink-0 text-cyan-400" />}
 
                               <span className={`truncate text-[11px] ${isSelected ? 'font-black' : 'font-medium'}`}>
                                 {el.componentName || el.content || (el.type === 'image' ? 'Imagen' : el.type)}
@@ -3802,10 +3910,10 @@ export default function InvitationDesigner() {
                           : ''
                       }`}
                       style={{
-                        left: `${el.x}px`,
-                        top: `${el.y}px`,
-                        width: `${el.width}px`,
-                        height: `${el.height}px`,
+                        left: el.xUnit === '%' ? `${el.x}%` : `${el.x}px`,
+                        top: el.yUnit === '%' ? `${el.y}%` : `${el.y}px`,
+                        width: el.widthUnit === '%' ? `${el.width}%` : `${el.width}px`,
+                        height: el.heightUnit === '%' ? `${el.height}%` : `${el.height}px`,
                         transform: [
                           el.rotation ? `rotate(${el.rotation}deg)` : '',
                           el.flipH ? 'scaleX(-1)' : '',
@@ -3846,10 +3954,10 @@ export default function InvitationDesigner() {
                               isChildSelected ? 'outline-4 outline-dashed outline-pink-500' : ''
                             }`}
                             style={{
-                              left: `${childEl.x}px`,
-                              top: `${childEl.y}px`,
-                              width: `${childEl.width}px`,
-                              height: `${childEl.height}px`,
+                              left: childEl.xUnit === '%' ? `${childEl.x}%` : `${childEl.x}px`,
+                              top: childEl.yUnit === '%' ? `${childEl.y}%` : `${childEl.y}px`,
+                              width: childEl.widthUnit === '%' ? `${childEl.width}%` : `${childEl.width}px`,
+                              height: childEl.heightUnit === '%' ? `${childEl.height}%` : `${childEl.height}px`,
                               zIndex: childZIndex,
                               transform: childPlaybackStyle.transform !== 'none' ? childPlaybackStyle.transform : ([
                                 childEl.rotation ? `rotate(${childEl.rotation}deg)` : '',
@@ -3864,12 +3972,16 @@ export default function InvitationDesigner() {
                               borderColor: childEl.borderColor || undefined,
                               borderStyle: childEl.borderStyle || 'solid',
                               display: 'flex',
-                              alignItems: 'center',
+                              alignItems: childEl.verticalAlign === 'top' ? 'flex-start' : childEl.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                               justifyContent: childEl.textAlign === 'center' ? 'center' : childEl.textAlign === 'right' ? 'flex-end' : 'flex-start',
                             }}
                           >
                             {childEl.type === 'text' ? (
-                              <TextElementItem element={childEl} />
+                              <TextElementItem
+                                element={childEl}
+                                parentWidth={el.widthUnit === '%' ? (el.width / 100) * (activeScene?.resolutionWidth || 1080) : el.width}
+                                parentHeight={el.heightUnit === '%' ? (el.height / 100) * (activeScene?.resolutionHeight || 1920) : el.height}
+                              />
                             ) : childEl.type === 'image' ? (
                               <ImageElementItem element={childEl} />
                             ) : childEl.type === 'video' ? (
@@ -3998,10 +4110,10 @@ export default function InvitationDesigner() {
                       zIndex: activeScene?.isEnvelope && el.type === 'text' 
                                 ? (elements.length - index) + 100 
                                 : elements.length - index,
-                      left: `${el.x}px`,
-                      top: `${el.y}px`,
-                      width: `${el.width}px`,
-                      height: `${el.height}px`,
+                      left: el.xUnit === '%' ? `${el.x}%` : `${el.x}px`,
+                      top: el.yUnit === '%' ? `${el.y}%` : `${el.y}px`,
+                      width: el.widthUnit === '%' ? `${el.width}%` : `${el.width}px`,
+                      height: el.heightUnit === '%' ? `${el.height}%` : `${el.height}px`,
                       transform: playbackStyle.transform !== 'none' ? playbackStyle.transform : ([
                         el.rotation ? `rotate(${el.rotation}deg)` : '',
                         el.flipH ? 'scaleX(-1)' : '',
@@ -4031,12 +4143,12 @@ export default function InvitationDesigner() {
                       WebkitBackdropFilter: el.backdropBlurEnabled ? `blur(${el.backdropBlurAmount ?? 10}px)` : undefined,
                       overflow: el.clipContent ? 'hidden' : undefined,
                       display: 'flex',
-                      alignItems: 'center',
+                      alignItems: el.verticalAlign === 'top' ? 'flex-start' : el.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                       justifyContent: el.textAlign === 'center' ? 'center' : el.textAlign === 'right' ? 'flex-end' : 'flex-start',
                     }}
                   >
                     {el.type === 'text' ? (
-                      <TextElementItem element={el} />
+                      <TextElementItem element={el} parentWidth={activeScene?.resolutionWidth || 1080} parentHeight={activeScene?.resolutionHeight || 1920} />
                     ) : el.type === 'image' ? (
                       <ImageElementItem element={el} />
                     ) : el.type === 'video' ? (
@@ -4049,6 +4161,8 @@ export default function InvitationDesigner() {
                       <ThreeDElementItem element={el} />
                     ) : el.type === 'shape' ? (
                       <ShapeElementItem element={el} />
+                    ) : el.type === 'complement' ? (
+                      <ComplementElementItem element={el} />
                     ) : (
                       el.content
                     )}
@@ -4718,42 +4832,713 @@ export default function InvitationDesigner() {
                             </label>
                           </div>
                         </div>
+                      ) : selectedElement.type === 'complement' ? (
+                        <div className="pt-2 space-y-3">
+                          {/* Selector de Tipo de Widget con Pestañas / Tabs */}
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                              Tipo de Widget Interactivo
+                            </label>
+                            <div className="grid grid-cols-5 gap-1 p-1 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              {[
+                                { id: 'map', label: 'Mapa', icon: MapPin },
+                                { id: 'rsvp', label: 'RSVP', icon: UserCheck },
+                                { id: 'menu', label: 'Menú', icon: Utensils },
+                                { id: 'countdown', label: 'Timer', icon: Clock },
+                                { id: 'gift', label: 'Regalos', icon: Gift },
+                              ].map((tab) => {
+                                const IconComp = tab.icon;
+                                const isActive = (selectedElement.widgetType || 'map') === tab.id;
+                                return (
+                                  <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => updateSelectedElement('widgetType', tab.id)}
+                                    className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                      color: isActive ? '#ffffff' : 'var(--text-main)',
+                                    }}
+                                    title={tab.label}
+                                  >
+                                    <IconComp size={13} />
+                                    <span className="mt-0.5 truncate text-[8px]">{tab.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Formulario según el Widget Seleccionado */}
+                          {(selectedElement.widgetType || 'map') === 'map' && (
+                            <div className="space-y-2.5 pt-1">
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Título / Nombre del Lugar
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.mapTitle || selectedElement.content || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateSelectedElementBatch({
+                                      mapTitle: val,
+                                      content: val,
+                                    });
+                                  }}
+                                  placeholder="Ej: Recepción Hacienda Las Palmas"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Dirección Completa
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.mapAddress || ''}
+                                  onChange={(e) => updateSelectedElement('mapAddress', e.target.value)}
+                                  placeholder="Ej: Av. Principal #123, Col. Centro, Ciudad"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Enlace de Google Maps / Waze
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.mapUrl || ''}
+                                  onChange={(e) => updateSelectedElement('mapUrl', e.target.value)}
+                                  placeholder="https://maps.google.com/..."
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedElement.widgetType === 'rsvp' && (
+                            <div className="space-y-2.5 pt-1">
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Título del Formulario RSVP
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.rsvpTitle || selectedElement.content || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateSelectedElementBatch({
+                                      rsvpTitle: val,
+                                      content: val,
+                                    });
+                                  }}
+                                  placeholder="Ej: Confirmación de Asistencia"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Fecha Límite de Confirmación
+                                </label>
+                                <input
+                                  type="date"
+                                  value={selectedElement.rsvpDeadline || ''}
+                                  onChange={(e) => updateSelectedElement('rsvpDeadline', e.target.value)}
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div className="space-y-2 pt-1">
+                                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedElement.rsvpAllowPasses !== false}
+                                    onChange={(e) => updateSelectedElement('rsvpAllowPasses', e.target.checked)}
+                                    className="w-4 h-4 rounded"
+                                    style={{ accentColor: 'var(--primary-accent)' }}
+                                  />
+                                  Solicitar número de pases / acompañantes
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold" style={{ color: 'var(--text-main)' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedElement.rsvpAllowMessage || false}
+                                    onChange={(e) => updateSelectedElement('rsvpAllowMessage', e.target.checked)}
+                                    className="w-4 h-4 rounded"
+                                    style={{ accentColor: 'var(--primary-accent)' }}
+                                  />
+                                  Incluir campo de mensaje para los anfitriones
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedElement.widgetType === 'menu' && (
+                            <div className="space-y-2.5 pt-1">
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Título de Selección de Menú
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.menuTitle || selectedElement.content || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateSelectedElementBatch({
+                                      menuTitle: val,
+                                      content: val,
+                                    });
+                                  }}
+                                  placeholder="Ej: Selección de Menú"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Opciones de Platillo (Separadas por comas)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={(selectedElement.menuOptions || ['Pollo a las Finas Hierbas', 'Filete de Res', 'Opción Vegetariana']).join(', ')}
+                                  onChange={(e) => {
+                                    const opts = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                                    updateSelectedElement('menuOptions', opts);
+                                  }}
+                                  placeholder="Ej: Pollo, Res, Vegetariano, Menú Infantil"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold pt-1" style={{ color: 'var(--text-main)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedElement.menuAllowDietary || false}
+                                  onChange={(e) => updateSelectedElement('menuAllowDietary', e.target.checked)}
+                                  className="w-4 h-4 rounded"
+                                  style={{ accentColor: 'var(--primary-accent)' }}
+                                />
+                                Campo para alergias o restricciones alimentarias
+                              </label>
+                            </div>
+                          )}
+
+                          {selectedElement.widgetType === 'countdown' && (
+                            <div className="space-y-2.5 pt-1">
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Título de la Cuenta Regresiva
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.content || ''}
+                                  onChange={(e) => updateSelectedElement('content', e.target.value)}
+                                  placeholder="Ej: Faltan para el Gran Día"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Fecha y Hora Objetivo del Evento
+                                </label>
+                                <input
+                                  type="datetime-local"
+                                  value={selectedElement.countdownDate || ''}
+                                  onChange={(e) => updateSelectedElement('countdownDate', e.target.value)}
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Mensaje al Finalizar la Cuenta
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.countdownEndText || ''}
+                                  onChange={(e) => updateSelectedElement('countdownEndText', e.target.value)}
+                                  placeholder="Ej: ¡El gran día ha llegado!"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedElement.widgetType === 'gift' && (
+                            <div className="space-y-2.5 pt-1">
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Título de la Mesa de Regalos
+                                </label>
+                                <input
+                                  type="text"
+                                  value={selectedElement.giftTitle || selectedElement.content || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateSelectedElementBatch({
+                                      giftTitle: val,
+                                      content: val,
+                                    });
+                                  }}
+                                  placeholder="Ej: Mesa de Regalos"
+                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-main)',
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Tipo de Regalo
+                                </label>
+                                <div className="grid grid-cols-2 gap-1">
+                                  {[
+                                    { id: 'stores', label: 'Tiendas en Línea' },
+                                    { id: 'bank', label: 'Datos Bancarios' },
+                                  ].map((t) => (
+                                    <button
+                                      key={t.id}
+                                      type="button"
+                                      onClick={() => updateSelectedElement('giftType', t.id)}
+                                      className="px-2 py-1 text-[10px] font-bold rounded-lg border transition-colors cursor-pointer"
+                                      style={{
+                                        backgroundColor: (selectedElement.giftType || 'stores') === t.id ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                        color: (selectedElement.giftType || 'stores') === t.id ? '#ffffff' : 'var(--text-main)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      {t.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {selectedElement.giftType === 'bank' ? (
+                                <div>
+                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                    Detalles Bancarios / CLABE / Cuenta
+                                  </label>
+                                  <textarea
+                                    rows={3}
+                                    value={selectedElement.giftBankDetails || ''}
+                                    onChange={(e) => updateSelectedElement('giftBankDetails', e.target.value)}
+                                    placeholder="Ej: Banco: BBVA Bancomer&#10;CLABE: 012345678901234567&#10;Titular: Juan Perez"
+                                    className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--text-main)',
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div>
+                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                    Enlace a Tienda / Mesa de Regalos
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={selectedElement.giftStoreUrl || ''}
+                                    onChange={(e) => updateSelectedElement('giftStoreUrl', e.target.value)}
+                                    placeholder="https://mesaderegalos.liverpool.com.mx/..."
+                                    className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--text-main)',
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ) : selectedElement.isComponentParent || selectedElement.type === 'component' ? (
-                        <div className="pt-2 space-y-2">
-                          <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                            Nombre del Componente
-                          </label>
-                          <input
-                            type="text"
-                            value={selectedElement.componentName || selectedElement.content || 'Componente'}
-                            onChange={(e) => {
-                              const newName = e.target.value;
-                              updateSelectedElementBatch({
-                                componentName: newName,
-                                content: newName,
-                              });
-                            }}
-                            placeholder="Nombre del componente"
-                            className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
-                            style={{
-                              backgroundColor: 'var(--bg-card)',
-                              borderColor: 'var(--border-color)',
-                              color: 'var(--text-main)',
-                            }}
-                          />
+                        <div className="pt-2 space-y-3">
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Nombre del Componente
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedElement.componentName || selectedElement.content || 'Componente'}
+                              onChange={(e) => {
+                                const newName = e.target.value;
+                                updateSelectedElementBatch({
+                                  componentName: newName,
+                                  content: newName,
+                                });
+                              }}
+                              placeholder="Nombre del componente"
+                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-main)',
+                              }}
+                            />
+                          </div>
+
+                          {/* SECCIÓN GUARDAR / CONFIGURAR COMO WIDGET */}
+                          <div className="pt-3 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+                                <Puzzle size={12} />
+                                {selectedElement.isWidget ? 'Widget Configurado' : 'Guardar como Widget'}
+                              </span>
+                              {selectedElement.isWidget && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
+                                  {selectedElement.widgetType || 'custom'}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWidgetModalTitle(selectedElement.componentName || selectedElement.content || 'Mi Widget');
+                                setWidgetModalType(selectedElement.widgetType || 'map');
+                                setIsWidgetModalOpen(true);
+                              }}
+                              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+                            >
+                              <Puzzle size={14} />
+                              <span>{selectedElement.isWidget ? 'Editar Configuración de Widget' : '⚡ Guardar como Widget'}</span>
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        <textarea
-                          rows={3}
-                          value={selectedElement.content}
-                          onChange={(e) => updateSelectedElement('content', e.target.value)}
-                          className="w-full rounded-lg px-3 py-2 border outline-none font-medium resize-y mt-2"
-                          style={{
-                            backgroundColor: 'var(--bg-card)',
-                            borderColor: 'var(--border-color)',
-                            color: 'var(--text-main)',
-                          }}
-                        />
+                        <div className="pt-2 space-y-2">
+                          <div className="flex gap-2">
+                            {/* COLUMNA IZQUIERDA CON ÍCONOS DE ACCIÓN */}
+                            <div className="flex flex-col items-center gap-1.5 p-1 rounded-xl border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              {/* Botón 1: Candado / Bloqueo de Campo */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const isCurrentlyLocked = selectedElement.isEditableInWidget === false;
+                                  updateSelectedElement('isEditableInWidget', isCurrentlyLocked ? true : false);
+                                }}
+                                title={
+                                  selectedElement.isEditableInWidget === false
+                                    ? 'Campo Bloqueado (Clic para desbloquear)'
+                                    : 'Campo Desbloqueado / Normal (Clic para bloquear en rojo)'
+                                }
+                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                                  selectedElement.isEditableInWidget === false
+                                    ? 'bg-red-500/20 text-red-500 border-red-500/40 shadow-xs font-bold'
+                                    : 'bg-transparent text-gray-400 hover:bg-black/10 dark:hover:bg-white/10 border-transparent'
+                                }`}
+                              >
+                                {selectedElement.isEditableInWidget === false ? <Lock size={13} /> : <Unlock size={13} />}
+                              </button>
+
+                              <div className="w-4 h-px opacity-30" style={{ backgroundColor: 'var(--border-color)' }} />
+
+                              {/* Botón Único Modo: Alterna entre Texto Libre (Type) y Base de Datos (Database) */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const isDbMode = selectedElement.contentMode === 'db' || selectedElement.content?.includes('[');
+                                  const newMode = isDbMode ? 'text' : 'db';
+                                  updateSelectedElement('contentMode', newMode);
+                                  if (newMode === 'db') {
+                                    setShowDbInspectorPopover(true);
+                                  } else {
+                                    setShowDbInspectorPopover(false);
+                                  }
+                                }}
+                                title={
+                                  selectedElement.contentMode === 'db' || selectedElement.content?.includes('[')
+                                    ? 'Modo Base de Datos activo (Clic para cambiar a Texto Libre)'
+                                    : 'Modo Texto Libre (Clic para activar Modo Base de Datos)'
+                                }
+                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                                  selectedElement.contentMode === 'db' || selectedElement.content?.includes('[')
+                                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-xs font-bold'
+                                    : 'bg-transparent text-gray-400 hover:bg-black/10 dark:hover:bg-white/10 border-transparent'
+                                }`}
+                              >
+                                {selectedElement.contentMode === 'db' || selectedElement.content?.includes('[') ? (
+                                  <Database size={13} />
+                                ) : (
+                                  <Type size={13} />
+                                )}
+                              </button>
+                            </div>
+
+                            {/* ÁREA DERECHA: TEXTAREA + INSPECTOR INTELIGENTE POPUP */}
+                            <div className="flex-1 relative">
+                              <textarea
+                                rows={3}
+                                value={selectedElement.content || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  updateSelectedElement('content', val);
+                                  
+                                  // Si está escribiendo un corchete "[" o "[]", abre las opciones automáticamente
+                                  if (val.includes('[') || val.endsWith('[') || val.endsWith('[]')) {
+                                    setShowDbInspectorPopover(true);
+                                    const match = val.match(/\[([^\]]*)$/);
+                                    if (match) {
+                                      setDbSearchQuery(match[1]);
+                                    }
+                                  }
+                                }}
+                                placeholder="Escribe el texto o coloca un campo entre corchetes [nombre_invitado]..."
+                                className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs resize-y transition-all"
+                                style={{
+                                  backgroundColor: 'var(--bg-card)',
+                                  borderColor: selectedElement.content?.includes('[') ? '#06b6d4' : 'var(--border-color)',
+                                  color: 'var(--text-main)',
+                                }}
+                              />
+
+                              {/* Botón flotante rápido para abrir Inspector de BD */}
+                              <div className="flex items-center justify-between mt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowDbInspectorPopover(!showDbInspectorPopover)}
+                                  className="text-[10px] font-extrabold flex items-center gap-1 px-2 py-0.5 rounded-lg border transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: showDbInspectorPopover ? 'var(--primary-accent-light)' : 'var(--bg-card)',
+                                    borderColor: showDbInspectorPopover ? 'var(--primary-accent)' : 'var(--border-color)',
+                                    color: 'var(--primary-accent)',
+                                  }}
+                                >
+                                  <Brackets size={12} />
+                                  <span>Campos BD [ ]</span>
+                                </button>
+
+                                {selectedElement.content?.includes('[') && (
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center gap-1">
+                                    <Database size={10} />
+                                    <span>Variable BD</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* POPUP: INSPECTOR INTELIGENTE DE BASE DE DATOS CON SENSIVILIDAD A TIPO DE WIDGET */}
+                              {showDbInspectorPopover && (() => {
+                                const parentElement = elements.find(e => e.id === selectedElement.parentId);
+                                const activeWidgetType = selectedElement.widgetType || parentElement?.widgetType;
+                                
+                                const widgetLabels: Record<string, { label: string; icon: string }> = {
+                                  countdown: { label: 'Cuenta Regresiva', icon: '⏳' },
+                                  rsvp: { label: 'RSVP / Confirmación', icon: '✅' },
+                                  gift: { label: 'Mesa de Regalos', icon: '🎁' },
+                                  map: { label: 'Ubicación / Mapa', icon: '📍' },
+                                  menu: { label: 'Menú', icon: '🍽️' },
+                                  custom: { label: 'Widget Personalizado', icon: '🧩' },
+                                };
+
+                                const widgetMeta = activeWidgetType ? widgetLabels[activeWidgetType] : null;
+
+                                const filtered = DB_FIELDS.filter(f =>
+                                  f.label.toLowerCase().includes(dbSearchQuery.toLowerCase()) ||
+                                  f.key.toLowerCase().includes(dbSearchQuery.toLowerCase()) ||
+                                  f.description.toLowerCase().includes(dbSearchQuery.toLowerCase())
+                                );
+
+                                const recommended = activeWidgetType ? filtered.filter(f => f.category === activeWidgetType) : [];
+                                const others = activeWidgetType ? filtered.filter(f => f.category !== activeWidgetType) : filtered;
+
+                                return (
+                                  <div
+                                    className="absolute left-0 right-0 z-50 mt-1 p-2.5 rounded-xl border shadow-2xl space-y-2 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--primary-accent)',
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between pb-1 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
+                                          <Database size={12} />
+                                          Campos BD
+                                        </span>
+                                        {widgetMeta && (
+                                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                                            <span>{widgetMeta.icon}</span>
+                                            <span>{widgetMeta.label}</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowDbInspectorPopover(false)}
+                                        className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-gray-400"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+
+                                    <div className="relative">
+                                      <Search size={12} className="absolute left-2 top-2 text-gray-400" />
+                                      <input
+                                        type="text"
+                                        value={dbSearchQuery}
+                                        onChange={(e) => setDbSearchQuery(e.target.value)}
+                                        placeholder="Buscar campo (ej: días, invitado, mesa)..."
+                                        className="w-full pl-7 pr-2 py-1 text-[11px] rounded-lg border outline-none font-medium"
+                                        style={{
+                                          backgroundColor: 'var(--bg-app)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--text-main)',
+                                        }}
+                                      />
+                                    </div>
+
+                                    <div className="max-h-52 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                      {/* RECOMENDADOS PARA EL WIDGET ACTUAL */}
+                                      {recommended.length > 0 && (
+                                        <div className="space-y-1">
+                                          <div className="text-[9px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+                                            <span>⭐</span>
+                                            <span>Recomendados para {widgetMeta?.label || 'Widget'}</span>
+                                          </div>
+                                          {recommended.map((field) => (
+                                            <button
+                                              key={field.key}
+                                              type="button"
+                                              onClick={() => {
+                                                let currentContent = selectedElement.content || '';
+                                                if (/\[[^\]]*$/.test(currentContent)) {
+                                                  currentContent = currentContent.replace(/\[[^\]]*$/, `[${field.key}]`);
+                                                } else {
+                                                  currentContent = `${currentContent}[${field.key}]`;
+                                                }
+                                                updateSelectedElementBatch({
+                                                  content: currentContent,
+                                                  contentMode: 'db',
+                                                  dbField: field.key,
+                                                });
+                                                setShowDbInspectorPopover(false);
+                                                setDbSearchQuery('');
+                                              }}
+                                              className="w-full flex items-center justify-between p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-left transition-colors cursor-pointer group border border-cyan-500/30"
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-sm">{field.icon}</span>
+                                                <div>
+                                                  <div className="text-[11px] font-bold text-cyan-300">
+                                                    {field.label}
+                                                  </div>
+                                                  <div className="text-[9px] font-mono text-cyan-400">
+                                                    [{field.key}]
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500 text-white">
+                                                + Insertar
+                                              </span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {/* OTROS CAMPOS */}
+                                      {others.length > 0 && (
+                                        <div className="space-y-1">
+                                          {recommended.length > 0 && (
+                                            <div className="text-[9px] font-extrabold uppercase tracking-wider text-gray-400 pt-1">
+                                              Otros Campos Disponibles
+                                            </div>
+                                          )}
+                                          {others.map((field) => (
+                                            <button
+                                              key={field.key}
+                                              type="button"
+                                              onClick={() => {
+                                                let currentContent = selectedElement.content || '';
+                                                if (/\[[^\]]*$/.test(currentContent)) {
+                                                  currentContent = currentContent.replace(/\[[^\]]*$/, `[${field.key}]`);
+                                                } else {
+                                                  currentContent = `${currentContent}[${field.key}]`;
+                                                }
+                                                updateSelectedElementBatch({
+                                                  content: currentContent,
+                                                  contentMode: 'db',
+                                                  dbField: field.key,
+                                                });
+                                                setShowDbInspectorPopover(false);
+                                                setDbSearchQuery('');
+                                              }}
+                                              className="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-left transition-colors cursor-pointer group border border-transparent hover:border-gray-500/20"
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-sm">{field.icon}</span>
+                                                <div>
+                                                  <div className="text-[11px] font-bold" style={{ color: 'var(--text-main)' }}>
+                                                    {field.label}
+                                                  </div>
+                                                  <div className="text-[9px] font-mono text-cyan-400">
+                                                    [{field.key}]
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <span className="text-[9px] font-semibold text-gray-400 group-hover:text-cyan-400">
+                                                + Insertar
+                                              </span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -5057,10 +5842,34 @@ export default function InvitationDesigner() {
 
                   {openSections.transform && (() => {
                     const parentComp = selectedElement.parentComponentId
-                      ? elements.find((el) => el.id === selectedElement.parentComponentId)
+                      ? getSelectedElementRecursive(elements, selectedElement.parentComponentId)
                       : undefined;
-                    const parentWidth = parentComp ? parentComp.width : 1080;
-                    const parentHeight = parentComp ? parentComp.height : 1920;
+                    const sceneW = activeScene?.resolutionWidth || 1080;
+                    const sceneH = activeScene?.resolutionHeight || 1920;
+
+                    const parentWidth = parentComp
+                      ? (parentComp.widthUnit === '%' ? (parentComp.width / 100) * sceneW : parentComp.width)
+                      : sceneW;
+                    const parentHeight = parentComp
+                      ? (parentComp.heightUnit === '%' ? (parentComp.height / 100) * sceneH : parentComp.height)
+                      : sceneH;
+
+                    const elemPixW = selectedElement.widthUnit === '%' ? (selectedElement.width / 100) * parentWidth : selectedElement.width;
+                    const elemPixH = selectedElement.heightUnit === '%' ? (selectedElement.height / 100) * parentHeight : selectedElement.height;
+
+                    const setAlignedX = (targetPixX: number) => {
+                      const newVal = selectedElement.xUnit === '%'
+                        ? parseFloat(((targetPixX / parentWidth) * 100).toFixed(1))
+                        : Math.round(targetPixX);
+                      updateSelectedElement('x', newVal);
+                    };
+
+                    const setAlignedY = (targetPixY: number) => {
+                      const newVal = selectedElement.yUnit === '%'
+                        ? parseFloat(((targetPixY / parentHeight) * 100).toFixed(1))
+                        : Math.round(targetPixY);
+                      updateSelectedElement('y', newVal);
+                    };
 
                     return (
                     <div
@@ -5080,9 +5889,9 @@ export default function InvitationDesigner() {
                               const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
                               const cos = Math.abs(Math.cos(rad));
                               const sin = Math.abs(Math.sin(rad));
-                              const bboxW = selectedElement.width * cos + selectedElement.height * sin;
-                              const targetX = (bboxW - selectedElement.width) / 2;
-                              updateSelectedElement('x', Math.round(targetX));
+                              const bboxW = elemPixW * cos + elemPixH * sin;
+                              const targetX = (bboxW - elemPixW) / 2;
+                              setAlignedX(targetX);
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
@@ -5091,7 +5900,7 @@ export default function InvitationDesigner() {
                             <AlignStartVertical size={13} />
                           </button>
                           <button
-                            onClick={() => updateSelectedElement('x', Math.round((parentWidth - selectedElement.width) / 2))}
+                            onClick={() => setAlignedX((parentWidth - elemPixW) / 2)}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
                             title="Alinear al centro horizontal del contenedor"
@@ -5103,9 +5912,9 @@ export default function InvitationDesigner() {
                               const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
                               const cos = Math.abs(Math.cos(rad));
                               const sin = Math.abs(Math.sin(rad));
-                              const bboxW = selectedElement.width * cos + selectedElement.height * sin;
-                              const targetX = parentWidth - bboxW + (bboxW - selectedElement.width) / 2;
-                              updateSelectedElement('x', Math.round(targetX));
+                              const bboxW = elemPixW * cos + elemPixH * sin;
+                              const targetX = parentWidth - bboxW + (bboxW - elemPixW) / 2;
+                              setAlignedX(targetX);
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
@@ -5124,9 +5933,9 @@ export default function InvitationDesigner() {
                               const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
                               const cos = Math.abs(Math.cos(rad));
                               const sin = Math.abs(Math.sin(rad));
-                              const bboxH = selectedElement.width * sin + selectedElement.height * cos;
-                              const targetY = (bboxH - selectedElement.height) / 2;
-                              updateSelectedElement('y', Math.round(targetY));
+                              const bboxH = elemPixW * sin + elemPixH * cos;
+                              const targetY = (bboxH - elemPixH) / 2;
+                              setAlignedY(targetY);
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
@@ -5135,7 +5944,7 @@ export default function InvitationDesigner() {
                             <AlignStartHorizontal size={13} />
                           </button>
                           <button
-                            onClick={() => updateSelectedElement('y', Math.round((parentHeight - selectedElement.height) / 2))}
+                            onClick={() => setAlignedY((parentHeight - elemPixH) / 2)}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
                             title="Alinear al centro vertical del contenedor"
@@ -5147,9 +5956,9 @@ export default function InvitationDesigner() {
                               const rad = ((selectedElement.rotation || 0) * Math.PI) / 180;
                               const cos = Math.abs(Math.cos(rad));
                               const sin = Math.abs(Math.sin(rad));
-                              const bboxH = selectedElement.width * sin + selectedElement.height * cos;
-                              const targetY = parentHeight - bboxH + (bboxH - selectedElement.height) / 2;
-                              updateSelectedElement('y', Math.round(targetY));
+                              const bboxH = elemPixW * sin + elemPixH * cos;
+                              const targetY = parentHeight - bboxH + (bboxH - elemPixH) / 2;
+                              setAlignedY(targetY);
                             }}
                             className="p-1 rounded-md hover:opacity-80 transition-colors"
                             style={{ color: 'var(--text-main)' }}
@@ -5226,46 +6035,142 @@ export default function InvitationDesigner() {
                         {/* Fila 1: X e Y */}
                         <div className="flex items-center gap-1.5" title="Posición X (Horizontal)">
                           <MoveHorizontal size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 flex items-center gap-1">
                             <InspectorNumberInput
                               value={selectedElement.x}
-                              canvasDimension={1080}
-                              onChange={(val) => updateSelectedElement('x', val)}
+                              unit={selectedElement.xUnit || 'px'}
+                              canvasDimension={parentWidth}
+                              onChange={(val, newUnit) => {
+                                const targetUnit = newUnit || selectedElement.xUnit || 'px';
+                                updateSelectedElementBatch({ x: val, xUnit: targetUnit });
+                              }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentUnit = selectedElement.xUnit || 'px';
+                                const nextUnit = currentUnit === 'px' ? '%' : 'px';
+                                const currentVal = selectedElement.x || 0;
+                                const newVal = nextUnit === '%'
+                                  ? parseFloat(((currentVal / parentWidth) * 100).toFixed(1))
+                                  : Math.round((currentVal / 100) * parentWidth);
+                                updateSelectedElementBatch({ x: newVal, xUnit: nextUnit });
+                              }}
+                              className="w-6 h-6 text-[9px] font-bold rounded border flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0 select-none"
+                              style={{
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-muted)',
+                              }}
+                              title="Cambiar unidad de X (px / %)"
+                            >
+                              {selectedElement.xUnit || 'px'}
+                            </button>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5" title="Posición Y (Vertical)">
                           <MoveVertical size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 flex items-center gap-1">
                             <InspectorNumberInput
                               value={selectedElement.y}
-                              canvasDimension={1920}
-                              onChange={(val) => updateSelectedElement('y', val)}
+                              unit={selectedElement.yUnit || 'px'}
+                              canvasDimension={parentHeight}
+                              onChange={(val, newUnit) => {
+                                const targetUnit = newUnit || selectedElement.yUnit || 'px';
+                                updateSelectedElementBatch({ y: val, yUnit: targetUnit });
+                              }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentUnit = selectedElement.yUnit || 'px';
+                                const nextUnit = currentUnit === 'px' ? '%' : 'px';
+                                const currentVal = selectedElement.y || 0;
+                                const newVal = nextUnit === '%'
+                                  ? parseFloat(((currentVal / parentHeight) * 100).toFixed(1))
+                                  : Math.round((currentVal / 100) * parentHeight);
+                                updateSelectedElementBatch({ y: newVal, yUnit: nextUnit });
+                              }}
+                              className="w-6 h-6 text-[9px] font-bold rounded border flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0 select-none"
+                              style={{
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-muted)',
+                              }}
+                              title="Cambiar unidad de Y (px / %)"
+                            >
+                              {selectedElement.yUnit || 'px'}
+                            </button>
                           </div>
                         </div>
 
                         {/* Fila 2: W e H */}
                         <div className="flex items-center gap-1.5" title="Anchura (W)">
                           <ArrowLeftRight size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 flex items-center gap-1">
                             <InspectorNumberInput
                               value={selectedElement.width}
-                              min={10}
-                              canvasDimension={1080}
-                              onChange={(val) => updateSelectedElement('width', val)}
+                              unit={selectedElement.widthUnit || 'px'}
+                              min={1}
+                              canvasDimension={parentWidth}
+                              onChange={(val, newUnit) => {
+                                const targetUnit = newUnit || selectedElement.widthUnit || 'px';
+                                updateSelectedElementBatch({ width: val, widthUnit: targetUnit });
+                              }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentUnit = selectedElement.widthUnit || 'px';
+                                const nextUnit = currentUnit === 'px' ? '%' : 'px';
+                                const currentVal = selectedElement.width || 0;
+                                const newVal = nextUnit === '%'
+                                  ? parseFloat(((currentVal / parentWidth) * 100).toFixed(1))
+                                  : Math.round((currentVal / 100) * parentWidth);
+                                updateSelectedElementBatch({ width: newVal, widthUnit: nextUnit });
+                              }}
+                              className="w-6 h-6 text-[9px] font-bold rounded border flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0 select-none"
+                              style={{
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-muted)',
+                              }}
+                              title="Cambiar unidad de Anchura (px / %)"
+                            >
+                              {selectedElement.widthUnit || 'px'}
+                            </button>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5" title="Altura (H)">
                           <ArrowUpDown size={13} className="shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }} />
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 flex items-center gap-1">
                             <InspectorNumberInput
                               value={selectedElement.height}
-                              min={10}
-                              canvasDimension={1920}
-                              onChange={(val) => updateSelectedElement('height', val)}
+                              unit={selectedElement.heightUnit || 'px'}
+                              min={1}
+                              canvasDimension={parentHeight}
+                              onChange={(val, newUnit) => {
+                                const targetUnit = newUnit || selectedElement.heightUnit || 'px';
+                                updateSelectedElementBatch({ height: val, heightUnit: targetUnit });
+                              }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentUnit = selectedElement.heightUnit || 'px';
+                                const nextUnit = currentUnit === 'px' ? '%' : 'px';
+                                const currentVal = selectedElement.height || 0;
+                                const newVal = nextUnit === '%'
+                                  ? parseFloat(((currentVal / parentHeight) * 100).toFixed(1))
+                                  : Math.round((currentVal / 100) * parentHeight);
+                                updateSelectedElementBatch({ height: newVal, heightUnit: nextUnit });
+                              }}
+                              className="w-6 h-6 text-[9px] font-bold rounded border flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 shrink-0 select-none"
+                              style={{
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-muted)',
+                              }}
+                              title="Cambiar unidad de Altura (px / %)"
+                            >
+                              {selectedElement.heightUnit || 'px'}
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -6610,44 +7515,80 @@ export default function InvitationDesigner() {
                         {/* Alineación de Texto */}
                         <div>
                           <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                            Alineación
+                            Alineación Horizontal
                           </label>
-                          <div className="grid grid-cols-4 gap-1 rounded-lg p-1 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <div className="grid grid-cols-4 gap-0.5 rounded-lg p-0.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                             <button
                               onClick={() => updateSelectedElement('textAlign', 'left')}
                               title="Izquierda"
-                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
                                 (selectedElement.textAlign || 'left') === 'left' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
                               }`}
                             >
-                              <AlignLeft size={14} />
+                              <AlignLeft size={12} />
                             </button>
                             <button
                               onClick={() => updateSelectedElement('textAlign', 'center')}
                               title="Centrado"
-                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
                                 selectedElement.textAlign === 'center' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
                               }`}
                             >
-                              <AlignCenter size={14} />
+                              <AlignCenter size={12} />
                             </button>
                             <button
                               onClick={() => updateSelectedElement('textAlign', 'right')}
                               title="Derecha"
-                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
                                 selectedElement.textAlign === 'right' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
                               }`}
                             >
-                              <AlignRight size={14} />
+                              <AlignRight size={12} />
                             </button>
                             <button
                               onClick={() => updateSelectedElement('textAlign', 'justify')}
                               title="Justificado"
-                              className={`flex items-center justify-center py-1 rounded-md transition-colors ${
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
                                 selectedElement.textAlign === 'justify' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
                               }`}
                             >
-                              <AlignJustify size={14} />
+                              <AlignJustify size={12} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Alineación Vertical */}
+                        <div>
+                          <label className="block font-bold mb-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            Alineación Vertical
+                          </label>
+                          <div className="grid grid-cols-3 gap-0.5 rounded-lg p-0.5 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <button
+                              onClick={() => updateSelectedElement('verticalAlign', 'top')}
+                              title="Arriba"
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
+                                selectedElement.verticalAlign === 'top' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignStartHorizontal size={12} />
+                            </button>
+                            <button
+                              onClick={() => updateSelectedElement('verticalAlign', 'middle')}
+                              title="Centro"
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
+                                (!selectedElement.verticalAlign || selectedElement.verticalAlign === 'middle') ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignCenterHorizontal size={12} />
+                            </button>
+                            <button
+                              onClick={() => updateSelectedElement('verticalAlign', 'bottom')}
+                              title="Abajo"
+                              className={`flex items-center justify-center py-0.5 rounded transition-colors ${
+                                selectedElement.verticalAlign === 'bottom' ? 'bg-black/10 dark:bg-white/10 font-bold' : 'hover:opacity-75'
+                              }`}
+                            >
+                              <AlignEndHorizontal size={12} />
                             </button>
                           </div>
                         </div>
@@ -7987,6 +8928,119 @@ export default function InvitationDesigner() {
             }
           }}
         />
+      )}
+
+      {/* MODAL CONFIGURAR Y GUARDAR COMO WIDGET */}
+      {isWidgetModalOpen && selectedElement && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border bg-gray-950 text-white shadow-2xl p-6 space-y-5 border-white/15">
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
+                  <Puzzle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base leading-tight text-white">Guardar como Widget</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Convierte este componente con sus elementos en un widget interactivo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWidgetModalOpen(false)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1.5">Nombre del Widget</label>
+                <input
+                  type="text"
+                  value={widgetModalTitle}
+                  onChange={(e) => setWidgetModalTitle(e.target.value)}
+                  placeholder="Ej: Mapa de recepción, RSVP elegante..."
+                  className="w-full rounded-xl px-3 py-2 bg-gray-900 border border-white/15 text-white text-xs outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-2">Selecciona el Tipo de Widget</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'map', label: 'Ubicación / Mapa', icon: MapPin, color: 'text-blue-400' },
+                    { id: 'rsvp', label: 'Confirmación RSVP', icon: UserCheck, color: 'text-emerald-400' },
+                    { id: 'menu', label: 'Selección de Menú', icon: Utensils, color: 'text-amber-400' },
+                    { id: 'countdown', label: 'Cuenta Regresiva', icon: Clock, color: 'text-cyan-400' },
+                    { id: 'gift', label: 'Mesa de Regalos', icon: Gift, color: 'text-rose-400' },
+                    { id: 'custom', label: 'Widget Personalizado', icon: Sparkles, color: 'text-purple-400' },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const isSel = widgetModalType === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setWidgetModalType(item.id as any)}
+                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
+                          isSel
+                            ? 'bg-cyan-500/20 border-cyan-400 text-white font-bold ring-1 ring-cyan-400'
+                            : 'bg-gray-900 border-white/10 text-gray-300 hover:bg-gray-800'
+                        }`}
+                      >
+                        <Icon size={16} className={item.color} />
+                        <span className="text-xs truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/20 text-cyan-200 text-[11px] leading-relaxed">
+                💡 <strong>¿Cómo funciona?</strong> Todos los sub-elementos (textos, imágenes, formas) diseñados dentro de este componente mantendrán su diseño visual completo y actuarán de forma agrupada como un widget interactivo.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+              {selectedElement.isWidget && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateSelectedElementBatch({ isWidget: false, widgetType: undefined });
+                    setIsWidgetModalOpen(false);
+                  }}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 mr-auto transition-colors"
+                >
+                  Quitar Marcado de Widget
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsWidgetModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateSelectedElementBatch({
+                    isWidget: true,
+                    widgetType: widgetModalType,
+                    componentName: widgetModalTitle || selectedElement.componentName || 'Widget',
+                    content: widgetModalTitle || selectedElement.content || 'Widget',
+                  });
+                  setIsWidgetModalOpen(false);
+                }}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <CheckCircle2 size={14} />
+                <span>Guardar Widget</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Overlay de Guardado / Generando Preview */}

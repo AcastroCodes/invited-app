@@ -21,6 +21,7 @@ import {
   Box,
   Music,
   Smartphone,
+  Puzzle,
 } from 'lucide-react';
 import { CanvasElement } from '../../types/designerTypes';
 
@@ -146,6 +147,8 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
         return <Music size={12} className="shrink-0 text-rose-500" />;
       case 'button':
         return <Smartphone size={12} className="shrink-0" style={{ color: 'var(--success)' }} />;
+      case 'complement':
+        return <Puzzle size={12} className="shrink-0 text-indigo-500" />;
       default:
         return <Layers size={12} className="shrink-0 text-gray-400" />;
     }

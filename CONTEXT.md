@@ -2,7 +2,7 @@
 
 Este archivo mantiene el contexto del proyecto para retomar de inmediato en las siguientes sesiones de trabajo.
 
-## Estado Actual del Proyecto (Última actualización: 23 de Septiembre, 2026)
+## Estado Actual del Proyecto (Última actualización: 27 de Septiembre, 2026)
 - **Stack:** Laravel 12 (API), React 19 (SPA), Vite, TailwindCSS v4, HTML2Canvas, Google `<model-viewer>` WebGL.
 - **Autenticación:** Implementada con Laravel Sanctum (Cookies Stateful) con el hook `useAuth.tsx`.
 - **Rutas Principales (`app.jsx`):**
@@ -16,64 +16,64 @@ Este archivo mantiene el contexto del proyecto para retomar de inmediato en las 
 
 ---
 
-## Avances Completados en la Sesión (20 de Septiembre, 2026)
+## Avances Completados en la Sesión (27 de Septiembre, 2026)
 
-### 1. Integración Completa de Elementos 3D (.glb, .gltf, .fbx, .dae, .obj)
-- **Backend Laravel (`AssetController.php`):**
-  - Subida de archivos 3D habilitada con extensiones `.glb, .gltf, .fbx, .dae, .obj`.
-  - Límite de subida de recursos ampliado a 50 MB (`max:51200`).
-  - Categorización automática de tipo `'3d'`.
-- **Banco de Recursos (`AssetPickerPopover.tsx`):**
-  - Añadida la pestaña de tipo **3D** con filtros de búsqueda y selector de modelos 3D.
-- **Renderizado WebGL de Alto Rendimiento (`DesignerMediaElements.tsx`):**
-  - Implementación del componente `<ThreeDElementItem />` basado en Google `<model-viewer>`.
-  - Soporte para rotación automática 360°, animaciones nativas en bucle, sombras personalizadas e iluminación WebGL con fondo transparente.
-  - **Rotación 3D Interactiva con `Ctrl`:** Al presionar la tecla `Ctrl` y arrastrar sobre el modelo 3D con el ratón/pantalla táctil, el usuario puede rotar libremente el objeto 3D en los ejes $X$, $Y$ y $Z$.
-  - **Efecto Parallax 3D:** Conectado al giroscopio del teléfono (`deviceorientation`) y al movimiento del ratón en escritorio para rotar suavemente el objeto 3D según la orientación.
-- **Panel Inspector & Lienzo (`InvitationDesigner.tsx` y `InvitationViewer.tsx`):**
-  - Añadida la sección de **Orientación & Rotación 3D ($X, Y, Z$)** y **Escala 3D ($X, Y, Z$)** dentro del acordeón *Posición & Tamaño*.
-  - Controles para Autoplay de animaciones nativas, Auto-rotate 360° e intensidad de sombra.
-  - Renderizado idéntico y fluido en el visor de invitados (`InvitationViewer.tsx`).
+### 1. Sistema de Alineación Horizontal y Vertical para Elementos de Texto (`TextElementItem.tsx`)
+- **Iconografía Unificada de Alineación:**
+  - Alineación Horizontal: Izquierda, Centro, Derecha (usando íconos de la sección Posición & Tamaño).
+  - Alineación Vertical: Arriba, Centro, Abajo (usando íconos de la sección Posición & Tamaño con tamaño reducido de botones para mejor UX).
+- **Flexbox Interno en Lienzo:**
+  - Implementado alineado vertical perfecto (`flex flex-col justify-start / justify-center / justify-end`) para que el texto respete la caja delimitadora de forma precisa tanto en el diseñador como en el visor público.
 
-### 2. Recorte de Video (Trim) y Configuración FFmpeg WebAssembly (23 Sept)
-- **Corte Físico Client-side:**
-  - Integración de `@ffmpeg/ffmpeg` para cortes físicos instantáneos en el navegador utilizando la estrategia `-c copy` (cero consumo intensivo de CPU/memoria).
-  - Interfaz de `VideoEditorModal.tsx` actualizada para mostrar porcentajes de carga y botones de Guardar separados.
-- **Configuraciones de Vite & Seguridad:**
-  - `vite.config.js` configurado con cabeceras `Cross-Origin-Opener-Policy` y `Cross-Origin-Embedder-Policy` para soportar `SharedArrayBuffer`.
-  - Exclusión de `@ffmpeg/ffmpeg` y `@ffmpeg/util` en `optimizeDeps.exclude` de Vite para evitar loops de recarga del servidor de desarrollo.
-- **Botón "Guardar Nuevo" y Subida Inmediata:**
-  - El modal de edición envía el `blob:` temporal directo al endpoint de Laravel (`api.post('/partners/{id}/assets')`) para asegurar que el `.mp4` cortado se registre oficialmente en la base de datos.
-  - El modal espera asíncronamente con un loader visual antes de cerrarse para garantizar que el listado de recursos (`AssetPickerPopover`) lo cargue de forma inmediata.
+### 2. Bloqueo de Edición de Texto en Widgets (Candado Inteligente)
+- **Control de Bloqueo (`lockedInWidget`):**
+  - Añadido botón de candado en la columna lateral izquierda del contenido de texto (`TextElementItem.tsx` e `InvitationDesigner.tsx`).
+  - Estado desbloqueado (candado normal/gris): El campo de texto dentro de un widget puede ser editado libremente.
+  - Estado bloqueado (candado en rojo): El campo queda protegido cuando forma parte de un widget para evitar alteraciones accidentales.
 
-### 3. Optimización de Miniaturas y Almacenamiento JSON
-- **Backend (`InvitationController.php`):**
-  - Resuelto error 500 en MySQL mediante guardado de imágenes preview en disco público (`storage/app/public/invitations/previews/preview_{id}.jpg`), almacenando URLs limpias en el JSON.
-- **Frontend (`InvitationDesigner.tsx`):**
-  - Captura optimizada con `html2canvas` reduciendo peso de preview de Megabytes a ~15 KB.
+### 3. Modo Único "Texto Estático" vs "Base de Datos" y Popover de Variables
+- **Interruptor Unificado de Modo:**
+  - Botón de alternancia rápida entre **Modo Texto Estático** (ícono de tipo de letra) y **Modo Base de Datos** (ícono de base de datos).
+  - Al activar el **Modo Base de Datos**, el campo habilita la inserción de variables dinámicas encerradas en corchetes `[...]`.
+- **Inspector Inteligente de Variables (`Smart Variable Inspector`):**
+  - Al presionar `[` o escribir en Modo Base de Datos, se despliega un popover contextual.
+  - Recomienda automáticamente variables relevantes según el tipo de widget seleccionado (ej. *Cuenta Regresiva* recomienda `[dias_restantes]`, `[horas_restantes]`, `[minutos_restantes]`, `[segundos_restantes]`).
+  - También incluye sugerencias universales como `[nombre_invitado]`, `[pases]`, `[mesa]`, `[fecha_evento]`, `[lugar_evento]`, etc.
 
-### 4. Corrección de Storage Link y Accessors de URLs
-- **Enlace Simbólico (`public/storage`):**
-  - Reconectado `public/storage` a `storage/app/public` en Windows mediante `php artisan storage:link` tras resolver conflicto con directorio vacío.
-- **Accessors en Modelos Laravel (`Event.php`, `Partner.php`, `User.php`):**
-  - Creados accessors `logo_url`, `background_url` y `avatar_url` para normalizar URLs sin duplicación de rutas `/storage/`.
-
-### 5. Editor de Video Profesional y 7 Modos de Reproducción Unificados
-- **Motor de Procesamiento Client-Side (`VideoEditorModal.tsx`):**
-  - Integrado `@ffmpeg/ffmpeg` en WebAssembly con bandera de sobrescritura `-y` y normalización de color `format=yuv420p`.
-  - Soporte para 7 Modos de Reproducción procesados en un único `.mp4`: `seamless` (Bucle Suave con Crossfade), `pingpong` (Boomerang), `rewind` (VHS 3x), `slowmo` (Cámara lenta central 0.5x), `reverse` (Reversa pura), `stutter` (Ritmo 3x) y `once` (Una vez).
-- **Vista Previa Real y Restricción de Selección:**
-  - El reproductor del smartphone 9:16 previsualiza inmediatamente el video procesado al presionar o cambiar de modo.
-  - Durante la edición de la línea de tiempo, la reproducción queda restringida estrictamente al intervalo `[startTime, endTime]`.
+### 4. Normalización de Previsualización en Lienzo (Valores Puros para Cuenta Regresiva)
+- **Previsualización de Variables Dinámicas (`DB_PREVIEW_VALUES`):**
+  - Ajustados los valores de previsualización para mostrar únicamente el valor numérico limpio en el lienzo sin sufijos de texto:
+    - `[dias_restantes]` ➔ `05`
+    - `[horas_restantes]` ➔ `12`
+    - `[minutos_restantes]` ➔ `30`
+    - `[segundos_restantes]` ➔ `45`
+  - Esto permite al usuario maquetar y diseñar libremente etiquetas o sufijos personalizados alrededor de los números del temporizador.
 
 ---
 
-## Pendientes para Continuar Mañana:
+## Avances Anteriores (20 - 23 de Septiembre, 2026)
+
+### 1. Integración Completa de Elementos 3D (.glb, .gltf, .fbx, .dae, .obj)
+- **Backend Laravel & Banco de Recursos:** Subida de modelos 3D hasta 50MB y pestaña 3D en `AssetPickerPopover.tsx`.
+- **Renderizado WebGL (`<model-viewer>`):** Rotación 360°, sombras, animación native, efecto Parallax 3D por giroscopio/mouse y rotación interactiva 3D presionado `Ctrl`.
+
+### 2. Recorte de Video (Trim) y Editor Profesional FFmpeg WebAssembly
+- Processing client-side con `@ffmpeg/ffmpeg` para recortes rápidos y 7 modos de reproducción unificados (`seamless`, `pingpong`, `rewind`, `slowmo`, `reverse`, `stutter`, `once`).
+- Exclusión de librerías en `vite.config.js` y subida directa de blobs al backend.
+
+### 3. Optimización de Miniaturas y Accessors Laravel
+- Captura de previews con `html2canvas` guardadas en `storage/app/public/invitations/previews/` e integración de accessors `logo_url`, `background_url` y `avatar_url` en los modelos de Laravel.
+
+---
+
+## Pendientes para Continuar:
 1. **Animaciones de Entrada de Elementos Individuales en el Visor:**
    - Probar y sincronizar animaciones individuales de cada elemento (`fadeIn`, `slideInUp`, `zoomIn`) al cambiar de escena.
 2. **Interactividad Real de Botones & Modales:**
    - Programar apertura real del modal RSVP, integración con mapas Leaflet/Google, y mesa de regalos.
-3. **Protocolo y Tótem de Recepción (Fases siguientes):**
+3. **Sincronización Dinámica Real de Variables en el Visor (`InvitationViewer.tsx`):**
+   - Conectar la resolución de variables en tiempo real con los datos del invitado al cargar la URL pública `/v/:id`.
+4. **Protocolo y Tótem de Recepción (Fases siguientes):**
    - Pantalla de check-in en puerta y kiosco interactivo para el día del evento.
 
 ---

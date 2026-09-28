@@ -1,11 +1,45 @@
 import React from 'react';
 import type { CanvasElement } from '../../types/designerTypes';
 
+const DB_PREVIEW_VALUES: Record<string, string> = {
+  nombre_invitado: 'Familia García Pérez',
+  pases_asignados: '4 Pases',
+  mesa: 'Mesa 12',
+  nombre_evento: 'Mi Evento Especial',
+  fecha_evento: '15 de Noviembre, 2026',
+  hora_evento: '18:00 hrs',
+  lugar_evento: 'Hacienda San José',
+  direccion_evento: 'Av. Principal #123',
+  anfitriones: 'Ana y Carlos',
+  codigo_qr: 'QR-ACCESO-88492',
+  confirmacion_status: 'Confirmado',
+  dias_restantes: '05',
+  horas_restantes: '12',
+  minutos_restantes: '30',
+  segundos_restantes: '45',
+  banco_nombre: 'BBVA Bancomer',
+  clabe_interbancaria: '012345678901234567',
+  titular_cuenta: 'Ana García',
+  tienda_regalos_url: 'https://mesaderegalos.com',
+  mapa_url: 'https://maps.google.com',
+  adultos_confirmados: '2 Adultos',
+  ninos_confirmados: '2 Niños',
+};
+
 interface TextElementItemProps {
   element: CanvasElement;
+  parentWidth?: number;
+  parentHeight?: number;
 }
 
-export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el }) => {
+export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el, parentWidth, parentHeight }) => {
+  const displayContent = React.useMemo(() => {
+    const content = el.content || '';
+    if (!content.includes('[')) return content;
+    return content.replace(/\[([a-zA-Z0-9_]+)\]/g, (match, key) => {
+      return DB_PREVIEW_VALUES[key] || key.replace(/_/g, ' ').toUpperCase();
+    });
+  }, [el.content]);
   const tBorderW = el.textBorderWidth ?? el.containerBorderWidth ?? el.borderWidth ?? 0;
   const tBorderC = el.textBorderColor || el.containerBorderColor || el.borderColor || '#000000';
   const tColor = el.color || 'var(--text-main)';
@@ -24,11 +58,28 @@ export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el })
   const pathId = `wordart-path-${el.id}`;
   const gradId = `wordart-grad-${el.id}`;
   const gradBorderId = `wordart-grad-border-${el.id}`;
-  const w = Math.max(100, el.width);
-  const h = Math.max(40, el.height);
+
+  const pW = parentWidth || 1080;
+  const pH = parentHeight || 1920;
+
+  const rawW = el.widthUnit === '%' ? (el.width / 100) * pW : el.width;
+  const rawH = el.heightUnit === '%' ? (el.height / 100) * pH : el.height;
+
+  const w = Math.max(50, rawW);
+  const h = Math.max(20, rawH);
   const curveOffset = Math.round((curveVal / 100) * (h * 0.8));
-  const centerY = h / 2;
-  
+  const fontSize = el.fontSize || 24;
+  let centerY = h / 2 + fontSize * 0.35;
+  if (wShape === 'none' || wShape === 'bulge') {
+    if (el.verticalAlign === 'top') {
+      centerY = Math.min(h / 2, fontSize * 0.85);
+    } else if (el.verticalAlign === 'bottom') {
+      centerY = Math.max(h / 2, h - fontSize * 0.15);
+    } else {
+      centerY = h / 2 + fontSize * 0.35;
+    }
+  }
+
   let dPath = `M 0 ${centerY} L ${w} ${centerY}`; // Default straight line
 
   if (wShape === 'arc' || wShape === 'arcUp') {
@@ -73,7 +124,7 @@ export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el })
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center relative overflow-visible" style={{ transform: skewTransform }}>
+    <div className={`w-full h-full flex relative overflow-visible ${el.verticalAlign === 'top' ? 'items-start' : el.verticalAlign === 'bottom' ? 'items-end' : 'items-center'} justify-center`} style={{ transform: skewTransform }}>
       <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${w} ${h}`}>
         <defs>
           {isGradColor && (
@@ -144,7 +195,7 @@ export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el })
             }}
           >
             <textPath href={`#${pathId}`} startOffset={startOffset} textAnchor={textAnchor}>
-              {el.content}
+              {displayContent}
             </textPath>
           </text>
         )}
@@ -163,7 +214,7 @@ export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el })
             }}
           >
             <textPath href={`#${pathId}`} startOffset={startOffset} textAnchor={textAnchor}>
-              {el.content}
+              {displayContent}
             </textPath>
           </text>
         )}
@@ -181,7 +232,7 @@ export const TextElementItem: React.FC<TextElementItemProps> = ({ element: el })
           }}
         >
           <textPath href={`#${pathId}`} startOffset={startOffset} textAnchor={textAnchor}>
-            {el.content}
+            {displayContent}
           </textPath>
         </text>
       </svg>
