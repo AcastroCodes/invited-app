@@ -25,6 +25,10 @@ import {
   Palette,
   Image,
   Wallpaper,
+  Upload,
+  Sparkles,
+  Check,
+  Pipette,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Event } from '../../types';
@@ -138,6 +142,72 @@ export default function EventList() {
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
   const [mediaTab, setMediaTab] = useState<'colors' | 'logo' | 'background'>('colors');
   const [formPrimaryColor, setFormPrimaryColor] = useState('#E07A5F');
+  const [colorImagePreview, setColorImagePreview] = useState<string | null>(null);
+  const [detectedColors, setDetectedColors] = useState<string[]>([]);
+  const [isExtractingColors, setIsExtractingColors] = useState(false);
+
+  const extractKeyColorsFromImage = (imageSrc: string, maxColors = 6): Promise<string[]> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve([]);
+
+        const size = 100;
+        canvas.width = size;
+        canvas.height = size;
+        ctx.drawImage(img, 0, 0, size, size);
+
+        try {
+          const imgData = ctx.getImageData(0, 0, size, size).data;
+          const colorBuckets: Record<string, { r: number; g: number; b: number; count: number }> = {};
+
+          for (let i = 0; i < imgData.length; i += 4) {
+            const r = imgData[i];
+            const g = imgData[i + 1];
+            const b = imgData[i + 2];
+            const a = imgData[i + 3];
+
+            if (a < 128) continue;
+
+            const step = 32;
+            const qr = Math.round(r / step) * step;
+            const qg = Math.round(g / step) * step;
+            const qb = Math.round(b / step) * step;
+            const key = `${qr},${qg},${qb}`;
+
+            if (!colorBuckets[key]) {
+              colorBuckets[key] = { r: qr, g: qg, b: qb, count: 0 };
+            }
+            colorBuckets[key].count++;
+          }
+
+          const sorted = Object.values(colorBuckets).sort((a, b) => b.count - a.count);
+          const hexColors: string[] = [];
+          for (const bucket of sorted) {
+            const hex = `#${((1 << 24) + (bucket.r << 16) + (bucket.g << 8) + bucket.b)
+              .toString(16)
+              .slice(1)
+              .toUpperCase()}`;
+
+            if (!hexColors.includes(hex)) {
+              hexColors.push(hex);
+            }
+            if (hexColors.length >= maxColors) break;
+          }
+
+          resolve(hexColors);
+        } catch (err) {
+          console.error('Error extracting colors:', err);
+          resolve([]);
+        }
+      };
+      img.onerror = () => resolve([]);
+      img.src = imageSrc;
+    });
+  };
   const [formStatus, setFormStatus] = useState('active');
   const [formItinerary, setFormItinerary] = useState<any[]>([]);
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
@@ -341,6 +411,9 @@ export default function EventList() {
     setBackgroundPreview(null);
     setMediaTab('colors');
     setFormPrimaryColor('#E07A5F');
+    setColorImagePreview(null);
+    setDetectedColors([]);
+    setIsExtractingColors(false);
     setFormStatus('active');
     setMapCenter([10.4806, -66.9036]);
     setUserTypedLocation(false);
@@ -832,7 +905,7 @@ export default function EventList() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
           <div
-            className="w-full max-w-6xl max-h-[92vh] flex flex-col rounded-md shadow-lg my-auto overflow-hidden"
+            className="w-full max-w-6xl h-[88vh] max-h-[92vh] flex flex-col rounded-md shadow-lg my-auto overflow-hidden"
             style={{
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
@@ -875,187 +948,196 @@ export default function EventList() {
               </div>
             </div>
 
-            <div className="p-5 flex-1 min-h-0 flex flex-col sm:flex-row gap-6 items-start overflow-visible">
-              {/* Left Column (Dicta y define el alto total del formulario) */}
-              <div id="modal-left-column" className="sm:w-2/7 shrink-0 space-y-1.5 pr-1 relative z-20">
-                <div>
-                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-                    Nombre del Evento
-                  </label>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Ej: Boda de María y Juan"
-                    className="w-full rounded-lg px-2.5 py-1.5 text-xs outline-none"
-                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                  />
-                </div>
+            <div className="p-5 flex-1 min-h-0 flex flex-col sm:flex-row gap-6 items-stretch overflow-hidden">
+              {/* Left Column */}
+              <div id="modal-left-column" className="sm:w-2/7 shrink-0 space-y-2 pr-1 relative z-20 overflow-y-auto max-h-full">
+                {/* Sección Información */}
+                <div className="rounded-xl p-2.5 border space-y-2" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
+                  <h4 className="text-xs font-semibold pb-1 border-b tracking-wide uppercase" style={{ color: 'var(--text-main)', borderColor: 'var(--border-color)' }}>
+                    INFORMACIÓN DEL EVENTO
+                  </h4>
 
-                <div>
-                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-                    Tipo de Evento
-                  </label>
-                  <AppSelect
-                    value={formType}
-                    onChange={setFormType}
-                    options={EVENT_TYPES}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-                    Fecha del Evento
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={computeEventDateRange(formItinerary) || (formDate ? `${formDate.split('-').reverse().join('/')} ${formTime || ''}` : '') || 'Se calcula al agregar itinerario'}
-                    placeholder="Agrega momentos en el itinerario"
-                    className="w-full rounded-lg px-2.5 py-1.5 text-xs outline-none cursor-default"
-                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-                    Descripción
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full resize-none rounded-lg px-2.5 py-1.5 text-xs outline-none"
-                    style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                  />
-                </div>
-
-                {activePartnerFilter === '' && (
-                  <div>
-                    <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-                      Partner
+                  <div className="flex items-center gap-2">
+                    <label className="shrink-0 text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                      Nombre:
                     </label>
-                    <div className="relative" ref={formPartnerRef}>
-                      {(() => {
-                        const selectedPartnerObj = partnersList.find((p) => String(p.id) === String(formPartner));
-                        return (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setShowFormPartnerDropdown(!showFormPartnerDropdown)}
-                              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs outline-none transition-colors"
-                              style={{
-                                backgroundColor: 'var(--bg-app)',
-                                border: '1px solid var(--border-color)',
-                                color: 'var(--text-main)',
-                              }}
-                            >
-                              {selectedPartnerObj ? (
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {selectedPartnerObj.logo_url ? (
-                                    <img
-                                      src={selectedPartnerObj.logo_url}
-                                      alt="logo"
-                                      className="h-5 w-5 rounded object-cover shrink-0"
-                                    />
-                                  ) : (
-                                    <div
-                                      className="flex h-5 w-5 items-center justify-center rounded shrink-0"
-                                      style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}
-                                    >
-                                      <Building2 size={13} />
-                                    </div>
-                                  )}
-                                  <div className="flex flex-col items-start text-left min-w-0">
-                                    <span className="text-xs font-medium leading-tight truncate">
-                                      {selectedPartnerObj.business_name || selectedPartnerObj.name}
-                                    </span>
-                                    {selectedPartnerObj.user?.name && (
-                                      <span className="text-[10px] leading-tight opacity-70 truncate" style={{ color: 'var(--text-muted)' }}>
-                                        {selectedPartnerObj.user.name}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <Building2 size={14} style={{ color: 'var(--primary-accent)' }} />
-                                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                                    Todos los partners
-                                  </span>
-                                </div>
-                              )}
-                              <ChevronDown size={14} className="ml-1 opacity-70 shrink-0" />
-                            </button>
+                    <input
+                      type="text"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder="Ej: Boda de María y Juan"
+                      className="flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none"
+                      style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                    />
+                  </div>
 
-                            {showFormPartnerDropdown && (
-                              <div
-                                className="absolute left-0 bottom-full mb-1 w-full rounded-xl shadow-2xl py-1 z-50 max-h-60 overflow-y-auto"
+                  <div className="flex items-center gap-2">
+                    <label className="shrink-0 text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                      Tipo:
+                    </label>
+                    <div className="flex-1">
+                      <AppSelect
+                        value={formType}
+                        onChange={setFormType}
+                        options={EVENT_TYPES}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="shrink-0 text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                      Fecha:
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={computeEventDateRange(formItinerary) || (formDate ? `${formDate.split('-').reverse().join('/')} ${formTime || ''}` : '') || 'Se calcula al agregar itinerario'}
+                      placeholder="Agrega momentos en el itinerario"
+                      className="flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none cursor-default truncate"
+                      style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                    />
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <label className="shrink-0 text-xs font-semibold pt-1" style={{ color: 'var(--text-main)' }}>
+                      Descripción:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      className="flex-1 resize-none rounded-lg px-2.5 py-1.5 text-xs outline-none"
+                      style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                    />
+                  </div>
+
+                  {activePartnerFilter === '' && (
+                    <div className="flex items-center gap-2">
+                      <label className="shrink-0 text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                        Partner:
+                      </label>
+                      <div className="flex-1 relative" ref={formPartnerRef}>
+                        {(() => {
+                          const selectedPartnerObj = partnersList.find((p) => String(p.id) === String(formPartner));
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setShowFormPartnerDropdown(!showFormPartnerDropdown)}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs outline-none transition-colors"
                                 style={{
-                                  backgroundColor: 'var(--bg-card)',
+                                  backgroundColor: 'var(--bg-app)',
                                   border: '1px solid var(--border-color)',
+                                  color: 'var(--text-main)',
                                 }}
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFormPartner('');
-                                    setShowFormPartnerDropdown(false);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                                >
-                                  <div className="flex h-5 w-5 shrink-0 items-center justify-center">
-                                    <Building2 size={14} style={{ color: 'var(--primary-accent)' }} />
-                                  </div>
-                                  <span className="text-xs font-medium" style={{ color: 'var(--text-main)' }}>
-                                    Todos los partners
-                                  </span>
-                                </button>
-                                {partnersList.map((p) => (
-                                  <button
-                                    key={p.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setFormPartner(p.id);
-                                      setShowFormPartnerDropdown(false);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                                    style={{ borderTop: '1px solid var(--border-color)' }}
-                                  >
-                                    {p.logo_url ? (
+                                {selectedPartnerObj ? (
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    {selectedPartnerObj.logo_url ? (
                                       <img
-                                        src={p.logo_url}
+                                        src={selectedPartnerObj.logo_url}
                                         alt="logo"
-                                        className="h-6 w-6 rounded object-cover shrink-0"
+                                        className="h-5 w-5 rounded object-cover shrink-0"
                                       />
                                     ) : (
                                       <div
-                                        className="flex h-6 w-6 items-center justify-center rounded shrink-0"
+                                        className="flex h-5 w-5 items-center justify-center rounded shrink-0"
                                         style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}
                                       >
                                         <Building2 size={13} />
                                       </div>
                                     )}
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-xs font-medium truncate" style={{ color: 'var(--text-main)' }}>
-                                        {p.business_name || p.name}
+                                    <div className="flex flex-col items-start text-left min-w-0">
+                                      <span className="text-xs font-medium leading-tight truncate">
+                                        {selectedPartnerObj.business_name || selectedPartnerObj.name}
                                       </span>
-                                      {p.user?.name && (
-                                        <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
-                                          {p.user.name}
+                                      {selectedPartnerObj.user?.name && (
+                                        <span className="text-[10px] leading-tight opacity-70 truncate" style={{ color: 'var(--text-muted)' }}>
+                                          {selectedPartnerObj.user.name}
                                         </span>
                                       )}
                                     </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <Building2 size={14} style={{ color: 'var(--primary-accent)' }} />
+                                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                                      Todos los partners
+                                    </span>
+                                  </div>
+                                )}
+                                <ChevronDown size={14} className="ml-1 opacity-70 shrink-0" />
+                              </button>
+
+                              {showFormPartnerDropdown && (
+                                <div
+                                  className="absolute left-0 bottom-full mb-1 w-full rounded-xl shadow-2xl py-1 z-50 max-h-60 overflow-y-auto"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    border: '1px solid var(--border-color)',
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormPartner('');
+                                      setShowFormPartnerDropdown(false);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                  >
+                                    <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+                                      <Building2 size={14} style={{ color: 'var(--primary-accent)' }} />
+                                    </div>
+                                    <span className="text-xs font-medium" style={{ color: 'var(--text-main)' }}>
+                                      Todos los partners
+                                    </span>
                                   </button>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                                  {partnersList.map((p) => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setFormPartner(p.id);
+                                        setShowFormPartnerDropdown(false);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                      style={{ borderTop: '1px solid var(--border-color)' }}
+                                    >
+                                      {p.logo_url ? (
+                                        <img
+                                          src={p.logo_url}
+                                          alt="logo"
+                                          className="h-6 w-6 rounded object-cover shrink-0"
+                                        />
+                                      ) : (
+                                        <div
+                                          className="flex h-6 w-6 items-center justify-center rounded shrink-0"
+                                          style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}
+                                        >
+                                          <Building2 size={13} />
+                                        </div>
+                                      )}
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-medium truncate" style={{ color: 'var(--text-main)' }}>
+                                          {p.business_name || p.name}
+                                        </span>
+                                        {p.user?.name && (
+                                          <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+                                            {p.user.name}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Tabs de Personalización: Colores, Logo del Evento y Fondo del Evento */}
                 <div className="rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
@@ -1099,27 +1181,149 @@ export default function EventList() {
                   </div>
 
                   {mediaTab === 'colors' && (
-                    <div className="flex flex-col gap-2">
-                      <div>
-                        <label className="mb-0.5 block text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
-                          Color Principal del Evento
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Columna Izquierda: Subir imagen de referencia */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold" style={{ color: 'var(--text-main)' }}>
+                            Imagen de Referencia
+                          </label>
+                          {colorImagePreview && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setColorImagePreview(null);
+                                setDetectedColors([]);
+                              }}
+                              className="text-[10px] text-red-500 hover:underline font-medium"
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
+                        <label
+                          className="relative flex flex-col items-center justify-center w-full h-24 rounded-lg cursor-pointer overflow-hidden transition-all border-dashed border hover:opacity-90 group"
+                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                        >
+                          {colorImagePreview ? (
+                            <img src={colorImagePreview} alt="Referencia" className="object-cover w-full h-full" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-1 p-2 text-center" style={{ color: 'var(--text-muted)' }}>
+                              <Upload size={16} className="text-primary opacity-70 group-hover:scale-110 transition-transform" />
+                              <span className="text-[11px] font-medium">Subir imagen</span>
+                              <span className="text-[9px] opacity-70">Para extraer paleta clave</span>
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const url = URL.createObjectURL(file);
+                                setColorImagePreview(url);
+                                setIsExtractingColors(true);
+                                extractKeyColorsFromImage(url).then((colors) => {
+                                  setDetectedColors(colors);
+                                  setIsExtractingColors(false);
+                                  if (colors.length > 0) {
+                                    setFormPrimaryColor(colors[0]);
+                                  }
+                                });
+                              }
+                            }}
+                          />
                         </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={formPrimaryColor}
-                            onChange={(e) => setFormPrimaryColor(e.target.value)}
-                            className="h-8 w-10 cursor-pointer rounded border p-0.5 outline-none"
-                            style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                          />
-                          <input
-                            type="text"
-                            value={formPrimaryColor}
-                            onChange={(e) => setFormPrimaryColor(e.target.value)}
-                            placeholder="#E07A5F"
-                            className="flex-1 rounded-lg px-2.5 py-1 text-xs font-mono outline-none"
-                            style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
-                          />
+                      </div>
+
+                      {/* Columna Derecha: Lista de Colores Detectados con ColorPickers */}
+                      <div className="flex flex-col gap-2 justify-between">
+                        <div>
+                          <label className="mb-1 text-[11px] font-semibold flex items-center justify-between" style={{ color: 'var(--text-main)' }}>
+                            <span className="flex items-center gap-1">
+                              <Sparkles size={12} className="text-amber-500 shrink-0" />
+                              Colores Detectados
+                            </span>
+                            {detectedColors.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetectedColors([...detectedColors, '#E07A5F']);
+                                }}
+                                className="text-[10px] text-primary hover:underline font-medium"
+                              >
+                                + Agregar color
+                              </button>
+                            )}
+                          </label>
+
+                          {isExtractingColors ? (
+                            <div className="flex items-center gap-1.5 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                              <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              <span>Analizando paleta...</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto py-1 pr-0.5">
+                              {(detectedColors.length > 0 ? detectedColors : [formPrimaryColor]).map((hex, idx) => {
+                                const isSelected = formPrimaryColor.toUpperCase() === hex.toUpperCase();
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`group relative flex items-center gap-1.5 px-2 py-1 rounded-full transition-all ${
+                                      isSelected
+                                        ? 'bg-primary/10 font-bold'
+                                        : 'hover:bg-black/5 dark:hover:bg-white/5'
+                                    }`}
+                                    style={{
+                                      backgroundColor: isSelected ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.03)',
+                                      color: 'var(--text-main)',
+                                    }}
+                                  >
+                                    <div
+                                      className={`relative w-5 h-5 rounded-full shadow-sm shrink-0 border border-black/15 flex items-center justify-center transition-transform group-hover:scale-110 ${
+                                        isSelected ? 'ring-2 ring-primary ring-offset-1' : ''
+                                      }`}
+                                      style={{ backgroundColor: hex }}
+                                    >
+                                      <input
+                                        type="color"
+                                        value={hex}
+                                        onChange={(e) => {
+                                          const newHex = e.target.value.toUpperCase();
+                                          if (detectedColors.length > 0) {
+                                            const updated = [...detectedColors];
+                                            updated[idx] = newHex;
+                                            setDetectedColors(updated);
+                                          }
+                                          setFormPrimaryColor(newHex);
+                                        }}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer rounded-full"
+                                        title="Abrir selector de color"
+                                      />
+                                      {isSelected && <Check size={11} className="text-white drop-shadow pointer-events-none" />}
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={hex}
+                                      onChange={(e) => {
+                                        const newHex = e.target.value;
+                                        if (detectedColors.length > 0) {
+                                          const updated = [...detectedColors];
+                                          updated[idx] = newHex;
+                                          setDetectedColors(updated);
+                                        }
+                                        setFormPrimaryColor(newHex);
+                                      }}
+                                      onClick={() => setFormPrimaryColor(hex)}
+                                      className="w-14 bg-transparent outline-none font-mono text-[11px] font-medium tracking-tight cursor-pointer"
+                                      placeholder="#HEX"
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1194,45 +1398,46 @@ export default function EventList() {
               {/* Right Column Container: tiene position relative y se ajusta a la altura exacta de la izquierda */}
               <div className="sm:w-5/7 flex-1 min-w-0 self-stretch relative">
                 <div className="absolute inset-0 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3 shrink-0">
-                    <label className="text-sm font-medium shrink-0" style={{ color: 'var(--text-main)' }}>
-                      Servicios
-                    </label>
+                  {/* Sección Servicios */}
+                  <div className="rounded-xl p-2.5 border shrink-0 flex items-center justify-between gap-3" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
+                    <h4 className="text-xs font-semibold shrink-0 tracking-wide uppercase" style={{ color: 'var(--text-main)' }}>
+                      SERVICIOS
+                    </h4>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {['INVITACION', 'PROTOCOLO', 'TOTEM'].map((srv) => {
                         const Icon = SERVICE_ICONS[srv];
                         return (
-                        <button
-                          key={srv}
-                          type="button"
-                          onClick={() => {
-                            setFormServices((prev) => 
-                              prev.includes(srv) ? prev.filter((s) => s !== srv) : [...prev, srv]
-                            )
-                          }}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors"
-                          style={{
-                            backgroundColor: formServices.includes(srv) ? 'var(--primary-accent)' : 'var(--bg-app)',
-                            border: `1px solid ${formServices.includes(srv) ? 'var(--primary-accent)' : 'var(--border-color)'}`,
-                            color: formServices.includes(srv) ? 'white' : 'var(--text-main)'
-                          }}
-                        >
-                          {Icon && <Icon size={12} />}
-                          {srv}
-                        </button>
+                          <button
+                            key={srv}
+                            type="button"
+                            onClick={() => {
+                              setFormServices((prev) => 
+                                prev.includes(srv) ? prev.filter((s) => s !== srv) : [...prev, srv]
+                              )
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors"
+                            style={{
+                              backgroundColor: formServices.includes(srv) ? 'var(--primary-accent)' : 'var(--bg-app)',
+                              border: `1px solid ${formServices.includes(srv) ? 'var(--primary-accent)' : 'var(--border-color)'}`,
+                              color: formServices.includes(srv) ? 'white' : 'var(--text-main)'
+                            }}
+                          >
+                            {Icon && <Icon size={13} />}
+                            {srv}
+                          </button>
                         );
                       })}
                     </div>
                   </div>
 
                   {/* ITINERARIO Y LUGARES DE EVENTO (CON SCROLL INTERNO SI SUPERA LA ALTURA) */}
-                  <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-hidden">
+                  <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-hidden rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
                     <div className="flex items-center justify-between pb-1 shrink-0" style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <div>
-                        <h4 className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
-                          <MapPin size={16} style={{ color: 'var(--primary-accent)' }} /> Itinerario y Lugares
+                        <h4 className="text-xs font-semibold flex items-center gap-1.5 tracking-wide uppercase" style={{ color: 'var(--text-main)' }}>
+                          <MapPin size={14} style={{ color: 'var(--primary-accent)' }} /> ITINERARIO Y LUGARES DE EVENTO
                         </h4>
-                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                           Agrega los momentos del evento con su dirección y mapa GPS.
                         </p>
                       </div>
