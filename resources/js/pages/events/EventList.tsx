@@ -22,6 +22,9 @@ import {
   EyeOff,
   Building2,
   Settings,
+  Palette,
+  Image,
+  Wallpaper,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Event } from '../../types';
@@ -133,6 +136,8 @@ export default function EventList() {
   const [formBackground, setFormBackground] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
+  const [mediaTab, setMediaTab] = useState<'colors' | 'logo' | 'background'>('colors');
+  const [formPrimaryColor, setFormPrimaryColor] = useState('#E07A5F');
   const [formStatus, setFormStatus] = useState('active');
   const [formItinerary, setFormItinerary] = useState<any[]>([]);
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
@@ -334,6 +339,8 @@ export default function EventList() {
     setFormBackground(null);
     setLogoPreview(null);
     setBackgroundPreview(null);
+    setMediaTab('colors');
+    setFormPrimaryColor('#E07A5F');
     setFormStatus('active');
     setMapCenter([10.4806, -66.9036]);
     setUserTypedLocation(false);
@@ -870,9 +877,9 @@ export default function EventList() {
 
             <div className="p-5 flex-1 min-h-0 flex flex-col sm:flex-row gap-6 items-start overflow-visible">
               {/* Left Column (Dicta y define el alto total del formulario) */}
-              <div id="modal-left-column" className="sm:w-2/7 shrink-0 space-y-4 pr-1 relative z-20">
+              <div id="modal-left-column" className="sm:w-2/7 shrink-0 space-y-1.5 pr-1 relative z-20">
                 <div>
-                  <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
                     Nombre del Evento
                   </label>
                   <input
@@ -880,13 +887,13 @@ export default function EventList() {
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Ej: Boda de María y Juan"
-                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    className="w-full rounded-lg px-2.5 py-1.5 text-xs outline-none"
                     style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
                     Tipo de Evento
                   </label>
                   <AppSelect
@@ -897,7 +904,7 @@ export default function EventList() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
                     Fecha del Evento
                   </label>
                   <input
@@ -905,88 +912,27 @@ export default function EventList() {
                     readOnly
                     value={computeEventDateRange(formItinerary) || (formDate ? `${formDate.split('-').reverse().join('/')} ${formTime || ''}` : '') || 'Se calcula al agregar itinerario'}
                     placeholder="Agrega momentos en el itinerario"
-                    className="w-full rounded-lg px-3 py-2 text-sm outline-none cursor-default"
+                    className="w-full rounded-lg px-2.5 py-1.5 text-xs outline-none cursor-default"
                     style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                  <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
                     Descripción
                   </label>
                   <textarea
                     rows={2}
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
+                    className="w-full resize-none rounded-lg px-2.5 py-1.5 text-xs outline-none"
                     style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
                   />
                 </div>
 
-                <div className="grid gap-4 grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                      Logo del Evento
-                    </label>
-                    <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-lg cursor-pointer overflow-hidden transition-colors hover:opacity-80" style={{ backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border-color)' }}>
-                      {logoPreview ? (
-                        <img src={logoPreview} alt="Logo" className="object-contain w-full h-full p-1" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                          <span className="font-medium">Subir imagen</span>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setFormLogo(file);
-                            setLogoPreview(URL.createObjectURL(file));
-                          } else {
-                            setFormLogo(null);
-                            setLogoPreview(null);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
-                      Fondo del Evento
-                    </label>
-                    <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-lg cursor-pointer overflow-hidden transition-colors hover:opacity-80" style={{ backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border-color)' }}>
-                      {backgroundPreview ? (
-                        <img src={backgroundPreview} alt="Fondo" className="object-cover w-full h-full" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                          <span className="font-medium">Subir imagen</span>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setFormBackground(file);
-                            setBackgroundPreview(URL.createObjectURL(file));
-                          } else {
-                            setFormBackground(null);
-                            setBackgroundPreview(null);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-
                 {activePartnerFilter === '' && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                    <label className="mb-0.5 block text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
                       Partner
                     </label>
                     <div className="relative" ref={formPartnerRef}>
@@ -997,7 +943,7 @@ export default function EventList() {
                             <button
                               type="button"
                               onClick={() => setShowFormPartnerDropdown(!showFormPartnerDropdown)}
-                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm outline-none transition-colors"
+                              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs outline-none transition-colors"
                               style={{
                                 backgroundColor: 'var(--bg-app)',
                                 border: '1px solid var(--border-color)',
@@ -1010,22 +956,22 @@ export default function EventList() {
                                     <img
                                       src={selectedPartnerObj.logo_url}
                                       alt="logo"
-                                      className="h-6 w-6 rounded object-cover shrink-0"
+                                      className="h-5 w-5 rounded object-cover shrink-0"
                                     />
                                   ) : (
                                     <div
-                                      className="flex h-6 w-6 items-center justify-center rounded shrink-0"
+                                      className="flex h-5 w-5 items-center justify-center rounded shrink-0"
                                       style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}
                                     >
-                                      <Building2 size={14} />
+                                      <Building2 size={13} />
                                     </div>
                                   )}
                                   <div className="flex flex-col items-start text-left min-w-0">
-                                    <span className="text-sm font-medium leading-tight truncate">
+                                    <span className="text-xs font-medium leading-tight truncate">
                                       {selectedPartnerObj.business_name || selectedPartnerObj.name}
                                     </span>
                                     {selectedPartnerObj.user?.name && (
-                                      <span className="text-[11px] leading-tight opacity-70 truncate" style={{ color: 'var(--text-muted)' }}>
+                                      <span className="text-[10px] leading-tight opacity-70 truncate" style={{ color: 'var(--text-muted)' }}>
                                         {selectedPartnerObj.user.name}
                                       </span>
                                     )}
@@ -1033,13 +979,13 @@ export default function EventList() {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2">
-                                  <Building2 size={16} style={{ color: 'var(--primary-accent)' }} />
-                                  <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                  <Building2 size={14} style={{ color: 'var(--primary-accent)' }} />
+                                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                                     Todos los partners
                                   </span>
                                 </div>
                               )}
-                              <ChevronDown size={16} className="ml-1 opacity-70 shrink-0" />
+                              <ChevronDown size={14} className="ml-1 opacity-70 shrink-0" />
                             </button>
 
                             {showFormPartnerDropdown && (
@@ -1056,12 +1002,12 @@ export default function EventList() {
                                     setFormPartner('');
                                     setShowFormPartnerDropdown(false);
                                   }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                                 >
-                                  <div className="flex h-6 w-6 shrink-0 items-center justify-center">
-                                    <Building2 size={16} style={{ color: 'var(--primary-accent)' }} />
+                                  <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+                                    <Building2 size={14} style={{ color: 'var(--primary-accent)' }} />
                                   </div>
-                                  <span className="text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                                  <span className="text-xs font-medium" style={{ color: 'var(--text-main)' }}>
                                     Todos los partners
                                   </span>
                                 </button>
@@ -1073,29 +1019,29 @@ export default function EventList() {
                                       setFormPartner(p.id);
                                       setShowFormPartnerDropdown(false);
                                     }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                                     style={{ borderTop: '1px solid var(--border-color)' }}
                                   >
                                     {p.logo_url ? (
                                       <img
                                         src={p.logo_url}
                                         alt="logo"
-                                        className="h-7 w-7 rounded object-cover shrink-0"
+                                        className="h-6 w-6 rounded object-cover shrink-0"
                                       />
                                     ) : (
                                       <div
-                                        className="flex h-7 w-7 items-center justify-center rounded shrink-0"
+                                        className="flex h-6 w-6 items-center justify-center rounded shrink-0"
                                         style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}
                                       >
-                                        <Building2 size={14} />
+                                        <Building2 size={13} />
                                       </div>
                                     )}
                                     <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-medium truncate" style={{ color: 'var(--text-main)' }}>
+                                      <span className="text-xs font-medium truncate" style={{ color: 'var(--text-main)' }}>
                                         {p.business_name || p.name}
                                       </span>
                                       {p.user?.name && (
-                                        <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                                        <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
                                           {p.user.name}
                                         </span>
                                       )}
@@ -1110,6 +1056,139 @@ export default function EventList() {
                     </div>
                   </div>
                 )}
+
+                {/* Tabs de Personalización: Colores, Logo del Evento y Fondo del Evento */}
+                <div className="rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
+                  <div className="flex items-center gap-1 border-b pb-1.5 mb-2 overflow-x-auto" style={{ borderColor: 'var(--border-color)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setMediaTab('colors')}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all shrink-0"
+                      style={{
+                        backgroundColor: mediaTab === 'colors' ? 'var(--primary-accent)' : 'transparent',
+                        color: mediaTab === 'colors' ? '#ffffff' : 'var(--text-muted)',
+                      }}
+                    >
+                      <Palette size={13} />
+                      Colores
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaTab('logo')}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all shrink-0"
+                      style={{
+                        backgroundColor: mediaTab === 'logo' ? 'var(--primary-accent)' : 'transparent',
+                        color: mediaTab === 'logo' ? '#ffffff' : 'var(--text-muted)',
+                      }}
+                    >
+                      <Image size={13} />
+                      Logo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaTab('background')}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all shrink-0"
+                      style={{
+                        backgroundColor: mediaTab === 'background' ? 'var(--primary-accent)' : 'transparent',
+                        color: mediaTab === 'background' ? '#ffffff' : 'var(--text-muted)',
+                      }}
+                    >
+                      <Wallpaper size={13} />
+                      Fondo
+                    </button>
+                  </div>
+
+                  {mediaTab === 'colors' && (
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <label className="mb-0.5 block text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                          Color Principal del Evento
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={formPrimaryColor}
+                            onChange={(e) => setFormPrimaryColor(e.target.value)}
+                            className="h-8 w-10 cursor-pointer rounded border p-0.5 outline-none"
+                            style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                          />
+                          <input
+                            type="text"
+                            value={formPrimaryColor}
+                            onChange={(e) => setFormPrimaryColor(e.target.value)}
+                            placeholder="#E07A5F"
+                            className="flex-1 rounded-lg px-2.5 py-1 text-xs font-mono outline-none"
+                            style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {mediaTab === 'logo' && (
+                    <div>
+                      <label className="mb-0.5 block text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                        Logo del Evento
+                      </label>
+                      <label className="relative flex flex-col items-center justify-center w-full h-16 rounded-lg cursor-pointer overflow-hidden transition-colors hover:opacity-80" style={{ backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border-color)' }}>
+                        {logoPreview ? (
+                          <img src={logoPreview} alt="Logo" className="object-contain w-full h-full p-1" />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            <span className="font-medium">Subir imagen</span>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setFormLogo(file);
+                              setLogoPreview(URL.createObjectURL(file));
+                            } else {
+                              setFormLogo(null);
+                              setLogoPreview(null);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  {mediaTab === 'background' && (
+                    <div>
+                      <label className="mb-0.5 block text-xs font-semibold" style={{ color: 'var(--text-main)' }}>
+                        Fondo del Evento
+                      </label>
+                      <label className="relative flex flex-col items-center justify-center w-full h-16 rounded-lg cursor-pointer overflow-hidden transition-colors hover:opacity-80" style={{ backgroundColor: 'var(--bg-app)', border: '1px dashed var(--border-color)' }}>
+                        {backgroundPreview ? (
+                          <img src={backgroundPreview} alt="Fondo" className="object-cover w-full h-full" />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            <span className="font-medium">Subir imagen</span>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setFormBackground(file);
+                              setBackgroundPreview(URL.createObjectURL(file));
+                            } else {
+                              setFormBackground(null);
+                              setBackgroundPreview(null);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Right Column Container: tiene position relative y se ajusta a la altura exacta de la izquierda */}
