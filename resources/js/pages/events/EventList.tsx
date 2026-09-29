@@ -145,6 +145,8 @@ export default function EventList() {
   const [colorImagePreview, setColorImagePreview] = useState<string | null>(null);
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isExtractingColors, setIsExtractingColors] = useState(false);
+  const [colorToDelete, setColorToDelete] = useState<{ hex: string; index: number } | null>(null);
+  const colorsContainerRef = useRef<HTMLDivElement | null>(null);
 
   const extractKeyColorsFromImage = (imageSrc: string, maxColors = 6): Promise<string[]> => {
     return new Promise((resolve) => {
@@ -185,14 +187,24 @@ export default function EventList() {
           }
 
           const sorted = Object.values(colorBuckets).sort((a, b) => b.count - a.count);
+          const selectedBuckets: { r: number; g: number; b: number }[] = [];
           const hexColors: string[] = [];
-          for (const bucket of sorted) {
-            const hex = `#${((1 << 24) + (bucket.r << 16) + (bucket.g << 8) + bucket.b)
-              .toString(16)
-              .slice(1)
-              .toUpperCase()}`;
 
-            if (!hexColors.includes(hex)) {
+          const getDistance = (c1: { r: number; g: number; b: number }, c2: { r: number; g: number; b: number }) => {
+            return Math.sqrt(
+              Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2)
+            );
+          };
+
+          for (const bucket of sorted) {
+            // Evitar colores extremadamente oscuros/negros o muy blancos puros si ya hay variaciones
+            const isTooSimilar = selectedBuckets.some((sb) => getDistance(sb, bucket) < 55);
+            if (!isTooSimilar) {
+              selectedBuckets.push(bucket);
+              const hex = `#${((1 << 24) + (bucket.r << 16) + (bucket.g << 8) + bucket.b)
+                .toString(16)
+                .slice(1)
+                .toUpperCase()}`;
               hexColors.push(hex);
             }
             if (hexColors.length >= maxColors) break;
@@ -950,9 +962,9 @@ export default function EventList() {
 
             <div className="p-5 flex-1 min-h-0 flex flex-col sm:flex-row gap-6 items-stretch overflow-hidden">
               {/* Left Column */}
-              <div id="modal-left-column" className="sm:w-2/7 shrink-0 space-y-2 pr-1 relative z-20 overflow-y-auto max-h-full">
+              <div id="modal-left-column" className="sm:w-2/7 shrink-0 flex flex-col justify-between pr-1 relative z-20 overflow-y-auto max-h-full">
                 {/* Sección Información */}
-                <div className="rounded-xl p-2.5 border space-y-2" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
+                <div className="rounded-xl p-2.5 border space-y-2 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
                   <h4 className="text-xs font-semibold pb-1 border-b tracking-wide uppercase" style={{ color: 'var(--text-main)', borderColor: 'var(--border-color)' }}>
                     INFORMACIÓN DEL EVENTO
                   </h4>
@@ -1181,9 +1193,9 @@ export default function EventList() {
                   </div>
 
                   {mediaTab === 'colors' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Columna Izquierda: Subir imagen de referencia */}
-                      <div className="flex flex-col gap-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
+                      {/* Columna Izquierda (~57% ancho): Subir imagen de referencia */}
+                      <div className="sm:col-span-4 flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-semibold" style={{ color: 'var(--text-main)' }}>
                             Imagen de Referencia
@@ -1202,7 +1214,7 @@ export default function EventList() {
                           )}
                         </div>
                         <label
-                          className="relative flex flex-col items-center justify-center w-full h-24 rounded-lg cursor-pointer overflow-hidden transition-all border-dashed border hover:opacity-90 group"
+                          className="relative flex flex-col items-center justify-center w-full h-32 rounded-lg cursor-pointer overflow-hidden transition-all border-dashed border hover:opacity-90 group"
                           style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                         >
                           {colorImagePreview ? (
@@ -1237,23 +1249,30 @@ export default function EventList() {
                         </label>
                       </div>
 
-                      {/* Columna Derecha: Lista de Colores Detectados con ColorPickers */}
-                      <div className="flex flex-col gap-2 justify-between">
+                      {/* Columna Derecha (~43% ancho - Más estrecha): Lista de Colores sin icono ni scroll */}
+                      <div className="sm:col-span-3 flex flex-col gap-1.5 justify-between">
                         <div>
                           <label className="mb-1 text-[11px] font-semibold flex items-center justify-between" style={{ color: 'var(--text-main)' }}>
-                            <span className="flex items-center gap-1">
-                              <Sparkles size={12} className="text-amber-500 shrink-0" />
-                              Colores Detectados
-                            </span>
+                            <span>Colores</span>
                             {detectedColors.length > 0 && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setDetectedColors([...detectedColors, '#E07A5F']);
+                                  const presetColors = ['#E07A5F', '#3D405B', '#81B29A', '#F2CC8F', '#6B705C', '#A5A58D', '#B7B7A4', '#DDBEA9'];
+                                  const available = presetColors.find((c) => !detectedColors.some((dc) => dc.toUpperCase() === c.toUpperCase())) || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase()}`;
+                                  
+                                  if (!detectedColors.some((c) => c.toUpperCase() === available.toUpperCase())) {
+                                    setDetectedColors([available, ...detectedColors]);
+                                  }
+                                  setFormPrimaryColor(available);
+                                  setTimeout(() => {
+                                    colorsContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }, 50);
                                 }}
-                                className="text-[10px] text-primary hover:underline font-medium"
+                                className="p-0.5 text-primary hover:bg-primary/10 rounded transition-colors"
+                                title="Agregar color"
                               >
-                                + Agregar color
+                                <Plus size={14} />
                               </button>
                             )}
                           </label>
@@ -1264,13 +1283,13 @@ export default function EventList() {
                               <span>Analizando paleta...</span>
                             </div>
                           ) : (
-                            <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto py-1 pr-0.5">
+                            <div ref={colorsContainerRef} className="flex flex-wrap gap-1 py-0.5 max-h-32 overflow-y-auto overflow-x-hidden pr-0.5">
                               {(detectedColors.length > 0 ? detectedColors : [formPrimaryColor]).map((hex, idx) => {
                                 const isSelected = formPrimaryColor.toUpperCase() === hex.toUpperCase();
                                 return (
                                   <div
                                     key={idx}
-                                    className={`group relative flex items-center gap-1.5 px-2 py-1 rounded-full transition-all ${
+                                    className={`group relative flex items-center gap-1 px-1.5 py-0.5 rounded-lg transition-all shrink-0 ${
                                       isSelected
                                         ? 'bg-primary/10 font-bold'
                                         : 'hover:bg-black/5 dark:hover:bg-white/5'
@@ -1281,7 +1300,7 @@ export default function EventList() {
                                     }}
                                   >
                                     <div
-                                      className={`relative w-5 h-5 rounded-full shadow-sm shrink-0 border border-black/15 flex items-center justify-center transition-transform group-hover:scale-110 ${
+                                      className={`relative w-3.5 h-3.5 rounded-full shadow-sm shrink-0 border border-black/15 flex items-center justify-center transition-transform group-hover:scale-110 ${
                                         isSelected ? 'ring-2 ring-primary ring-offset-1' : ''
                                       }`}
                                       style={{ backgroundColor: hex }}
@@ -1301,7 +1320,7 @@ export default function EventList() {
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer rounded-full"
                                         title="Abrir selector de color"
                                       />
-                                      {isSelected && <Check size={11} className="text-white drop-shadow pointer-events-none" />}
+                                      {isSelected && <Check size={8} className="text-white drop-shadow pointer-events-none" />}
                                     </div>
                                     <input
                                       type="text"
@@ -1316,9 +1335,22 @@ export default function EventList() {
                                         setFormPrimaryColor(newHex);
                                       }}
                                       onClick={() => setFormPrimaryColor(hex)}
-                                      className="w-14 bg-transparent outline-none font-mono text-[11px] font-medium tracking-tight cursor-pointer"
+                                      className="w-11 bg-transparent outline-none font-mono text-[10px] font-medium tracking-tighter cursor-pointer pl-0.5"
                                       placeholder="#HEX"
                                     />
+                                    {detectedColors.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setColorToDelete({ hex, index: idx });
+                                        }}
+                                        className="p-0.5 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors ml-0.5"
+                                        title="Borrar color"
+                                      >
+                                        <Trash2 size={10} />
+                                      </button>
+                                    )}
                                   </div>
                                 );
                               })}
@@ -1882,6 +1914,52 @@ export default function EventList() {
                 style={{ backgroundColor: 'var(--danger)' }}
               >
                 {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {colorToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-xs rounded-xl p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full shrink-0" style={{ backgroundColor: 'rgba(230,57,70,0.15)', color: 'var(--danger)' }}>
+                <Trash2 size={18} />
+              </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-4 h-4 rounded-full border border-black/20 shrink-0" style={{ backgroundColor: colorToDelete.hex }} />
+                <h3 className="font-semibold text-xs truncate" style={{ color: 'var(--text-main)' }}>
+                  ¿Eliminar color {colorToDelete.hex}?
+                </h3>
+              </div>
+            </div>
+            <p className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>
+              ¿Estás seguro de quitar este color de la paleta detectada?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setColorToDelete(null)}
+                className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                style={{ border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = detectedColors.filter((_, idx) => idx !== colorToDelete.index);
+                  setDetectedColors(updated);
+                  if (formPrimaryColor.toUpperCase() === colorToDelete.hex.toUpperCase() && updated.length > 0) {
+                    setFormPrimaryColor(updated[0]);
+                  }
+                  setColorToDelete(null);
+                }}
+                className="rounded-md px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: 'var(--danger)' }}
+              >
+                Borrar
               </button>
             </div>
           </div>
