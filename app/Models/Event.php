@@ -17,6 +17,8 @@ class Event extends Model
         'itinerary',
         'description',
         'services',
+        'colors',
+        'color_image',
         'logo',
         'background',
         'status',
@@ -28,10 +30,22 @@ class Event extends Model
         'guest_count' => 'integer',
         'confirmed_count' => 'integer',
         'services' => 'array',
+        'colors' => 'array',
         'itinerary' => 'array',
         'latitude' => 'float',
         'longitude' => 'float',
     ];
+
+    protected function getColorImageUrlAttribute(): ?string
+    {
+        if (!$this->color_image) {
+            return null;
+        }
+        if (filter_var($this->color_image, FILTER_VALIDATE_URL) || str_starts_with($this->color_image, '/storage/')) {
+            return $this->color_image;
+        }
+        return '/storage/' . $this->color_image;
+    }
 
     protected function getLogoUrlAttribute(): ?string
     {
@@ -55,7 +69,7 @@ class Event extends Model
         return '/storage/' . $this->background;
     }
 
-    protected $appends = ['logo_url', 'background_url'];
+    protected $appends = ['logo_url', 'background_url', 'color_image_url'];
 
     public function partner()
     {

@@ -142,6 +142,7 @@ export default function EventList() {
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
   const [mediaTab, setMediaTab] = useState<'colors' | 'logo' | 'background'>('colors');
   const [formPrimaryColor, setFormPrimaryColor] = useState('#E07A5F');
+  const [formColorImage, setFormColorImage] = useState<File | null>(null);
   const [colorImagePreview, setColorImagePreview] = useState<string | null>(null);
   const [detectedColors, setDetectedColors] = useState<string[]>([]);
   const [isExtractingColors, setIsExtractingColors] = useState(false);
@@ -419,6 +420,7 @@ export default function EventList() {
     setOpenAccordions({});
     setFormLogo(null);
     setFormBackground(null);
+    setFormColorImage(null);
     setLogoPreview(null);
     setBackgroundPreview(null);
     setMediaTab('colors');
@@ -451,8 +453,14 @@ export default function EventList() {
     setOpenAccordions(initialAcc);
     setFormLogo(null);
     setFormBackground(null);
+    setFormColorImage(null);
     setLogoPreview(ev.logo ? `/storage/${ev.logo}` : null);
     setBackgroundPreview(ev.background ? `/storage/${ev.background}` : null);
+    setMediaTab('colors');
+    setFormPrimaryColor('#E07A5F');
+    setColorImagePreview(ev.color_image_url || (ev.color_image ? `/storage/${ev.color_image}` : null));
+    setDetectedColors(Array.isArray(ev.colors) ? ev.colors : []);
+    setIsExtractingColors(false);
     setFormStatus(ev.status || 'active');
     
     if (ev.location) {
@@ -511,7 +519,9 @@ export default function EventList() {
       payload.append('description', formDescription.trim());
       payload.append('services', JSON.stringify(formServices));
       payload.append('itinerary', JSON.stringify(formItinerary));
+      payload.append('colors', JSON.stringify(detectedColors));
       payload.append('status', formStatus);
+      if (formColorImage) payload.append('color_image', formColorImage);
       if (formLogo) payload.append('logo', formLogo);
       if (formBackground) payload.append('background', formBackground);
 
@@ -962,7 +972,7 @@ export default function EventList() {
 
             <div className="p-5 flex-1 min-h-0 flex flex-col sm:flex-row gap-6 items-stretch overflow-hidden">
               {/* Left Column */}
-              <div id="modal-left-column" className="sm:w-2/7 shrink-0 flex flex-col justify-between pr-1 relative z-20 overflow-y-auto max-h-full">
+              <div id="modal-left-column" className="sm:w-2/7 shrink-0 flex flex-col gap-3 h-full justify-between">
                 {/* Sección Información */}
                 <div className="rounded-xl p-2.5 border space-y-2 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
                   <h4 className="text-xs font-semibold pb-1 border-b tracking-wide uppercase" style={{ color: 'var(--text-main)', borderColor: 'var(--border-color)' }}>
@@ -1152,7 +1162,7 @@ export default function EventList() {
                 </div>
 
                 {/* Tabs de Personalización: Colores, Logo del Evento y Fondo del Evento */}
-                <div className="rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
+                <div className="rounded-xl p-2.5 border flex-1 flex flex-col justify-between overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderColor: 'var(--border-color)' }}>
                   <div className="flex items-center gap-1 border-b pb-1.5 mb-2 overflow-x-auto" style={{ borderColor: 'var(--border-color)' }}>
                     <button
                       type="button"
@@ -1193,10 +1203,10 @@ export default function EventList() {
                   </div>
 
                   {mediaTab === 'colors' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-7 gap-3 min-h-0">
                       {/* Columna Izquierda (~57% ancho): Subir imagen de referencia */}
-                      <div className="sm:col-span-4 flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
+                      <div className="sm:col-span-4 flex flex-col gap-1.5 flex-1 min-h-0">
+                        <div className="flex items-center justify-between shrink-0">
                           <label className="text-[11px] font-semibold" style={{ color: 'var(--text-main)' }}>
                             Imagen de Referencia
                           </label>
@@ -1214,11 +1224,11 @@ export default function EventList() {
                           )}
                         </div>
                         <label
-                          className="relative flex flex-col items-center justify-center w-full h-32 rounded-lg cursor-pointer overflow-hidden transition-all border-dashed border hover:opacity-90 group"
+                          className="relative flex flex-col items-center justify-center w-full flex-1 min-h-[90px] rounded-lg cursor-pointer overflow-hidden transition-all border-dashed border hover:opacity-90 group"
                           style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                         >
                           {colorImagePreview ? (
-                            <img src={colorImagePreview} alt="Referencia" className="object-cover w-full h-full" />
+                            <img src={colorImagePreview} alt="Referencia" className="object-contain w-full h-full p-1" />
                           ) : (
                             <div className="flex flex-col items-center justify-center gap-1 p-2 text-center" style={{ color: 'var(--text-muted)' }}>
                               <Upload size={16} className="text-primary opacity-70 group-hover:scale-110 transition-transform" />
@@ -1233,6 +1243,7 @@ export default function EventList() {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                setFormColorImage(file);
                                 const url = URL.createObjectURL(file);
                                 setColorImagePreview(url);
                                 setIsExtractingColors(true);
@@ -1250,9 +1261,9 @@ export default function EventList() {
                       </div>
 
                       {/* Columna Derecha (~43% ancho - Más estrecha): Lista de Colores sin icono ni scroll */}
-                      <div className="sm:col-span-3 flex flex-col gap-1.5 justify-between">
-                        <div>
-                          <label className="mb-1 text-[11px] font-semibold flex items-center justify-between" style={{ color: 'var(--text-main)' }}>
+                      <div className="sm:col-span-3 flex flex-col gap-1.5 flex-1 min-h-0">
+                        <div className="flex flex-col flex-1 min-h-0">
+                          <label className="mb-1 text-[11px] font-semibold flex items-center justify-between shrink-0" style={{ color: 'var(--text-main)' }}>
                             <span>Colores</span>
                             {detectedColors.length > 0 && (
                               <button
@@ -1278,12 +1289,12 @@ export default function EventList() {
                           </label>
 
                           {isExtractingColors ? (
-                            <div className="flex items-center gap-1.5 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                            <div className="flex items-center gap-1.5 py-3 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
                               <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                               <span>Analizando paleta...</span>
                             </div>
                           ) : (
-                            <div ref={colorsContainerRef} className="flex flex-wrap gap-1 py-0.5 max-h-32 overflow-y-auto overflow-x-hidden pr-0.5">
+                            <div ref={colorsContainerRef} className="flex flex-wrap content-start gap-1 py-0.5 flex-1 min-h-[90px] overflow-y-auto overflow-x-hidden pr-0.5">
                               {(detectedColors.length > 0 ? detectedColors : [formPrimaryColor]).map((hex, idx) => {
                                 const isSelected = formPrimaryColor.toUpperCase() === hex.toUpperCase();
                                 return (
@@ -1427,7 +1438,7 @@ export default function EventList() {
                 </div>
               </div>
 
-              {/* Right Column Container: tiene position relative y se ajusta a la altura exacta de la izquierda */}
+              {/* Right Column Container */}
               <div className="sm:w-5/7 flex-1 min-w-0 self-stretch relative">
                 <div className="absolute inset-0 flex flex-col gap-3">
                   {/* Sección Servicios */}

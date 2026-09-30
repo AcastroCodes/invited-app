@@ -96,6 +96,7 @@ import {
   UserCheck,
   Utensils,
   Gift,
+  Repeat,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -1192,6 +1193,7 @@ const DB_FIELDS = [
   const [widgetModalType, setWidgetModalType] = useState<'map' | 'rsvp' | 'menu' | 'countdown' | 'gift' | 'custom'>('map');
   const [widgetModalTitle, setWidgetModalTitle] = useState('');
   const [activeLeftTab, setActiveLeftTab] = useState<'layers' | 'text' | 'media' | 'widgets'>('layers');
+  const [widgetSavedId, setWidgetSavedId] = useState<string | null>(null);
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     content: true,
@@ -3161,6 +3163,20 @@ const DB_FIELDS = [
                                 style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleGroupCollapse(el.id);
+                                    }}
+                                    className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10"
+                                  >
+                                    {collapsedGroups[el.id] ? (
+                                      <ChevronRight size={12} className="text-amber-500" />
+                                    ) : (
+                                      <ChevronDown size={12} className="text-amber-500" />
+                                    )}
+                                  </button>
                                   <Box size={13} className="shrink-0 text-amber-500" />
                                   <span className="truncate text-[11px] font-extrabold text-amber-500">
                                     {el.componentName || 'Componente'}
@@ -3234,8 +3250,9 @@ const DB_FIELDS = [
                                 </div>
                               </div>
 
-                              <div className="p-1.5 space-y-1 bg-black/5 dark:bg-white/5">
-                                {childElements.map((childEl: CanvasElement, childIdx: number) => {
+                              {!collapsedGroups[el.id] && (
+                                <div className="p-1.5 space-y-1 bg-black/5 dark:bg-white/5">
+                                  {childElements.map((childEl: CanvasElement, childIdx: number) => {
                                   const isChildSelected = selectedElementId === childEl.id;
                                   return (
                                     <div
@@ -3330,6 +3347,7 @@ const DB_FIELDS = [
                                   );
                                 })}
                               </div>
+                              )}
                             </div>
                           );
                         }
@@ -5241,18 +5259,62 @@ const DB_FIELDS = [
                                 </span>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWidgetModalTitle(selectedElement.componentName || selectedElement.content || 'Mi Widget');
-                                setWidgetModalType(selectedElement.widgetType || 'map');
-                                setIsWidgetModalOpen(true);
-                              }}
-                              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
-                            >
-                              <Puzzle size={14} />
-                              <span>{selectedElement.isWidget ? 'Editar Configuración de Widget' : '⚡ Guardar como Widget'}</span>
-                            </button>
+                            {selectedElement.isWidget ? (
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWidgetModalTitle(selectedElement.componentName || selectedElement.content || 'Mi Widget');
+                                    setWidgetModalType(selectedElement.widgetType || 'map');
+                                    setIsWidgetModalOpen(true);
+                                  }}
+                                  className="flex-1 py-2 px-2 rounded-xl border hover:bg-black/10 dark:hover:bg-white/10 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                  style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  title="Editar Configuración"
+                                >
+                                  <Settings size={14} />
+                                  <span>Ajustes</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWidgetSavedId(selectedElement.id);
+                                    setTimeout(() => setWidgetSavedId(null), 2000);
+                                  }}
+                                  className={`flex-1 py-2 px-2 rounded-xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${
+                                    widgetSavedId === selectedElement.id 
+                                      ? 'bg-green-500' 
+                                      : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500'
+                                  }`}
+                                  title="Confirmar cambios del Widget localmente"
+                                >
+                                  {widgetSavedId === selectedElement.id ? (
+                                    <>
+                                      <CheckCircle2 size={14} />
+                                      <span>¡Guardado!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Save size={14} />
+                                      <span>Guardar</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWidgetModalTitle(selectedElement.componentName || selectedElement.content || 'Mi Widget');
+                                  setWidgetModalType(selectedElement.widgetType || 'map');
+                                  setIsWidgetModalOpen(true);
+                                }}
+                                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+                              >
+                                <Puzzle size={14} />
+                                <span>⚡ Guardar como Widget</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -7449,6 +7511,8 @@ const DB_FIELDS = [
                           <StylePickerPopover
                             label="Texto"
                             elementType="text"
+                            eventColors={event?.colors || []}
+                            eventColorImage={event?.color_image_url || (event?.color_image ? `/storage/${event.color_image}` : null)}
                             styleConfig={{
                               color: selectedElement.color,
                               borderColor: selectedElement.textBorderColor || '#E07A5F',
@@ -7771,6 +7835,8 @@ const DB_FIELDS = [
                             <StylePickerPopover
                               label=""
                               elementType="container"
+                              eventColors={event?.colors || []}
+                              eventColorImage={event?.color_image_url || (event?.color_image ? `/storage/${event.color_image}` : null)}
                               styleConfig={{
                                 backgroundColor: selectedElement.backgroundColor,
                                 borderColor: selectedElement.containerBorderColor || '#E07A5F',
@@ -7857,6 +7923,8 @@ const DB_FIELDS = [
                                   }}
                                   allowGradient={false}
                                   allowTransparent={true}
+                                  eventColors={event?.colors || []}
+                                  eventColorImage={event?.color_image_url || (event?.color_image ? `/storage/${event.color_image}` : null)}
                                 />
                               </div>
                             </div>
@@ -7936,22 +8004,40 @@ const DB_FIELDS = [
 
                 <div className={`space-y-4 transition-opacity ${!isSuperAdmin && selectedElement.lockedSections?.animation ? 'opacity-60 pointer-events-none select-none' : ''}`}>
                   
-                  {/* Botón de Reproducir / Probar Animación */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      updateSelectedElement('previewKey', Date.now());
-                    }}
-                    className="w-full py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] border cursor-pointer"
-                    style={{
-                      backgroundColor: 'var(--primary-accent)',
-                      borderColor: 'var(--primary-accent)',
-                      color: '#ffffff',
-                    }}
-                  >
-                    <Play size={14} className="fill-white" />
-                    <span>Probar Animaciones</span>
-                  </button>
+                  {/* Botón de Reproducir y Switch Loop */}
+                  <div className="flex gap-2 w-full h-[38px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateSelectedElement('previewKey', Date.now());
+                      }}
+                      className="flex-1 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] border cursor-pointer"
+                      style={{
+                        backgroundColor: 'var(--primary-accent)',
+                        borderColor: 'var(--primary-accent)',
+                        color: '#ffffff',
+                      }}
+                    >
+                      <Play size={14} className="fill-white" />
+                      <span>Probar Animación</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateSelectedElement('animLoop', !selectedElement.animLoop);
+                      }}
+                      className="flex flex-col items-center justify-center px-4 rounded-xl border transition-all cursor-pointer shadow-sm active:scale-95 group"
+                      style={{
+                        backgroundColor: selectedElement.animLoop ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                        borderColor: selectedElement.animLoop ? 'var(--primary-accent)' : 'var(--border-color)',
+                        color: selectedElement.animLoop ? 'var(--primary-accent)' : 'var(--text-muted)',
+                      }}
+                      title={selectedElement.animLoop ? 'Bucle infinito activado' : 'Reproducir 1 sola vez (Clic para activar bucle)'}
+                    >
+                      <Repeat size={14} className={`mb-0.5 group-hover:scale-110 transition-transform ${selectedElement.animLoop ? 'text-[var(--primary-accent)]' : ''}`} />
+                      <span className="text-[9px] font-extrabold uppercase">Loop</span>
+                    </button>
+                  </div>
 
                   {/* ACCORDION DE ANIMACIONES */}
                   <div className="space-y-2">
@@ -8932,22 +9018,29 @@ const DB_FIELDS = [
 
       {/* MODAL CONFIGURAR Y GUARDAR COMO WIDGET */}
       {isWidgetModalOpen && selectedElement && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border bg-gray-950 text-white shadow-2xl p-6 space-y-5 border-white/15">
-            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div 
+            className="w-full max-w-md rounded-2xl border shadow-2xl p-6 space-y-5"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+          >
+            <div className="flex items-start justify-between border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
+                <div 
+                  className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0" 
+                  style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}
+                >
                   <Puzzle size={22} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base leading-tight text-white">Guardar como Widget</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Convierte este componente con sus elementos en un widget interactivo</p>
+                  <h3 className="font-extrabold text-base leading-tight" style={{ color: 'var(--text-main)' }}>Guardar como Widget</h3>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Convierte este componente en un widget interactivo</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsWidgetModalOpen(false)}
-                className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors"
+                className="p-1 rounded-lg transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                style={{ color: 'var(--text-muted)' }}
               >
                 <X size={18} />
               </button>
@@ -8955,26 +9048,33 @@ const DB_FIELDS = [
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1.5">Nombre del Widget</label>
+                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-main)' }}>Nombre del Widget</label>
                 <input
                   type="text"
                   value={widgetModalTitle}
                   onChange={(e) => setWidgetModalTitle(e.target.value)}
                   placeholder="Ej: Mapa de recepción, RSVP elegante..."
-                  className="w-full rounded-xl px-3 py-2 bg-gray-900 border border-white/15 text-white text-xs outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  className="w-full rounded-xl px-3 py-2 border text-xs outline-none focus:ring-1"
+                  style={{ 
+                    backgroundColor: 'var(--bg-app)', 
+                    borderColor: 'var(--border-color)', 
+                    color: 'var(--text-main)'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--primary-accent)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-2">Selecciona el Tipo de Widget</label>
+                <label className="block text-xs font-bold mb-2" style={{ color: 'var(--text-main)' }}>Selecciona el Tipo de Widget</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: 'map', label: 'Ubicación / Mapa', icon: MapPin, color: 'text-blue-400' },
-                    { id: 'rsvp', label: 'Confirmación RSVP', icon: UserCheck, color: 'text-emerald-400' },
-                    { id: 'menu', label: 'Selección de Menú', icon: Utensils, color: 'text-amber-400' },
-                    { id: 'countdown', label: 'Cuenta Regresiva', icon: Clock, color: 'text-cyan-400' },
-                    { id: 'gift', label: 'Mesa de Regalos', icon: Gift, color: 'text-rose-400' },
-                    { id: 'custom', label: 'Widget Personalizado', icon: Sparkles, color: 'text-purple-400' },
+                    { id: 'map', label: 'Ubicación / Mapa', icon: MapPin },
+                    { id: 'rsvp', label: 'Confirmación RSVP', icon: UserCheck },
+                    { id: 'menu', label: 'Selección de Menú', icon: Utensils },
+                    { id: 'countdown', label: 'Cuenta Regresiva', icon: Clock },
+                    { id: 'gift', label: 'Mesa de Regalos', icon: Gift },
+                    { id: 'custom', label: 'Widget Personalizado', icon: Sparkles },
                   ].map((item) => {
                     const Icon = item.icon;
                     const isSel = widgetModalType === item.id;
@@ -8983,26 +9083,30 @@ const DB_FIELDS = [
                         key={item.id}
                         type="button"
                         onClick={() => setWidgetModalType(item.id as any)}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
-                          isSel
-                            ? 'bg-cyan-500/20 border-cyan-400 text-white font-bold ring-1 ring-cyan-400'
-                            : 'bg-gray-900 border-white/10 text-gray-300 hover:bg-gray-800'
-                        }`}
+                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${isSel ? 'ring-1' : 'hover:opacity-80'}`}
+                        style={{
+                          backgroundColor: isSel ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                          borderColor: isSel ? 'var(--primary-accent)' : 'var(--border-color)',
+                          color: isSel ? 'var(--primary-accent)' : 'var(--text-main)',
+                        }}
                       >
-                        <Icon size={16} className={item.color} />
-                        <span className="text-xs truncate">{item.label}</span>
+                        <Icon size={16} />
+                        <span className="text-xs truncate font-medium">{item.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/20 text-cyan-200 text-[11px] leading-relaxed">
+              <div 
+                className="p-3 rounded-xl border text-[11px] leading-relaxed"
+                style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}
+              >
                 💡 <strong>¿Cómo funciona?</strong> Todos los sub-elementos (textos, imágenes, formas) diseñados dentro de este componente mantendrán su diseño visual completo y actuarán de forma agrupada como un widget interactivo.
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
               {selectedElement.isWidget && (
                 <button
                   type="button"
@@ -9010,7 +9114,8 @@ const DB_FIELDS = [
                     updateSelectedElementBatch({ isWidget: false, widgetType: undefined });
                     setIsWidgetModalOpen(false);
                   }}
-                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 mr-auto transition-colors"
+                  className="px-3 py-2 rounded-xl text-xs font-bold mr-auto transition-colors hover:opacity-80"
+                  style={{ color: 'var(--danger)', backgroundColor: 'transparent' }}
                 >
                   Quitar Marcado de Widget
                 </button>
@@ -9018,7 +9123,8 @@ const DB_FIELDS = [
               <button
                 type="button"
                 onClick={() => setIsWidgetModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-colors hover:opacity-80 border"
+                style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
               >
                 Cancelar
               </button>
@@ -9033,7 +9139,8 @@ const DB_FIELDS = [
                   });
                   setIsWidgetModalOpen(false);
                 }}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg flex items-center gap-1.5 transition-all active:scale-95"
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg flex items-center gap-1.5 transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--primary-accent)' }}
               >
                 <CheckCircle2 size={14} />
                 <span>Guardar Widget</span>

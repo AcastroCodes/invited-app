@@ -88,6 +88,7 @@ export interface CanvasElement {
   animDuration?: number;
   animOutDuration?: number;
   animDelay?: number;
+  animLoop?: boolean;
   animEasing?: 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'cubic-bezier';
   locked?: boolean;
   isEditableInWidget?: boolean;

@@ -85,6 +85,41 @@ Este archivo mantiene el contexto del proyecto para retomar de inmediato en las 
 
 ---
 
+## Mapa de Widgets y Variables de Base de Datos
+A continuación se documentan los tipos de widgets soportados por el Diseñador de Invitaciones y cómo sus variables dinámicas conectan con los Modelos de Laravel:
+
+### 1. Widget de Cuenta Regresiva (Countdown)
+Conecta con el modelo `Event` (`events -> event_date`):
+- `[dias_restantes]`, `[horas_restantes]`, `[minutos_restantes]`, `[segundos_restantes]`: Calculados dinámicamente comparando `event_date` con el momento actual.
+- `[fecha_evento]`: Extrae la porción de fecha de `event_date`.
+- `[hora_evento]`: Extrae la porción de tiempo de `event_date`.
+
+### 2. Widget RSVP (Confirmación de Asistencia)
+Conecta con los modelos `Guest` y `GuestGroup`:
+- `[nombre_invitado]`: Desde `guests -> name` o `guest_groups -> formal_addressee`.
+- `[pases_asignados]`: Desde `guest_groups -> max_guests` o `guests -> companion_count`.
+- `[confirmacion_status]`: Desde `guests -> is_confirmed` (Booleano) o `guests -> status`.
+- `[adultos_confirmados]` y `[ninos_confirmados]`: Se calcula sumando `is_confirmed = true` y filtrando por `category` en la tabla `guests`.
+
+### 3. Widget de Mapa / Ubicación
+Conecta con el modelo `Event`:
+- `[lugar_evento]` y `[direccion_evento]`: Extraído de `events -> location`.
+- `[mapa_url]`: Generado con las columnas `events -> latitude` y `events -> longitude`.
+
+### 4. Widget de Mesa de Regalos (Gift)
+Conecta con el campo JSON del modelo `Event`:
+- `[banco_nombre]`, `[clabe_interbancaria]`, `[titular_cuenta]`, `[tienda_regalos_url]`: Extraídos desde el arreglo/JSON `services` en `events`.
+
+### 5. Datos Generales (Eventos, Mesas y Accesos)
+- `[nombre_evento]`: Desde `events -> name`.
+- `[mesa]`: Desde el modelo `Table` (`tables -> name`), vinculado a través de `guests -> table_id`.
+- `[anfitriones]`: Asociado a la relación con el `Partner` o configuraciones extra.
+- `[codigo_qr]`: Renderizado al vuelo mediante el ID o Token único de acceso del invitado.
+
+*Nota:* El "Itinerario" existe nativamente en el modelo `Event` (`events -> itinerary` tipo JSON), pero requiere desarrollo de su Widget visual correspondiente (Timeline) para el Diseñador.
+
+---
+
 ## Estado de Git y GitHub
 - **Rama activa:** `main`
 - **Último Commit:** `feat: integrar elementos 3D con animaciones nativas, rotaciones X/Y/Z, parallax giroscopio y controles interactivos`

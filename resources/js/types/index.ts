@@ -68,6 +68,9 @@ export interface Event {
   description?: string;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
   theme_color?: string;
+  colors?: string[] | null;
+  color_image?: string | null;
+  color_image_url?: string | null;
   cover_image?: string;
   guest_count?: number;
   confirmed_count?: number;

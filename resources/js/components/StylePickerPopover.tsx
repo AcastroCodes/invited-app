@@ -90,6 +90,8 @@ interface StylePickerPopoverProps {
   onChange: (updated: Partial<ElementStyleConfig>) => void;
   label?: string;
   elementType?: 'text' | 'container' | 'button' | 'shape' | 'generic';
+  eventColors?: string[];
+  eventColorImage?: string | null;
 }
 
 const STORAGE_KEY = 'invited_saved_element_styles';
@@ -99,6 +101,8 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
   onChange,
   label = 'Estilo & Apariencia',
   elementType = 'generic',
+  eventColors = [],
+  eventColorImage,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'fondo' | 'borde' | 'sombra'>('fondo');
@@ -476,6 +480,8 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     <ColorPickerPopover
                       value={color}
                       onChange={(newVal) => onChange({ color: newVal })}
+                      eventColors={eventColors}
+                      eventColorImage={eventColorImage}
                     />
                   </div>
                 ) : (
@@ -486,6 +492,8 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                         value={backgroundColor}
                         onChange={(newVal) => onChange({ backgroundColor: newVal })}
                         allowTransparent={true}
+                        eventColors={eventColors}
+                        eventColorImage={eventColorImage}
                       />
                     </div>
 
@@ -520,6 +528,8 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     <ColorPickerPopover
                       value={borderColor}
                       onChange={(newVal) => onChange({ borderColor: newVal })}
+                      eventColors={eventColors}
+                      eventColorImage={eventColorImage}
                     />
                   </div>
                   <div>
@@ -578,6 +588,8 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                       value={shadowColor}
                       allowGradient={false}
                       onChange={(newVal) => onChange({ shadowColor: newVal })}
+                      eventColors={eventColors}
+                      eventColorImage={eventColorImage}
                     />
                   </div>
                   <div>

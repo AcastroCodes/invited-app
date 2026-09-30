@@ -16,6 +16,8 @@ interface ColorPickerPopoverProps {
   label?: string;
   allowTransparent?: boolean;
   allowGradient?: boolean;
+  eventColors?: string[];
+  eventColorImage?: string | null;
 }
 
 const COLOR_STORAGE_KEY = 'invited_saved_colors';
@@ -26,6 +28,8 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
   label,
   allowTransparent = false,
   allowGradient = true,
+  eventColors = [],
+  eventColorImage,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -58,11 +62,23 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
   const isGradientValue = allowGradient && safeValue.includes('gradient');
   const [mode, setMode] = useState<'solid' | 'gradient'>(isGradientValue ? 'gradient' : 'solid');
 
-  // Helper to extract first solid color from a gradient string if needed
+  // Helper to extract first solid color or resolve CSS variables to HEX
   const getSolidFallback = (val: string) => {
-    if (!val.includes('gradient')) return val;
-    const match = val.match(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\))/);
-    return match ? match[1] : '#212121';
+    if (!val) return '#212121';
+    let target = val;
+    if (target.includes('gradient')) {
+      const match = target.match(/(#[a-fA-F0-9]{3,8}|rgba?\([^)]+\))/);
+      target = match ? match[1] : '#212121';
+    }
+    if (target.startsWith('var(')) {
+      if (typeof window !== 'undefined') {
+        const varName = target.replace(/var\((--[^,\s)]+).*/, '$1');
+        const computed = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        if (computed) return computed.toUpperCase();
+      }
+      return '#212121';
+    }
+    return target;
   };
 
   // Solid State
@@ -445,9 +461,39 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                     )}
                   </div>
 
+                  {/* Colores del Evento */}
+                  {eventColors && eventColors.length > 0 && (
+                    <div className="p-1.5 rounded-lg border space-y-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-extrabold uppercase opacity-70 tracking-wider">
+                          COLORES DEL EVENTO
+                        </span>
+                        <span className="text-[8px] opacity-50 font-bold">({eventColors.length})</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-wrap max-h-14 overflow-y-auto pr-0.5">
+                        {eventColors.map((col, idx) => (
+                          <button
+                            key={`ev-col-${idx}`}
+                            type="button"
+                            onClick={() => handleSolidChange(col)}
+                            className="h-5 w-5 rounded-md border shadow-2xs transition-transform hover:scale-115 cursor-pointer relative overflow-hidden flex items-center justify-center shrink-0"
+                            style={{
+                              backgroundColor: col,
+                              borderColor: 'var(--border-color)',
+                            }}
+                            title={`Color del Evento: ${col}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Paleta rápida */}
                   <div>
-                    <label className="block text-[9px] font-bold mb-1 opacity-60">Paleta Rápida</label>
+                    <label className="block text-[9px] font-extrabold uppercase opacity-70 tracking-wider mb-1">
+                      PALETA RÁPIDA
+                    </label>
                     <div className="flex items-center gap-1 flex-wrap">
                       {officialPalette.map((col) => (
                         <button
@@ -615,7 +661,9 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
 
                   {/* Paleta Rápida para seleccionar color base de degradado */}
                   <div>
-                    <label className="block text-[9px] font-bold mb-0.5 opacity-60">Paleta Rápida</label>
+                    <label className="block text-[9px] font-extrabold uppercase opacity-70 tracking-wider mb-1">
+                      PALETA RÁPIDA
+                    </label>
                     <div className="flex items-center gap-1 flex-wrap">
                       {officialPalette.map((col) => (
                         <button

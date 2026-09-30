@@ -295,7 +295,15 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
               No hay elementos en el lienzo para animar.
             </div>
           ) : (
-            elements.map((el) => {
+            elements.reduce((acc: any[], currentEl) => {
+              acc.push({ ...currentEl, _isChild: false });
+              if (currentEl.isComponentParent && currentEl.children) {
+                currentEl.children.forEach((child: any) => acc.push({ ...child, _isChild: true }));
+              }
+              return acc;
+            }, []).map((rawEl: any) => {
+              const el = rawEl as CanvasElement;
+              const isChild = rawEl._isChild;
               const isSelected = selectedElementId === el.id;
               const hasIn = !!((el.animInType && el.animInType !== 'none') || (el.animIn && el.animIn !== 'none'));
               const hasIdle = !!((el.animIdleType && el.animIdleType !== 'none') || (el.animIdle && el.animIdle !== 'none'));
@@ -374,7 +382,7 @@ export const DesignerTimelineBar: React.FC<DesignerTimelineBarProps> = ({
                   onClick={() => onSelectElement(el.id)}
                   className={`flex items-center gap-2 p-1.5 rounded-lg border transition-all cursor-pointer hover:opacity-90 ${
                     isSelected ? 'ring-2 ring-[var(--primary-accent)]' : ''
-                  }`}
+                  } ${isChild ? 'ml-6 opacity-90 scale-[0.98]' : ''}`}
                   style={{
                     backgroundColor: isSelected ? 'var(--primary-accent-light)' : 'var(--bg-app)',
                     borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',

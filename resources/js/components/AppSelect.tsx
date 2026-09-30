@@ -137,7 +137,7 @@ export default function AppSelect({
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors ${buttonClassName}`}
+        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors ${buttonClassName}`}
         style={{
           backgroundColor: 'var(--bg-card)',
           border: `1px solid ${open ? 'var(--primary-accent)' : 'var(--border-color)'}`,

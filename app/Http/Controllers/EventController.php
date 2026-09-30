@@ -25,6 +25,8 @@ class EventController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|string',
             'services' => 'nullable|json',
+            'colors' => 'nullable',
+            'color_image' => 'nullable|image|max:4096',
             'logo' => 'nullable|image|max:2048',
             'background' => 'nullable|image|max:2048',
         ]);
@@ -40,10 +42,17 @@ class EventController extends Controller
             $validated['itinerary'] = json_decode($validated['itinerary'], true);
         }
 
-        if (isset($validated['services'])) {
+        if (isset($validated['services']) && is_string($validated['services'])) {
             $validated['services'] = json_decode($validated['services'], true);
         }
 
+        if (isset($validated['colors']) && is_string($validated['colors'])) {
+            $validated['colors'] = json_decode($validated['colors'], true);
+        }
+
+        if ($request->hasFile('color_image')) {
+            $validated['color_image'] = $request->file('color_image')->store('events/color_images', 'public');
+        }
         if ($request->hasFile('logo')) {
             $validated['logo'] = $request->file('logo')->store('events/logos', 'public');
         }
@@ -73,6 +82,8 @@ class EventController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|string',
             'services' => 'nullable|json',
+            'colors' => 'nullable',
+            'color_image' => 'nullable|image|max:4096',
             'logo' => 'nullable|image|max:2048',
             'background' => 'nullable|image|max:2048',
         ]);
@@ -90,8 +101,19 @@ class EventController extends Controller
             $validated['itinerary'] = json_decode($validated['itinerary'], true);
         }
 
-        if (isset($validated['services'])) {
+        if (isset($validated['services']) && is_string($validated['services'])) {
             $validated['services'] = json_decode($validated['services'], true);
+        }
+
+        if (isset($validated['colors']) && is_string($validated['colors'])) {
+            $validated['colors'] = json_decode($validated['colors'], true);
+        }
+
+        if ($request->hasFile('color_image')) {
+            if ($event->color_image) {
+                Storage::disk('public')->delete($event->color_image);
+            }
+            $validated['color_image'] = $request->file('color_image')->store('events/color_images', 'public');
         }
 
         if ($request->hasFile('logo')) {
