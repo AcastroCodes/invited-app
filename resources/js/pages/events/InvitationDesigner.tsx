@@ -1194,6 +1194,21 @@ const DB_FIELDS = [
   const [widgetModalTitle, setWidgetModalTitle] = useState('');
   const [activeLeftTab, setActiveLeftTab] = useState<'layers' | 'text' | 'media' | 'widgets'>('layers');
   const [widgetSavedId, setWidgetSavedId] = useState<string | null>(null);
+  const [savedWidgets, setSavedWidgets] = useState<any[]>([]);
+  const [loadingWidgets, setLoadingWidgets] = useState(false);
+  const [isSavingWidgetTemplate, setIsSavingWidgetTemplate] = useState(false);
+
+  useEffect(() => {
+    const typeToFetch = isWidgetModalOpen ? widgetModalType : (selectedElement?.type === 'complement' ? selectedElement.widgetType : null);
+
+    if (typeToFetch) {
+      setLoadingWidgets(true);
+      api.get(`/widgets?type=${typeToFetch}`)
+        .then(res => setSavedWidgets(res.data || []))
+        .catch(err => console.error("Error fetching widgets:", err))
+        .finally(() => setLoadingWidgets(false));
+    }
+  }, [isWidgetModalOpen, widgetModalType, selectedElement?.type, selectedElement?.widgetType]);
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     content: true,
@@ -4885,6 +4900,62 @@ const DB_FIELDS = [
                                 );
                               })}
                             </div>
+                          </div>
+
+                          {/* LISTA DE PLANTILLAS GUARDADAS EN EL INSPECTOR */}
+                          <div>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                              Plantillas Guardadas
+                            </label>
+                            {loadingWidgets ? (
+                              <div className="text-center text-[10px] py-3 opacity-60">Cargando plantillas...</div>
+                            ) : savedWidgets.length === 0 ? (
+                              <div className="text-center text-[9px] py-3 rounded-xl border border-dashed opacity-70" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                                No tienes plantillas de este tipo.
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar snap-x snap-mandatory">
+                                {savedWidgets.map(widget => (
+                                  <div
+                                    key={widget.id}
+                                    className="min-w-[100px] w-[100px] shrink-0 snap-start rounded-xl border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform overflow-hidden relative group"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                    onClick={() => {
+                                      const content = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
+                                      const adjustIds = (el: any): any => ({
+                                        ...el,
+                                        id: `el-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                                        children: el.children ? el.children.map(adjustIds) : []
+                                      });
+                                      
+                                      const newWidget = adjustIds(content);
+                                      newWidget.id = selectedElement.id; // Keep current ID
+                                      newWidget.x = selectedElement.x;
+                                      newWidget.y = selectedElement.y;
+                                      newWidget.componentName = widget.name;
+                                      newWidget.widgetType = selectedElement.widgetType;
+                                      newWidget.isWidget = true;
+
+                                      updateSelectedElementBatch(newWidget);
+                                    }}
+                                  >
+                                    <div className="h-16 bg-black/5 dark:bg-white/5 relative flex items-center justify-center p-1">
+                                      {widget.preview_image ? (
+                                        <img src={widget.preview_image} alt={widget.name} className="max-h-full max-w-full object-contain drop-shadow-sm" />
+                                      ) : (
+                                        <Puzzle className="opacity-20" size={16} />
+                                      )}
+                                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <span className="text-white text-[9px] font-bold text-center px-1">Aplicar</span>
+                                      </div>
+                                    </div>
+                                    <div className="p-1 border-t text-[9px] font-bold truncate text-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}>
+                                      {widget.name}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           {/* Formulario según el Widget Seleccionado */}
@@ -9098,6 +9169,63 @@ const DB_FIELDS = [
                 </div>
               </div>
 
+              {/* LISTA DE PLANTILLAS GUARDADAS */}
+              <div>
+                <label className="block text-xs font-bold mb-2" style={{ color: 'var(--text-main)' }}>Plantillas Guardadas</label>
+                {loadingWidgets ? (
+                  <div className="text-center text-xs py-4 opacity-60">Cargando plantillas...</div>
+                ) : savedWidgets.length === 0 ? (
+                  <div className="text-center text-[10px] py-4 rounded-xl border border-dashed opacity-70" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                    No tienes plantillas guardadas de este tipo aún.
+                  </div>
+                ) : (
+                  <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar snap-x snap-mandatory">
+                    {savedWidgets.map(widget => (
+                      <div
+                        key={widget.id}
+                        className="min-w-[140px] w-[140px] shrink-0 snap-start rounded-xl border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform overflow-hidden relative group"
+                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                        onClick={() => {
+                          const content = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
+                          
+                          const adjustIds = (el: any): any => ({
+                            ...el,
+                            id: `el-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                            children: el.children ? el.children.map(adjustIds) : []
+                          });
+                          
+                          const newWidget = adjustIds(content);
+                          newWidget.id = selectedElement.id; // Keep current parent ID
+                          newWidget.x = selectedElement.x;
+                          newWidget.y = selectedElement.y;
+                          newWidget.componentName = widget.name;
+                          newWidget.widgetType = widgetModalType;
+                          newWidget.isWidget = true;
+
+                          updateSelectedElementBatch(newWidget);
+                          setWidgetModalTitle(widget.name);
+                          setIsWidgetModalOpen(false); // Close modal when template is applied
+                        }}
+                      >
+                        <div className="h-24 bg-black/5 dark:bg-white/5 relative flex items-center justify-center p-2">
+                          {widget.preview_image ? (
+                            <img src={widget.preview_image} alt={widget.name} className="max-h-full max-w-full object-contain drop-shadow-md" />
+                          ) : (
+                            <Puzzle className="opacity-20" size={24} />
+                          )}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white text-[10px] font-bold text-center px-2">Aplicar Plantilla</span>
+                          </div>
+                        </div>
+                        <div className="p-2 border-t text-[10px] font-bold truncate text-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}>
+                          {widget.name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div 
                 className="p-3 rounded-xl border text-[11px] leading-relaxed"
                 style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}
@@ -9130,20 +9258,53 @@ const DB_FIELDS = [
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  updateSelectedElementBatch({
-                    isWidget: true,
-                    widgetType: widgetModalType,
-                    componentName: widgetModalTitle || selectedElement.componentName || 'Widget',
-                    content: widgetModalTitle || selectedElement.content || 'Widget',
-                  });
-                  setIsWidgetModalOpen(false);
+                disabled={isSavingWidgetTemplate}
+                onClick={async () => {
+                  try {
+                    setIsSavingWidgetTemplate(true);
+                    
+                    const batchUpdates: any = {
+                      isWidget: true,
+                      widgetType: widgetModalType,
+                      componentName: widgetModalTitle || selectedElement.componentName || 'Widget',
+                      content: widgetModalTitle || selectedElement.content || 'Widget',
+                    };
+                    
+                    updateSelectedElementBatch(batchUpdates);
+
+                    const finalElement = { ...selectedElement, ...batchUpdates };
+
+                    const domNode = document.getElementById(`element-${selectedElement.id}`);
+                    let base64Image = '';
+                    if (domNode) {
+                      const canvas = await html2canvas(domNode, {
+                        backgroundColor: null,
+                        scale: 0.8,
+                        logging: false,
+                        useCORS: true
+                      });
+                      base64Image = canvas.toDataURL('image/png', 0.8);
+                    }
+
+                    await api.post('/widgets', {
+                      name: finalElement.componentName,
+                      type: widgetModalType,
+                      preview_image: base64Image,
+                      content: finalElement
+                    });
+                    
+                  } catch (error) {
+                    console.error("Error al guardar el widget:", error);
+                  } finally {
+                    setIsSavingWidgetTemplate(false);
+                    setIsWidgetModalOpen(false);
+                  }
                 }}
-                className="px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg flex items-center gap-1.5 transition-all active:scale-95"
+                className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg flex items-center gap-1.5 transition-all ${isSavingWidgetTemplate ? 'opacity-70 cursor-not-allowed' : 'active:scale-95'}`}
                 style={{ backgroundColor: 'var(--primary-accent)' }}
               >
-                <CheckCircle2 size={14} />
-                <span>Guardar Widget</span>
+                <CheckCircle2 size={14} className={isSavingWidgetTemplate ? 'animate-spin' : ''} />
+                <span>{isSavingWidgetTemplate ? 'Guardando...' : 'Guardar Widget'}</span>
               </button>
             </div>
           </div>

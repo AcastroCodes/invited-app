@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('widgets', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->string('type'); // ej: 'widget_countdown', 'widget_map'
+            $table->longText('preview_image')->nullable();
+            $table->json('content'); // El estado del elemento
             $table->timestamps();
         });
     }

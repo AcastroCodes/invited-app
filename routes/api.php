@@ -35,4 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/partners/{partner}/assets', [App\Http\Controllers\AssetController::class, 'store']);
     Route::put('/assets/{asset}', [App\Http\Controllers\AssetController::class, 'update']);
     Route::delete('/assets/{asset}', [App\Http\Controllers\AssetController::class, 'destroy']);
+
+    // Widgets Templates
+    Route::apiResource('widgets', App\Http\Controllers\Api\WidgetController::class)->only(['index', 'store', 'destroy']);
 });
