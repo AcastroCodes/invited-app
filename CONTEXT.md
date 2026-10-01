@@ -124,3 +124,15 @@ Conecta con el campo JSON del modelo `Event`:
 - **Rama activa:** `main`
 - **Ãšltimo Commit:** `feat: integrar elementos 3D con animaciones nativas, rotaciones X/Y/Z, parallax giroscopio y controles interactivos`
 - **Estado de sincronizaciÃ³n:** Repositorio local e `origin/main` en GitHub completamente al dÃ­a.
+
+ # #   P l a n t i l l a s   d e   W i d g e t s   ( W i d g e t   T e m p l a t e s ) 
+ E l   s i s t e m a   c u e n t a   c o n   u n a   f u n c i o n a l i d a d   p a r a   c r e a r ,   g u a r d a r   y   r e u t i l i z a r   c o m p o n e n t e s   c o m o   W i d g e t s   u s a n d o   u n a   b a s e   d e   d a t o s . 
+ 
+ # # #   A r q u i t e c t u r a   d e   P l a n t i l l a s   d e   W i d g e t s 
+ -   * * B a s e   d e   D a t o s : * *   L o s   w i d g e t s   g u a r d a d o s   s e   a l m a c e n a n   e n   l a   t a b l a   w i d g e t s   ( M o d e l o   W i d g e t )   l a   c u a l   c o n t i e n e   
+ a m e ,   	 y p e   ( e j .   ' c o u n t d o w n ' ,   ' r s v p ' ) ,   p r e v i e w _ i m a g e   ( B a s e 6 4 )   y   c o n t e n t   ( J S O N   c o m p l e t o   d e   l a   e s t r u c t u r a   d e l   w i d g e t ) . 
+ -   * * A P I : * *   W i d g e t C o n t r o l l e r   e x p o n e   l a s   r u t a s   / a p i / w i d g e t s   p a r a   g u a r d a r   ( P O S T )   y   o b t e n e r   ( G E T )   l a s   p l a n t i l l a s   s e g ú n   s u   t i p o . 
+ -   * * D i s e ñ a d o r   ( I n v i t a t i o n D e s i g n e r ) : * * 
+     -   * * G u a r d a d o : * *   A l   h a c e r   c l i c   e n   ' G u a r d a r   c o m o   W i d g e t '   e n   e l   i n s p e c t o r   o   e n   l a s   o p c i o n e s   d e l   c o m p o n e n t e ,   s e   u t i l i z a   h t m l 2 c a n v a s   p a r a   t o m a r   u n   p a n t a l l a z o   s i l e n c i o s o   d e l   c o m p o n e n t e   y   s e   e n v í a   j u n t o   a   s u   J S O N   a l   b a c k e n d . 
+     -   * * C o n s u m o : * *   E n   e l   i n s p e c t o r   d e   c o n t e n i d o   ( c u a n d o   e l   t i p o   d e   e l e m e n t o   e s   c o m p l e m e n t ) ,   a l   s e l e c c i o n a r   u n   t i p o   d e   w i d g e t   i n t e r a c t i v o   ( e j .   R S V P ) ,   s e   h a c e   u n   f e t c h   a   l a   A P I .   L a s   p l a n t i l l a s   d i s p o n i b l e s   p a r a   e s e   t i p o   s e   l i s t a n   v i s u a l m e n t e   d e   f o r m a   h o r i z o n t a l   ( c a r r u s e l   d e s p l a z a b l e ) .   A l   h a c e r   c l i c   e n   u n a   p l a n t i l l a ,   s e   a p l i c a   s u   J S O N   y   r e e m p l a z a   l o s   s u b - e l e m e n t o s   a c t u a l e s   s i n   p e r d e r   l a   e s t r u c t u r a .  
+ 
