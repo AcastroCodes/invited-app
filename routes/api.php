@@ -37,5 +37,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/assets/{asset}', [App\Http\Controllers\AssetController::class, 'destroy']);
 
     // Widgets Templates
-    Route::apiResource('widgets', App\Http\Controllers\Api\WidgetController::class)->only(['index', 'store', 'destroy']);
+    Route::apiResource('widgets', App\Http\Controllers\Api\WidgetController::class)->only(['index', 'store', 'update', 'destroy']);
 });

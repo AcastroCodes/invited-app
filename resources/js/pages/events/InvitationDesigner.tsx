@@ -60,6 +60,7 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronRight,
+  Copy,
   Clock,
   Compass,
   Ratio,
@@ -86,7 +87,6 @@ import {
   Unlink,
   Layout,
   Mail,
-  Copy,
   Settings,
   Target,
   Volume2,
@@ -1197,18 +1197,14 @@ const DB_FIELDS = [
   const [savedWidgets, setSavedWidgets] = useState<any[]>([]);
   const [loadingWidgets, setLoadingWidgets] = useState(false);
   const [isSavingWidgetTemplate, setIsSavingWidgetTemplate] = useState(false);
+  const [widgetOverwriteModal, setWidgetOverwriteModal] = useState<{
+    isOpen: boolean;
+    targetEl: CanvasElement;
+    targetType: string;
+    targetTitle: string;
+    existingWidget: any;
+  } | null>(null);
 
-  useEffect(() => {
-    const typeToFetch = isWidgetModalOpen ? widgetModalType : (selectedElement?.type === 'complement' ? selectedElement.widgetType : null);
-
-    if (typeToFetch) {
-      setLoadingWidgets(true);
-      api.get(`/widgets?type=${typeToFetch}`)
-        .then(res => setSavedWidgets(res.data || []))
-        .catch(err => console.error("Error fetching widgets:", err))
-        .finally(() => setLoadingWidgets(false));
-    }
-  }, [isWidgetModalOpen, widgetModalType, selectedElement?.type, selectedElement?.widgetType]);
   const [inspectorTab, setInspectorTab] = useState<'design' | 'animation'>('design');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     content: true,
@@ -1513,7 +1509,7 @@ const DB_FIELDS = [
             let updated = [...prev];
             targetIds.forEach((id) => {
               const targetEl = getSelectedElementRecursive(updated, id);
-              if (targetEl && !targetEl.locked) {
+              if (targetEl && !isElementTransformLocked(targetEl)) {
                 updated = updateElementRecursive(updated, id, {
                   x: Math.round(targetEl.x + deltaX),
                   y: Math.round(targetEl.y + deltaY),
@@ -2263,10 +2259,7 @@ const DB_FIELDS = [
   ) => {
     e.stopPropagation();
     const el = getSelectedElementRecursive(elements, id);
-    if (!el || el.locked) return;
-
-    // Si el usuario no es superadmin y la sección transform está bloqueada por el superadmin, impedir drag/resize/rotación
-    if (!isSuperAdmin && el.lockedSections?.transform) return;
+    if (!el || isElementTransformLocked(el)) return;
 
     setSelectedElementId(id);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -2452,6 +2445,18 @@ const DB_FIELDS = [
   const selectedElement = getSelectedElementRecursive(elements, selectedElementId);
   const activeScene = scenes.find((s) => s.id === activeSceneId);
 
+  useEffect(() => {
+    const typeToFetch = selectedElement?.type === 'complement' ? (selectedElement.widgetType || 'map') : null;
+
+    if (typeToFetch) {
+      setLoadingWidgets(true);
+      api.get(`/widgets?type=${typeToFetch}`)
+        .then(res => setSavedWidgets(res.data || []))
+        .catch(err => console.error("Error fetching widgets:", err))
+        .finally(() => setLoadingWidgets(false));
+    }
+  }, [selectedElement?.type, selectedElement?.widgetType]);
+
   const updateActiveScene = (key: keyof Scene, val: any) => {
     if (!activeSceneId) return;
     setScenes((prev) =>
@@ -2490,6 +2495,133 @@ const DB_FIELDS = [
     if (!selectedElementId) return;
     setElements((prev) => updateElementRecursive(prev, selectedElementId, updates));
     setHasUnsavedChanges(true);
+  };
+
+  const isElementTransformLocked = (el?: CanvasElement) => {
+    if (!el) return false;
+    if (el.locked || el.lockTransform || el.isEditableInWidget === false) return true;
+    if (!isSuperAdmin && el.lockedSections?.transform) return true;
+    return false;
+  };
+
+  const isElementContentLocked = (el?: CanvasElement) => {
+    if (!el) return false;
+    if (el.locked || (el.isEditableInWidget === false && !isSuperAdmin)) return true;
+    if (!isSuperAdmin && el.lockedSections?.content) return true;
+    return false;
+  };
+
+  const handleSaveWidgetToDatabase = async (
+    targetEl?: CanvasElement,
+    targetType?: string,
+    targetTitle?: string,
+    action: 'check' | 'overwrite' | 'copy' = 'check'
+  ) => {
+    const el = targetEl || selectedElement;
+    if (!el) return;
+    const type = targetType || el.widgetType || 'map';
+    let title = targetTitle || widgetModalTitle || el.componentName || el.content || 'Widget';
+
+    try {
+      setIsSavingWidgetTemplate(true);
+
+      // Check for duplicate widget by name and type
+      const existingRes = await api.get(`/widgets?type=${type}`);
+      const list: any[] = existingRes.data || [];
+
+      const duplicate = list.find((w: any) => w.name.trim().toLowerCase() === title.trim().toLowerCase());
+
+      if (duplicate && action === 'check') {
+        setWidgetOverwriteModal({
+          isOpen: true,
+          targetEl: el,
+          targetType: type,
+          targetTitle: title,
+          existingWidget: duplicate,
+        });
+        setIsSavingWidgetTemplate(false);
+        return;
+      }
+
+      let targetUrl = '/widgets';
+      let httpMethod = 'post';
+
+      if (duplicate && action === 'overwrite') {
+        targetUrl = `/widgets/${duplicate.id}`;
+        httpMethod = 'put';
+      } else if (duplicate && action === 'copy') {
+        title = `${title} (Copia)`;
+      }
+
+      const batchUpdates: any = {
+        isWidget: true,
+        widgetType: type,
+        componentName: title,
+        content: title,
+      };
+
+      updateSelectedElementBatch(batchUpdates);
+      const finalElement = { ...el, ...batchUpdates };
+      const targetId = el.id;
+      let base64Image = "";
+
+      // Desmarcar selección temporalmente para que html2canvas no dibuje bordes amarillos/rosados ni tiradores
+      const previousSelectedId = selectedElementId;
+      setSelectedElementId(null);
+
+      // Esperar 120ms a que React despinte los marcos de selección
+      await new Promise(r => setTimeout(r, 120));
+
+      let domNode: HTMLElement | null = document.getElementById(`element-${targetId}`);
+      if (!domNode) {
+        domNode = document.querySelector(`[id="element-${targetId}"]`);
+      }
+
+      if (domNode) {
+        try {
+          const canvas = await html2canvas(domNode, {
+            backgroundColor: null,
+            scale: 2, // Calidad HD para la vista previa
+            logging: false,
+            useCORS: true,
+            allowTaint: true,
+          });
+          base64Image = canvas.toDataURL("image/png");
+          console.log("[WIDGET PREVIEW CAPTURED CLEAN] Length:", base64Image.length);
+        } catch (err) {
+          console.error("Error al capturar vista previa limpia del widget:", err);
+        }
+      } else {
+        console.warn(`[WIDGET PREVIEW] No DOM node found for element-${targetId}`);
+      }
+
+      // Restaurar selección original
+      if (previousSelectedId) {
+        setSelectedElementId(previousSelectedId);
+      }
+      const payload = {
+        name: title,
+        type: type,
+        preview_image: base64Image,
+        content: finalElement,
+      };
+      if (httpMethod === "put") {
+        await api.put(targetUrl, payload);
+      } else {
+        await api.post(targetUrl, payload);
+      }
+      // Re-fetch widgets to instantly populate the inspector carousel
+      const res = await api.get(`/widgets?type=${type}`);
+      setSavedWidgets(res.data || []);
+      setWidgetSavedId(el.id);
+      setTimeout(() => setWidgetSavedId(null), 2500);
+      setWidgetOverwriteModal(null);
+
+    } catch (error) {
+      console.error("Error al guardar el widget en la base de datos:", error);
+    } finally {
+      setIsSavingWidgetTemplate(false);
+    }
   };
 
   const toggleSectionLock = (sectionKey: keyof ElementPermissions) => {
@@ -3927,6 +4059,7 @@ const DB_FIELDS = [
 
                   return (
                     <div
+                      id={`element-${el.id}`}
                       key={el.id}
                       onPointerDown={(e) => handlePointerDown(e, el.id, 'move')}
                       onClick={(e) => {
@@ -3983,7 +4116,9 @@ const DB_FIELDS = [
                               e.stopPropagation();
                               setSelectedElementId(childEl.id);
                             }}
-                            className={`absolute transition-shadow select-none cursor-move ${
+                            className={`absolute transition-shadow select-none ${
+                              isElementTransformLocked(childEl) ? 'cursor-not-allowed' : 'cursor-move'
+                            } ${
                               isChildSelected ? 'outline-4 outline-dashed outline-pink-500' : ''
                             }`}
                             style={{
@@ -4028,7 +4163,7 @@ const DB_FIELDS = [
                             )}
 
                             {/* Handles de transformación para el Elemento Hijo DENTRO del Componente Padre */}
-                            {isChildSelected && (() => {
+                            {isChildSelected && !isElementTransformLocked(childEl) && (() => {
                               const rot = (childEl.rotation || 0) % 360;
                               return (
                                 <>
@@ -4127,6 +4262,7 @@ const DB_FIELDS = [
 
                 return (
                   <div
+                    id={`element-${el.id}`}
                     key={el.id}
                     onPointerDown={(e) => handlePointerDown(e, el.id, 'move')}
                     onClick={(e) => {
@@ -4872,13 +5008,14 @@ const DB_FIELDS = [
                             <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                               Tipo de Widget Interactivo
                             </label>
-                            <div className="grid grid-cols-5 gap-1 p-1 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                               {[
                                 { id: 'map', label: 'Mapa', icon: MapPin },
                                 { id: 'rsvp', label: 'RSVP', icon: UserCheck },
                                 { id: 'menu', label: 'Menú', icon: Utensils },
                                 { id: 'countdown', label: 'Timer', icon: Clock },
                                 { id: 'gift', label: 'Regalos', icon: Gift },
+                                { id: 'custom', label: 'Personalizado', icon: Sparkles },
                               ].map((tab) => {
                                 const IconComp = tab.icon;
                                 const isActive = (selectedElement.widgetType || 'map') === tab.id;
@@ -4940,6 +5077,27 @@ const DB_FIELDS = [
                                     }}
                                   >
                                     <div className="h-16 bg-black/5 dark:bg-white/5 relative flex items-center justify-center p-1">
+                                      {isSuperAdmin && (
+                                        <button
+                                          type="button"
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (confirm(`¿Eliminar la plantilla de widget "${widget.name}"?`)) {
+                                              try {
+                                                await api.delete(`/widgets/${widget.id}`);
+                                                const res = await api.get(`/widgets?type=${selectedElement.widgetType || 'map'}`);
+                                                setSavedWidgets(res.data || []);
+                                              } catch (err) {
+                                                console.error("Error al eliminar la plantilla de widget:", err);
+                                              }
+                                            }
+                                          }}
+                                          className="absolute top-1 right-1 z-20 p-1 rounded-md bg-red-500/80 hover:bg-red-600 text-white shadow-xs transition-transform hover:scale-110 cursor-pointer"
+                                          title="Eliminar plantilla de la base de datos (SuperAdmin)"
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      )}
                                       {widget.preview_image ? (
                                         <img src={widget.preview_image} alt={widget.name} className="max-h-full max-w-full object-contain drop-shadow-sm" />
                                       ) : (
@@ -5348,26 +5506,29 @@ const DB_FIELDS = [
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setWidgetSavedId(selectedElement.id);
-                                    setTimeout(() => setWidgetSavedId(null), 2000);
-                                  }}
+                                  disabled={isSavingWidgetTemplate}
+                                  onClick={() => handleSaveWidgetToDatabase()}
                                   className={`flex-1 py-2 px-2 rounded-xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${
                                     widgetSavedId === selectedElement.id 
                                       ? 'bg-green-500' 
                                       : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500'
                                   }`}
-                                  title="Confirmar cambios del Widget localmente"
+                                  title="Guardar plantilla de Widget en la base de datos"
                                 >
-                                  {widgetSavedId === selectedElement.id ? (
+                                  {isSavingWidgetTemplate ? (
+                                    <>
+                                      <CheckCircle2 size={14} className="animate-spin" />
+                                      <span>Guardando...</span>
+                                    </>
+                                  ) : widgetSavedId === selectedElement.id ? (
                                     <>
                                       <CheckCircle2 size={14} />
-                                      <span>¡Guardado!</span>
+                                      <span>¡Guardado en BD!</span>
                                     </>
                                   ) : (
                                     <>
                                       <Save size={14} />
-                                      <span>Guardar</span>
+                                      <span>Guardar en BD</span>
                                     </>
                                   )}
                                 </button>
@@ -9169,62 +9330,7 @@ const DB_FIELDS = [
                 </div>
               </div>
 
-              {/* LISTA DE PLANTILLAS GUARDADAS */}
-              <div>
-                <label className="block text-xs font-bold mb-2" style={{ color: 'var(--text-main)' }}>Plantillas Guardadas</label>
-                {loadingWidgets ? (
-                  <div className="text-center text-xs py-4 opacity-60">Cargando plantillas...</div>
-                ) : savedWidgets.length === 0 ? (
-                  <div className="text-center text-[10px] py-4 rounded-xl border border-dashed opacity-70" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
-                    No tienes plantillas guardadas de este tipo aún.
-                  </div>
-                ) : (
-                  <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar snap-x snap-mandatory">
-                    {savedWidgets.map(widget => (
-                      <div
-                        key={widget.id}
-                        className="min-w-[140px] w-[140px] shrink-0 snap-start rounded-xl border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform overflow-hidden relative group"
-                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                        onClick={() => {
-                          const content = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
-                          
-                          const adjustIds = (el: any): any => ({
-                            ...el,
-                            id: `el-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                            children: el.children ? el.children.map(adjustIds) : []
-                          });
-                          
-                          const newWidget = adjustIds(content);
-                          newWidget.id = selectedElement.id; // Keep current parent ID
-                          newWidget.x = selectedElement.x;
-                          newWidget.y = selectedElement.y;
-                          newWidget.componentName = widget.name;
-                          newWidget.widgetType = widgetModalType;
-                          newWidget.isWidget = true;
 
-                          updateSelectedElementBatch(newWidget);
-                          setWidgetModalTitle(widget.name);
-                          setIsWidgetModalOpen(false); // Close modal when template is applied
-                        }}
-                      >
-                        <div className="h-24 bg-black/5 dark:bg-white/5 relative flex items-center justify-center p-2">
-                          {widget.preview_image ? (
-                            <img src={widget.preview_image} alt={widget.name} className="max-h-full max-w-full object-contain drop-shadow-md" />
-                          ) : (
-                            <Puzzle className="opacity-20" size={24} />
-                          )}
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white text-[10px] font-bold text-center px-2">Aplicar Plantilla</span>
-                          </div>
-                        </div>
-                        <div className="p-2 border-t text-[10px] font-bold truncate text-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}>
-                          {widget.name}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div 
                 className="p-3 rounded-xl border text-[11px] leading-relaxed"
@@ -9260,45 +9366,8 @@ const DB_FIELDS = [
                 type="button"
                 disabled={isSavingWidgetTemplate}
                 onClick={async () => {
-                  try {
-                    setIsSavingWidgetTemplate(true);
-                    
-                    const batchUpdates: any = {
-                      isWidget: true,
-                      widgetType: widgetModalType,
-                      componentName: widgetModalTitle || selectedElement.componentName || 'Widget',
-                      content: widgetModalTitle || selectedElement.content || 'Widget',
-                    };
-                    
-                    updateSelectedElementBatch(batchUpdates);
-
-                    const finalElement = { ...selectedElement, ...batchUpdates };
-
-                    const domNode = document.getElementById(`element-${selectedElement.id}`);
-                    let base64Image = '';
-                    if (domNode) {
-                      const canvas = await html2canvas(domNode, {
-                        backgroundColor: null,
-                        scale: 0.8,
-                        logging: false,
-                        useCORS: true
-                      });
-                      base64Image = canvas.toDataURL('image/png', 0.8);
-                    }
-
-                    await api.post('/widgets', {
-                      name: finalElement.componentName,
-                      type: widgetModalType,
-                      preview_image: base64Image,
-                      content: finalElement
-                    });
-                    
-                  } catch (error) {
-                    console.error("Error al guardar el widget:", error);
-                  } finally {
-                    setIsSavingWidgetTemplate(false);
-                    setIsWidgetModalOpen(false);
-                  }
+                  setIsWidgetModalOpen(false);
+                  await handleSaveWidgetToDatabase(selectedElement, widgetModalType, widgetModalTitle);
                 }}
                 className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg flex items-center gap-1.5 transition-all ${isSavingWidgetTemplate ? 'opacity-70 cursor-not-allowed' : 'active:scale-95'}`}
                 style={{ backgroundColor: 'var(--primary-accent)' }}
@@ -9310,6 +9379,78 @@ const DB_FIELDS = [
           </div>
         </div>
       )}
+
+      {/* MODAL DE CONFIRMACIÓN: SOBREESCRIBIR O CREAR COPIA DE WIDGET */}
+      {widgetOverwriteModal?.isOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div 
+            className="w-full max-w-md rounded-2xl border shadow-2xl p-6 space-y-4"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+          >
+            <div className="flex items-center gap-3 border-b pb-3" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/20 text-amber-500 border border-amber-500/30 shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base leading-tight" style={{ color: 'var(--text-main)' }}>¿Sobreescribir Widget?</h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Ya existe una plantilla guardada con este nombre.</p>
+              </div>
+            </div>
+
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-main)' }}>
+              Ya existe una plantilla de widget llamada <strong>"{widgetOverwriteModal.targetTitle}"</strong>. ¿Deseas sobreescribir la plantilla existente o guardar una copia nueva?
+            </p>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isSavingWidgetTemplate}
+                onClick={async () => {
+                  await handleSaveWidgetToDatabase(
+                    widgetOverwriteModal.targetEl,
+                    widgetOverwriteModal.targetType,
+                    widgetOverwriteModal.targetTitle,
+                    'overwrite'
+                  );
+                }}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Save size={14} />
+                <span>Sobreescribir plantilla existente</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSavingWidgetTemplate}
+                onClick={async () => {
+                  await handleSaveWidgetToDatabase(
+                    widgetOverwriteModal.targetEl,
+                    widgetOverwriteModal.targetType,
+                    widgetOverwriteModal.targetTitle,
+                    'copy'
+                  );
+                }}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 hover:opacity-90 cursor-pointer"
+                style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
+              >
+                <Copy size={14} />
+                <span>Guardar como copia nueva</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setWidgetOverwriteModal(null)}
+                className="w-full py-2 text-xs font-bold opacity-70 hover:opacity-100 transition-opacity mt-1 cursor-pointer"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       {/* Overlay de Guardado / Generando Preview */}
       {saving && (
