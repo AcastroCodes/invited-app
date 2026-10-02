@@ -22,10 +22,37 @@ import {
   CreditCard,
 } from 'lucide-react';
 import type { CanvasElement } from '../types/designerTypes';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+
+const customPinSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
+  <defs>
+    <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--primary-accent, #E07A5F)" />
+      <stop offset="100%" stop-color="#F2CC8F" />
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-20%" width="160%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 36 12 36 C12 36 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill="url(#pinGrad)" stroke="#FFFFFF" stroke-width="1.5" filter="url(#shadow)"/>
+  <circle cx="12" cy="11" r="4" fill="#3D405B"/>
+</svg>`;
+
+const createCustomIcon = () => {
+  return new L.DivIcon({
+    className: 'custom-leaflet-marker-pin',
+    html: `<div style="width: 24px; height: 36px; display: flex; align-items: flex-end; justify-content: center;">${customPinSvg}</div>`,
+    iconSize: [24, 36],
+    iconAnchor: [12, 36],
+  });
+};
 
 interface ElementRenderProps {
   element: CanvasElement;
   isSelected?: boolean;
+  event?: any;
 }
 
 export const ButtonElementItem: React.FC<ElementRenderProps> = ({ element }) => {
@@ -928,7 +955,7 @@ export const ThreeDElementItem: React.FC<ElementRenderProps> = ({ element }) => 
   );
 };
 
-export const ComplementElementItem: React.FC<ElementRenderProps> = ({ element }) => {
+export const ComplementElementItem: React.FC<ElementRenderProps> = ({ element, event }) => {
   const widgetType = element.widgetType || 'map';
 
   const baseStyle: React.CSSProperties = {
@@ -944,24 +971,81 @@ export const ComplementElementItem: React.FC<ElementRenderProps> = ({ element })
   };
 
   if (widgetType === 'map') {
+    const textColor = element.color || '#ffffff';
+    const locationName = element.mapTitle || event?.location || element.content || 'Ubicación del Evento';
+    const locationAddress = element.mapAddress || event?.address || 'Av. Principal #123, Ciudad';
+    
+    // Default coords or event coords
+    const lat = element.latitude || event?.latitude || 10.4806;
+    const lng = element.longitude || event?.longitude || -66.9036;
+
+    // Static map tile representation for smooth canvas interaction
+    const tileUrl = `https://a.tile.openstreetmap.org/13/2264/3748.png`;
+
     return (
-      <div className="w-full h-full flex flex-col justify-between p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30">
-            <MapPin size={20} />
+      <div className="w-full h-full flex flex-col justify-between p-3.5 select-none overflow-hidden transition-all shadow-lg relative group" style={baseStyle}>
+        {/* Visual Map Background Overlay */}
+        <div className="absolute inset-0 z-0 opacity-25 mix-blend-overlay pointer-events-none overflow-hidden">
+          <img 
+            src={tileUrl} 
+            alt="Map Preview" 
+            className="w-full h-full object-cover filter saturate-150 contrast-125 scale-125"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
+        </div>
+
+        {/* Content Header */}
+        <div className="flex items-start gap-3 relative z-10">
+          <div 
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-md animate-bounce"
+            style={{ 
+              backgroundColor: 'var(--primary-accent)', 
+              borderColor: '#ffffff',
+              color: '#ffffff',
+            }}
+          >
+            <MapPin size={18} />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-extrabold text-sm leading-tight truncate" style={{ color: element.color || '#ffffff' }}>
-              {element.mapTitle || element.content || 'Ubicación del Evento'}
+            <h4 className="font-extrabold text-sm leading-tight truncate" style={{ color: textColor }}>
+              {locationName}
             </h4>
-            <p className="text-xs opacity-75 truncate mt-1" style={{ color: element.color || '#ffffff' }}>
-              {element.mapAddress || 'Av. Principal #123, Ciudad'}
+            <p className="text-xs opacity-85 truncate mt-0.5 leading-snug" style={{ color: textColor }}>
+              {locationAddress}
             </p>
           </div>
         </div>
-        <div className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm mt-2">
-          <Navigation size={14} />
-          <span>Ver Mapa / Cómo llegar</span>
+
+        {/* Real Leaflet Mini Map Container */}
+        <div className="relative z-10 w-full h-32 my-2 rounded-xl overflow-hidden border border-white/20 shadow-inner">
+          <MapContainer
+            center={[lat, lng]}
+            zoom={15}
+            zoomControl={false}
+            dragging={false}
+            doubleClickZoom={false}
+            scrollWheelZoom={false}
+            attributionControl={false}
+            style={{ height: '100%', width: '100%', zIndex: 0 }}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              className="grayscale sepia saturate-200 hue-rotate-[320deg] dark:invert dark:grayscale dark:sepia dark:saturate-200 dark:hue-rotate-[320deg] dark:brightness-90"
+            />
+            <Marker position={[lat, lng]} icon={createCustomIcon()} />
+          </MapContainer>
+        </div>
+
+        {/* Action Button */}
+        <div 
+          className="relative z-10 w-full py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-md transition-all hover:opacity-90 cursor-pointer"
+          style={{ 
+            backgroundColor: 'var(--primary-accent)',
+            color: '#ffffff',
+          }}
+        >
+          <Navigation size={13} />
+          <span>Ver Mapa / Cómo Llegar</span>
         </div>
       </div>
     );
@@ -1021,6 +1105,24 @@ export const ComplementElementItem: React.FC<ElementRenderProps> = ({ element })
   }
 
   if (widgetType === 'countdown') {
+    const targetDateStr = (element.countdownDateMode === 'db' || !element.countdownDateMode)
+      ? (event?.event_date || element.countdownDate)
+      : element.countdownDate;
+
+    let days = '00', hours = '00', mins = '00', secs = '00';
+    if (targetDateStr) {
+      const targetTime = new Date(targetDateStr).getTime();
+      const now = new Date().getTime();
+      const diff = targetTime - now;
+
+      if (!isNaN(diff) && diff > 0) {
+        days = String(Math.floor(diff / (1000 * 60 * 60 * 24))).padStart(2, '0');
+        hours = String(Math.floor((diff / (1000 * 60 * 60)) % 24)).padStart(2, '0');
+        mins = String(Math.floor((diff / 1000 / 60) % 60)).padStart(2, '0');
+        secs = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+      }
+    }
+
     return (
       <div className="w-full h-full flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all shadow-lg" style={baseStyle}>
         <div className="flex items-center gap-2 mb-2.5">
@@ -1031,10 +1133,10 @@ export const ComplementElementItem: React.FC<ElementRenderProps> = ({ element })
         </div>
         <div className="flex items-center justify-center gap-2.5">
           {[
-            { val: '12', label: 'DÍAS' },
-            { val: '08', label: 'HRS' },
-            { val: '45', label: 'MIN' },
-            { val: '30', label: 'SEG' },
+            { val: days, label: 'DÍAS' },
+            { val: hours, label: 'HRS' },
+            { val: mins, label: 'MIN' },
+            { val: secs, label: 'SEG' },
           ].map((item, i) => (
             <div key={i} className="flex flex-col items-center px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 min-w-[46px]">
               <span className="font-black text-base leading-tight text-cyan-300">{item.val}</span>

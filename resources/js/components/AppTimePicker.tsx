@@ -52,10 +52,21 @@ export default function AppTimePicker({
   useLayoutEffect(() => {
     if (open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const popoverWidth = 240;
+      const viewportWidth = window.innerWidth;
+      let calculatedLeft = rect.left;
+
+      if (calculatedLeft + popoverWidth > viewportWidth - 10) {
+        calculatedLeft = viewportWidth - popoverWidth - 10;
+      }
+      if (calculatedLeft < 10) {
+        calculatedLeft = 10;
+      }
+
       setCoords({
         top: rect.bottom + 6,
-        left: rect.left,
-        width: Math.max(rect.width, 240),
+        left: calculatedLeft,
+        width: popoverWidth,
       });
     }
   }, [open]);

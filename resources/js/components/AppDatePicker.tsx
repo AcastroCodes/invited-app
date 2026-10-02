@@ -19,7 +19,7 @@ const DAYS_OF_WEEK = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 export default function AppDatePicker({
   value,
   onChange,
-  placeholder = 'Seleccionar fecha',
+  placeholder = 'dd/mm/yyyy',
   className = '',
 }: AppDatePickerProps) {
   const [open, setOpen] = useState(false);
@@ -41,10 +41,23 @@ export default function AppDatePicker({
   useLayoutEffect(() => {
     if (open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const popoverWidth = 310;
+      const viewportWidth = window.innerWidth;
+      let calculatedLeft = rect.left;
+
+      // Adjust if popover would bleed beyond right edge
+      if (calculatedLeft + popoverWidth > viewportWidth - 10) {
+        calculatedLeft = viewportWidth - popoverWidth - 10;
+      }
+      // Adjust if popover would bleed beyond left edge
+      if (calculatedLeft < 10) {
+        calculatedLeft = 10;
+      }
+
       setCoords({
         top: rect.bottom + 6,
-        left: rect.left,
-        width: Math.max(rect.width, 310),
+        left: calculatedLeft,
+        width: popoverWidth,
       });
     }
   }, [open]);

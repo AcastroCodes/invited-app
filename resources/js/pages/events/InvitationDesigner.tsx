@@ -97,6 +97,7 @@ import {
   Utensils,
   Gift,
   Repeat,
+  Calendar,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -106,6 +107,8 @@ import { ColorPickerPopover } from '../../components/ColorPickerPopover';
 import { AssetPickerPopover } from '../../components/AssetPickerPopover';
 import { VideoEditorModal } from '../../components/VideoEditorModal';
 import AppSelect from '../../components/AppSelect';
+import AppDatePicker from '../../components/AppDatePicker';
+import AppTimePicker from '../../components/AppTimePicker';
 import { ImageElementItem, VideoElementItem, ShapeElementItem, ButtonElementItem, AudioElementItem, ThreeDElementItem, ComplementElementItem } from '../../components/designer/DesignerMediaElements';
 import { TextElementItem } from '../../components/designer/TextElementItem';
 import { ThreeDViewportCanvas } from '../../components/ThreeDViewportCanvas';
@@ -2048,26 +2051,50 @@ const DB_FIELDS = [
   };
 
   const handleAddWidget = (widgetType: string, label: string) => {
-    const newEl: CanvasElement = {
-      id: `el-widget-${Date.now()}`,
-      type: 'button',
+    const parentId = `widget-group-${Date.now()}`;
+    const childId = `el-widget-${Date.now()}`;
+
+    const childEl: CanvasElement = {
+      id: childId,
+      type: 'complement',
+      widgetType: widgetType,
+      isWidget: true,
       content: label,
-      x: 40,
-      y: 360,
-      width: 280,
-      height: 45,
+      componentName: label,
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 220,
       fontSize: 14,
       fontWeight: 'bold',
       color: '#FFFFFF',
-      backgroundColor: 'var(--primary-accent)',
-      borderRadius: 10,
+      backgroundColor: 'rgba(15, 23, 42, 0.85)',
+      borderRadius: 16,
       textAlign: 'center',
       visible: true,
       locked: false,
     };
-    pushHistorySnapshot([newEl, ...elements]);
-    setSelectedElementId(newEl.id);
-    setSelectedElementIds([newEl.id]);
+
+    const parentEl: CanvasElement = {
+      id: parentId,
+      isComponentParent: true,
+      isWidget: true,
+      widgetType: widgetType,
+      componentName: `Widget ${label}`,
+      content: label,
+      x: 40,
+      y: 360,
+      width: 300,
+      height: 220,
+      visible: true,
+      locked: false,
+      clipContent: true,
+      children: [childEl],
+    };
+
+    pushHistorySnapshot([parentEl, ...elements]);
+    setSelectedElementId(childEl.id);
+    setSelectedElementIds([childEl.id]);
   };
 
   const handleDuplicateElement = (id: string) => {
@@ -2500,14 +2527,21 @@ const DB_FIELDS = [
   const isElementTransformLocked = (el?: CanvasElement) => {
     if (!el) return false;
     if (el.locked || el.lockTransform || el.isEditableInWidget === false) return true;
-    if (!isSuperAdmin && el.lockedSections?.transform) return true;
+    if (el.lockedSections?.transform) return true;
     return false;
   };
 
   const isElementContentLocked = (el?: CanvasElement) => {
     if (!el) return false;
-    if (el.locked || (el.isEditableInWidget === false && !isSuperAdmin)) return true;
-    if (!isSuperAdmin && el.lockedSections?.content) return true;
+    if (el.locked || el.isEditableInWidget === false) return true;
+    if (el.lockedSections?.content) return true;
+    return false;
+  };
+
+  const isElementSectionLocked = (el?: CanvasElement, sectionKey?: keyof ElementPermissions) => {
+    if (!el) return false;
+    if (el.locked || el.isEditableInWidget === false) return true;
+    if (sectionKey && el.lockedSections?.[sectionKey]) return true;
     return false;
   };
 
@@ -4187,7 +4221,7 @@ const DB_FIELDS = [
                       })}
 
                       {/* Handles de transformación para el Componente Padre completo */}
-                      {isParentSelected && (() => {
+                      {isParentSelected && !isElementTransformLocked(el) && (() => {
                         const getRotatedCursor = (dir: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w') => {
                           const cursors = ['ns-resize', 'nesw-resize', 'ew-resize', 'nwse-resize'];
                           const baseAngles: Record<string, number> = { n: 0, ne: 45, e: 90, se: 135, s: 180, sw: 225, w: 270, nw: 315 };
@@ -4331,13 +4365,13 @@ const DB_FIELDS = [
                     ) : el.type === 'shape' ? (
                       <ShapeElementItem element={el} />
                     ) : el.type === 'complement' ? (
-                      <ComplementElementItem element={el} />
+                      <ComplementElementItem element={el} event={event} />
                     ) : (
                       el.content
                     )}
 
                     {/* Transform Handles (Transformar, Escalar, Rotar) */}
-                    {isSelected && !el.locked && !el.lockTransform && (() => {
+                    {isSelected && !isElementTransformLocked(el) && (() => {
                       const rot = (el.rotation || 0) % 360;
                       const getRotatedCursor = (handle: string) => {
                         const baseAngles: Record<string, number> = {
@@ -4650,7 +4684,7 @@ const DB_FIELDS = [
                   {openSections.content && (
                     <div
                       className={`px-4 pb-3 pt-0 border-t space-y-3 transition-opacity ${
-                        !isSuperAdmin && selectedElement.lockedSections?.content
+                        isElementContentLocked(selectedElement)
                           ? 'opacity-60 pointer-events-none select-none'
                           : ''
                       }`}
@@ -5001,43 +5035,46 @@ const DB_FIELDS = [
                             </label>
                           </div>
                         </div>
-                      ) : selectedElement.type === 'complement' ? (
+                      ) : selectedElement.type === 'complement' || selectedElement.widgetType === 'countdown' ? (
                         <div className="pt-2 space-y-3">
                           {/* Selector de Tipo de Widget con Pestañas / Tabs */}
-                          <div>
-                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                              Tipo de Widget Interactivo
-                            </label>
-                            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                              {[
-                                { id: 'map', label: 'Mapa', icon: MapPin },
-                                { id: 'rsvp', label: 'RSVP', icon: UserCheck },
-                                { id: 'menu', label: 'Menú', icon: Utensils },
-                                { id: 'countdown', label: 'Timer', icon: Clock },
-                                { id: 'gift', label: 'Regalos', icon: Gift },
-                                { id: 'custom', label: 'Personalizado', icon: Sparkles },
-                              ].map((tab) => {
-                                const IconComp = tab.icon;
-                                const isActive = (selectedElement.widgetType || 'map') === tab.id;
-                                return (
-                                  <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => updateSelectedElement('widgetType', tab.id)}
-                                    className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer"
-                                    style={{
-                                      backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                      color: isActive ? '#ffffff' : 'var(--text-main)',
-                                    }}
-                                    title={tab.label}
-                                  >
-                                    <IconComp size={13} />
-                                    <span className="mt-0.5 truncate text-[8px]">{tab.label}</span>
-                                  </button>
-                                );
-                              })}
+                          {selectedElement.type === 'complement' && (
+                            <div>
+                              <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Tipo de Widget Interactivo
+                              </label>
+                              <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-xl border shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                {[
+                                  { id: 'map', label: 'Mapa', icon: MapPin },
+                                  { id: 'rsvp', label: 'RSVP', icon: UserCheck },
+                                  { id: 'menu', label: 'Menú', icon: Utensils },
+                                  { id: 'countdown', label: 'Timer', icon: Clock },
+                                  { id: 'gift', label: 'Regalos', icon: Gift },
+                                  { id: 'custom', label: 'Personalizado', icon: Sparkles },
+                                ].map((tab) => {
+                                  const IconComp = tab.icon;
+                                  const isActive = (selectedElement.widgetType || 'map') === tab.id;
+                                  return (
+                                    <button
+                                      key={tab.id}
+                                      type="button"
+                                      onClick={() => updateSelectedElement('widgetType', tab.id)}
+                                      className="flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer border"
+                                      style={{
+                                        backgroundColor: isActive ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                                        borderColor: isActive ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
+                                      }}
+                                      title={tab.label}
+                                    >
+                                      <IconComp size={14} style={{ color: isActive ? 'var(--primary-accent)' : 'var(--text-muted)' }} />
+                                      <span className="mt-1 truncate text-[9px]">{tab.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
+                          )}
 
                           {/* LISTA DE PLANTILLAS GUARDADAS EN EL INSPECTOR */}
                           <div>
@@ -5045,18 +5082,20 @@ const DB_FIELDS = [
                               Plantillas Guardadas
                             </label>
                             {loadingWidgets ? (
-                              <div className="text-center text-[10px] py-3 opacity-60">Cargando plantillas...</div>
+                              <div className="text-center text-[10px] py-4 rounded-xl border border-dashed opacity-60" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                                Cargando plantillas...
+                              </div>
                             ) : savedWidgets.length === 0 ? (
-                              <div className="text-center text-[9px] py-3 rounded-xl border border-dashed opacity-70" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
-                                No tienes plantillas de este tipo.
+                              <div className="text-center text-[10px] py-4 px-2 rounded-xl border border-dashed opacity-70" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                                No hay plantillas guardadas de este tipo.
                               </div>
                             ) : (
                               <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar snap-x snap-mandatory">
                                 {savedWidgets.map(widget => (
                                   <div
                                     key={widget.id}
-                                    className="min-w-[100px] w-[100px] shrink-0 snap-start rounded-xl border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform overflow-hidden relative group"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                    className="min-w-[105px] w-[105px] shrink-0 snap-start rounded-xl border cursor-pointer hover:border-[var(--primary-accent)] transition-all overflow-hidden relative group shadow-2xs"
+                                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
                                     onClick={() => {
                                       const content = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
                                       const adjustIds = (el: any): any => ({
@@ -5076,7 +5115,7 @@ const DB_FIELDS = [
                                       updateSelectedElementBatch(newWidget);
                                     }}
                                   >
-                                    <div className="h-16 bg-black/5 dark:bg-white/5 relative flex items-center justify-center p-1">
+                                    <div className="h-16 relative flex items-center justify-center p-1.5" style={{ backgroundColor: 'var(--bg-app)' }}>
                                       {isSuperAdmin && (
                                         <button
                                           type="button"
@@ -5099,15 +5138,15 @@ const DB_FIELDS = [
                                         </button>
                                       )}
                                       {widget.preview_image ? (
-                                        <img src={widget.preview_image} alt={widget.name} className="max-h-full max-w-full object-contain drop-shadow-sm" />
+                                        <img src={widget.preview_image} alt={widget.name} className="max-h-full max-w-full object-contain drop-shadow-sm rounded-sm" />
                                       ) : (
-                                        <Puzzle className="opacity-20" size={16} />
+                                        <Puzzle className="opacity-30" size={18} style={{ color: 'var(--text-muted)' }} />
                                       )}
-                                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <span className="text-white text-[9px] font-bold text-center px-1">Aplicar</span>
+                                      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <span className="text-white text-[10px] font-bold text-center px-2 py-0.5 rounded-md shadow-xs" style={{ backgroundColor: 'var(--primary-accent)' }}>Aplicar</span>
                                       </div>
                                     </div>
-                                    <div className="p-1 border-t text-[9px] font-bold truncate text-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}>
+                                    <div className="p-1.5 border-t text-[10px] font-bold truncate text-center" style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)', backgroundColor: 'var(--bg-card)' }}>
                                       {widget.name}
                                     </div>
                                   </div>
@@ -5118,9 +5157,9 @@ const DB_FIELDS = [
 
                           {/* Formulario según el Widget Seleccionado */}
                           {(selectedElement.widgetType || 'map') === 'map' && (
-                            <div className="space-y-2.5 pt-1">
+                            <div className="space-y-3 pt-1">
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Título / Nombre del Lugar
                                 </label>
                                 <input
@@ -5134,7 +5173,7 @@ const DB_FIELDS = [
                                     });
                                   }}
                                   placeholder="Ej: Recepción Hacienda Las Palmas"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5143,7 +5182,7 @@ const DB_FIELDS = [
                                 />
                               </div>
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Dirección Completa
                                 </label>
                                 <input
@@ -5151,7 +5190,7 @@ const DB_FIELDS = [
                                   value={selectedElement.mapAddress || ''}
                                   onChange={(e) => updateSelectedElement('mapAddress', e.target.value)}
                                   placeholder="Ej: Av. Principal #123, Col. Centro, Ciudad"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5160,7 +5199,7 @@ const DB_FIELDS = [
                                 />
                               </div>
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Enlace de Google Maps / Waze
                                 </label>
                                 <input
@@ -5168,7 +5207,7 @@ const DB_FIELDS = [
                                   value={selectedElement.mapUrl || ''}
                                   onChange={(e) => updateSelectedElement('mapUrl', e.target.value)}
                                   placeholder="https://maps.google.com/..."
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs font-mono transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5180,9 +5219,9 @@ const DB_FIELDS = [
                           )}
 
                           {selectedElement.widgetType === 'rsvp' && (
-                            <div className="space-y-2.5 pt-1">
+                            <div className="space-y-3 pt-1">
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Título del Formulario RSVP
                                 </label>
                                 <input
@@ -5196,7 +5235,7 @@ const DB_FIELDS = [
                                     });
                                   }}
                                   placeholder="Ej: Confirmación de Asistencia"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5205,14 +5244,14 @@ const DB_FIELDS = [
                                 />
                               </div>
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Fecha Límite de Confirmación
                                 </label>
                                 <input
                                   type="date"
                                   value={selectedElement.rsvpDeadline || ''}
                                   onChange={(e) => updateSelectedElement('rsvpDeadline', e.target.value)}
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5246,9 +5285,9 @@ const DB_FIELDS = [
                           )}
 
                           {selectedElement.widgetType === 'menu' && (
-                            <div className="space-y-2.5 pt-1">
+                            <div className="space-y-3 pt-1">
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Título de Selección de Menú
                                 </label>
                                 <input
@@ -5262,7 +5301,7 @@ const DB_FIELDS = [
                                     });
                                   }}
                                   placeholder="Ej: Selección de Menú"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5271,7 +5310,7 @@ const DB_FIELDS = [
                                 />
                               </div>
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Opciones de Platillo (Separadas por comas)
                                 </label>
                                 <input
@@ -5282,7 +5321,7 @@ const DB_FIELDS = [
                                     updateSelectedElement('menuOptions', opts);
                                   }}
                                   placeholder="Ej: Pollo, Res, Vegetariano, Menú Infantil"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5304,64 +5343,106 @@ const DB_FIELDS = [
                           )}
 
                           {selectedElement.widgetType === 'countdown' && (
-                            <div className="space-y-2.5 pt-1">
+                            <div className="space-y-3 pt-1">
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
-                                  Título de la Cuenta Regresiva
-                                </label>
-                                <input
-                                  type="text"
-                                  value={selectedElement.content || ''}
-                                  onChange={(e) => updateSelectedElement('content', e.target.value)}
-                                  placeholder="Ej: Faltan para el Gran Día"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
-                                  style={{
-                                    backgroundColor: 'var(--bg-card)',
-                                    borderColor: 'var(--border-color)',
-                                    color: 'var(--text-main)',
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
-                                  Fecha y Hora Objetivo del Evento
-                                </label>
-                                <input
-                                  type="datetime-local"
-                                  value={selectedElement.countdownDate || ''}
-                                  onChange={(e) => updateSelectedElement('countdownDate', e.target.value)}
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
-                                  style={{
-                                    backgroundColor: 'var(--bg-card)',
-                                    borderColor: 'var(--border-color)',
-                                    color: 'var(--text-main)',
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
-                                  Mensaje al Finalizar la Cuenta
-                                </label>
-                                <input
-                                  type="text"
-                                  value={selectedElement.countdownEndText || ''}
-                                  onChange={(e) => updateSelectedElement('countdownEndText', e.target.value)}
-                                  placeholder="Ej: ¡El gran día ha llegado!"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
-                                  style={{
-                                    backgroundColor: 'var(--bg-card)',
-                                    borderColor: 'var(--border-color)',
-                                    color: 'var(--text-main)',
-                                  }}
-                                />
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                    Fecha del Evento
+                                  </label>
+                                  <div className="flex items-center gap-1 p-0.5 rounded-lg border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSelectedElement('countdownDateMode', 'manual')}
+                                      className="px-2 py-0.5 text-[9px] font-bold rounded-md transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: (selectedElement.countdownDateMode || 'manual') === 'manual' ? 'var(--primary-accent)' : 'transparent',
+                                        color: (selectedElement.countdownDateMode || 'manual') === 'manual' ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      Manual
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSelectedElementBatch({ countdownDateMode: 'db', countdownDate: '[fecha_evento]' })}
+                                      className="px-2 py-0.5 text-[9px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1"
+                                      style={{
+                                        backgroundColor: selectedElement.countdownDateMode === 'db' ? 'var(--primary-accent)' : 'transparent',
+                                        color: selectedElement.countdownDateMode === 'db' ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      <Calendar size={10} />
+                                      <span>Evento</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {selectedElement.countdownDateMode === 'db' ? (
+                                  <div 
+                                    className="w-full rounded-xl px-3 py-2 border flex items-center gap-2 text-xs font-semibold shadow-2xs"
+                                    style={{
+                                      backgroundColor: 'var(--primary-accent-light)',
+                                      borderColor: 'var(--primary-accent)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                  >
+                                    <Calendar size={14} className="shrink-0" />
+                                    <span className="capitalize truncate">
+                                      {event?.event_date
+                                        ? new Date(event.event_date).toLocaleString('es-ES', {
+                                            weekday: 'long',
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })
+                                        : 'Fecha del Evento'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-2 gap-2 pt-1">
+                                    <div>
+                                      <label className="mb-1 block text-xs font-semibold flex items-center gap-1" style={{ color: 'var(--text-main)' }}>
+                                        <Calendar size={12} /> Fecha
+                                      </label>
+                                      <AppDatePicker
+                                        value={selectedElement.countdownDate ? selectedElement.countdownDate.slice(0, 10) : new Date().toISOString().slice(0, 10)}
+                                        onChange={(dateVal) => {
+                                          const currentFull = selectedElement.countdownDate || '';
+                                          const timeVal = currentFull.length >= 16 ? currentFull.slice(11, 16) : '18:00';
+                                          updateSelectedElementBatch({
+                                            countdownDate: dateVal ? `${dateVal}T${timeVal}` : '',
+                                            countdownDateMode: 'manual',
+                                          });
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="mb-1 block text-xs font-semibold flex items-center gap-1" style={{ color: 'var(--text-main)' }}>
+                                        <Clock size={12} /> Hora
+                                      </label>
+                                      <AppTimePicker
+                                        value={selectedElement.countdownDate && selectedElement.countdownDate.length >= 16 ? selectedElement.countdownDate.slice(11, 16) : '18:00'}
+                                        onChange={(timeVal) => {
+                                          const currentFull = selectedElement.countdownDate || '';
+                                          const dateVal = currentFull.length >= 10 ? currentFull.slice(0, 10) : new Date().toISOString().slice(0, 10);
+                                          updateSelectedElementBatch({
+                                            countdownDate: `${dateVal}T${timeVal}`,
+                                            countdownDateMode: 'manual',
+                                          });
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
 
                           {selectedElement.widgetType === 'gift' && (
-                            <div className="space-y-2.5 pt-1">
+                            <div className="space-y-3 pt-1">
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Título de la Mesa de Regalos
                                 </label>
                                 <input
@@ -5375,7 +5456,7 @@ const DB_FIELDS = [
                                     });
                                   }}
                                   placeholder="Ej: Mesa de Regalos"
-                                  className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                                  className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                                   style={{
                                     backgroundColor: 'var(--bg-card)',
                                     borderColor: 'var(--border-color)',
@@ -5384,10 +5465,10 @@ const DB_FIELDS = [
                                 />
                               </div>
                               <div>
-                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Tipo de Regalo
                                 </label>
-                                <div className="grid grid-cols-2 gap-1">
+                                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                   {[
                                     { id: 'stores', label: 'Tiendas en Línea' },
                                     { id: 'bank', label: 'Datos Bancarios' },
@@ -5396,11 +5477,11 @@ const DB_FIELDS = [
                                       key={t.id}
                                       type="button"
                                       onClick={() => updateSelectedElement('giftType', t.id)}
-                                      className="px-2 py-1 text-[10px] font-bold rounded-lg border transition-colors cursor-pointer"
+                                      className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg border transition-all cursor-pointer text-center"
                                       style={{
-                                        backgroundColor: (selectedElement.giftType || 'stores') === t.id ? 'var(--primary-accent)' : 'var(--bg-card)',
-                                        color: (selectedElement.giftType || 'stores') === t.id ? '#ffffff' : 'var(--text-main)',
-                                        borderColor: 'var(--border-color)',
+                                        backgroundColor: (selectedElement.giftType || 'stores') === t.id ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                                        color: (selectedElement.giftType || 'stores') === t.id ? 'var(--primary-accent)' : 'var(--text-main)',
+                                        borderColor: (selectedElement.giftType || 'stores') === t.id ? 'var(--primary-accent)' : 'var(--border-color)',
                                       }}
                                     >
                                       {t.label}
@@ -5411,7 +5492,7 @@ const DB_FIELDS = [
 
                               {selectedElement.giftType === 'bank' ? (
                                 <div>
-                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                     Detalles Bancarios / CLABE / Cuenta
                                   </label>
                                   <textarea
@@ -5419,7 +5500,7 @@ const DB_FIELDS = [
                                     value={selectedElement.giftBankDetails || ''}
                                     onChange={(e) => updateSelectedElement('giftBankDetails', e.target.value)}
                                     placeholder="Ej: Banco: BBVA Bancomer&#10;CLABE: 012345678901234567&#10;Titular: Juan Perez"
-                                    className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                                    className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs font-mono transition-colors focus:border-[var(--primary-accent)]"
                                     style={{
                                       backgroundColor: 'var(--bg-card)',
                                       borderColor: 'var(--border-color)',
@@ -5429,7 +5510,7 @@ const DB_FIELDS = [
                                 </div>
                               ) : (
                                 <div>
-                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                     Enlace a Tienda / Mesa de Regalos
                                   </label>
                                   <input
@@ -5437,7 +5518,7 @@ const DB_FIELDS = [
                                     value={selectedElement.giftStoreUrl || ''}
                                     onChange={(e) => updateSelectedElement('giftStoreUrl', e.target.value)}
                                     placeholder="https://mesaderegalos.liverpool.com.mx/..."
-                                    className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs font-mono"
+                                    className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs font-mono transition-colors focus:border-[var(--primary-accent)]"
                                     style={{
                                       backgroundColor: 'var(--bg-card)',
                                       borderColor: 'var(--border-color)',
@@ -5448,11 +5529,85 @@ const DB_FIELDS = [
                               )}
                             </div>
                           )}
+
+                          {/* SECCIÓN GUARDAR / CONFIGURAR COMO WIDGET */}
+                          <div className="pt-3.5 border-t space-y-2.5" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--primary-accent)' }}>
+                                <Puzzle size={14} />
+                                {selectedElement.isWidget ? 'Widget Configurado' : 'Guardar como Widget'}
+                              </span>
+                              {selectedElement.isWidget && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}>
+                                  {selectedElement.widgetType || 'custom'}
+                                </span>
+                              )}
+                            </div>
+                            {selectedElement.isWidget ? (
+                              <div className="flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWidgetModalTitle(selectedElement.componentName || selectedElement.content || 'Mi Widget');
+                                    setWidgetModalType(selectedElement.widgetType || 'map');
+                                    setIsWidgetModalOpen(true);
+                                  }}
+                                  className="flex-1 py-1 px-2 rounded-lg border hover:opacity-80 text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                                  style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  title="Editar Configuración"
+                                >
+                                  <Settings size={12} />
+                                  <span>Ajustes</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isSavingWidgetTemplate}
+                                  onClick={() => handleSaveWidgetToDatabase()}
+                                  className={`flex-1 py-1 px-2 rounded-lg text-white text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-xs active:scale-95 cursor-pointer ${
+                                    widgetSavedId === selectedElement.id ? 'opacity-90' : 'hover:opacity-90'
+                                  }`}
+                                  style={{ backgroundColor: widgetSavedId === selectedElement.id ? 'var(--success)' : 'var(--primary-accent)' }}
+                                  title="Guardar plantilla de Widget en la base de datos"
+                                >
+                                  {isSavingWidgetTemplate ? (
+                                    <>
+                                      <CheckCircle2 size={12} className="animate-spin" />
+                                      <span>Guardando...</span>
+                                    </>
+                                  ) : widgetSavedId === selectedElement.id ? (
+                                    <>
+                                      <CheckCircle2 size={12} />
+                                      <span>¡Widget Guardado!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Save size={12} />
+                                      <span>Guardar Widget</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWidgetModalTitle(selectedElement.componentName || selectedElement.content || 'Mi Widget');
+                                  setWidgetModalType(selectedElement.widgetType || 'map');
+                                  setIsWidgetModalOpen(true);
+                                }}
+                                className="w-full py-1.5 px-2.5 rounded-lg text-white font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer hover:opacity-90"
+                                style={{ backgroundColor: 'var(--primary-accent)' }}
+                              >
+                                <Puzzle size={12} />
+                                <span>Guardar como Widget</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ) : selectedElement.isComponentParent || selectedElement.type === 'component' ? (
                         <div className="pt-2 space-y-3">
                           <div>
-                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                            <label className="block font-extrabold uppercase text-[9px] tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
                               Nombre del Componente
                             </label>
                             <input
@@ -5466,7 +5621,7 @@ const DB_FIELDS = [
                                 });
                               }}
                               placeholder="Nombre del componente"
-                              className="w-full rounded-lg px-2.5 py-1.5 border outline-none font-medium text-xs"
+                              className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs transition-colors focus:border-[var(--primary-accent)]"
                               style={{
                                 backgroundColor: 'var(--bg-card)',
                                 borderColor: 'var(--border-color)',
@@ -5476,20 +5631,20 @@ const DB_FIELDS = [
                           </div>
 
                           {/* SECCIÓN GUARDAR / CONFIGURAR COMO WIDGET */}
-                          <div className="pt-3 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className="pt-3.5 border-t space-y-2.5" style={{ borderColor: 'var(--border-color)' }}>
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1">
-                                <Puzzle size={12} />
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--primary-accent)' }}>
+                                <Puzzle size={14} />
                                 {selectedElement.isWidget ? 'Widget Configurado' : 'Guardar como Widget'}
                               </span>
                               {selectedElement.isWidget && (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}>
                                   {selectedElement.widgetType || 'custom'}
                                 </span>
                               )}
                             </div>
                             {selectedElement.isWidget ? (
-                              <div className="flex gap-2">
+                              <div className="flex gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -5497,38 +5652,37 @@ const DB_FIELDS = [
                                     setWidgetModalType(selectedElement.widgetType || 'map');
                                     setIsWidgetModalOpen(true);
                                   }}
-                                  className="flex-1 py-2 px-2 rounded-xl border hover:bg-black/10 dark:hover:bg-white/10 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                                  style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  className="flex-1 py-1 px-2 rounded-lg border hover:opacity-80 text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                                  style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                                   title="Editar Configuración"
                                 >
-                                  <Settings size={14} />
+                                  <Settings size={12} />
                                   <span>Ajustes</span>
                                 </button>
                                 <button
                                   type="button"
                                   disabled={isSavingWidgetTemplate}
                                   onClick={() => handleSaveWidgetToDatabase()}
-                                  className={`flex-1 py-2 px-2 rounded-xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${
-                                    widgetSavedId === selectedElement.id 
-                                      ? 'bg-green-500' 
-                                      : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500'
+                                  className={`flex-1 py-1 px-2 rounded-lg text-white text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-xs active:scale-95 cursor-pointer ${
+                                    widgetSavedId === selectedElement.id ? 'opacity-90' : 'hover:opacity-90'
                                   }`}
+                                  style={{ backgroundColor: widgetSavedId === selectedElement.id ? 'var(--success)' : 'var(--primary-accent)' }}
                                   title="Guardar plantilla de Widget en la base de datos"
                                 >
                                   {isSavingWidgetTemplate ? (
                                     <>
-                                      <CheckCircle2 size={14} className="animate-spin" />
+                                      <CheckCircle2 size={12} className="animate-spin" />
                                       <span>Guardando...</span>
                                     </>
                                   ) : widgetSavedId === selectedElement.id ? (
                                     <>
-                                      <CheckCircle2 size={14} />
-                                      <span>¡Guardado en BD!</span>
+                                      <CheckCircle2 size={12} />
+                                      <span>¡Widget Guardado!</span>
                                     </>
                                   ) : (
                                     <>
-                                      <Save size={14} />
-                                      <span>Guardar en BD</span>
+                                      <Save size={12} />
+                                      <span>Guardar Widget</span>
                                     </>
                                   )}
                                 </button>
@@ -5541,10 +5695,11 @@ const DB_FIELDS = [
                                   setWidgetModalType(selectedElement.widgetType || 'map');
                                   setIsWidgetModalOpen(true);
                                 }}
-                                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+                                className="w-full py-1.5 px-2.5 rounded-lg text-white font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer hover:opacity-90"
+                                style={{ backgroundColor: 'var(--primary-accent)' }}
                               >
-                                <Puzzle size={14} />
-                                <span>⚡ Guardar como Widget</span>
+                                <Puzzle size={12} />
+                                <span>Guardar como Widget</span>
                               </button>
                             )}
                           </div>
@@ -5595,11 +5750,12 @@ const DB_FIELDS = [
                                     ? 'Modo Base de Datos activo (Clic para cambiar a Texto Libre)'
                                     : 'Modo Texto Libre (Clic para activar Modo Base de Datos)'
                                 }
-                                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                                  selectedElement.contentMode === 'db' || selectedElement.content?.includes('[')
-                                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-xs font-bold'
-                                    : 'bg-transparent text-gray-400 hover:bg-black/10 dark:hover:bg-white/10 border-transparent'
-                                }`}
+                                className="p-1.5 rounded-lg border transition-all cursor-pointer"
+                                style={{
+                                  backgroundColor: selectedElement.contentMode === 'db' || selectedElement.content?.includes('[') ? 'var(--primary-accent-light)' : 'transparent',
+                                  borderColor: selectedElement.contentMode === 'db' || selectedElement.content?.includes('[') ? 'var(--primary-accent)' : 'transparent',
+                                  color: selectedElement.contentMode === 'db' || selectedElement.content?.includes('[') ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                }}
                               >
                                 {selectedElement.contentMode === 'db' || selectedElement.content?.includes('[') ? (
                                   <Database size={13} />
@@ -5631,7 +5787,7 @@ const DB_FIELDS = [
                                 className="w-full rounded-xl px-3 py-2 border outline-none font-medium text-xs resize-y transition-all"
                                 style={{
                                   backgroundColor: 'var(--bg-card)',
-                                  borderColor: selectedElement.content?.includes('[') ? '#06b6d4' : 'var(--border-color)',
+                                  borderColor: selectedElement.content?.includes('[') ? 'var(--primary-accent)' : 'var(--border-color)',
                                   color: 'var(--text-main)',
                                 }}
                               />
@@ -5653,7 +5809,7 @@ const DB_FIELDS = [
                                 </button>
 
                                 {selectedElement.content?.includes('[') && (
-                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center gap-1">
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 uppercase" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}>
                                     <Database size={10} />
                                     <span>Variable BD</span>
                                   </span>
@@ -5687,20 +5843,21 @@ const DB_FIELDS = [
 
                                 return (
                                   <div
-                                    className="absolute left-0 right-0 z-50 mt-1 p-2.5 rounded-xl border shadow-2xl space-y-2 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+                                    className="absolute left-0 right-0 z-50 mt-1 p-3 rounded-2xl border shadow-2xl space-y-2.5 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
                                     style={{
                                       backgroundColor: 'var(--bg-card)',
                                       borderColor: 'var(--primary-accent)',
+                                      color: 'var(--text-main)',
                                     }}
                                   >
-                                    <div className="flex items-center justify-between pb-1 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center justify-between pb-1.5 border-b" style={{ borderColor: 'var(--border-color)' }}>
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
-                                          <Database size={12} />
+                                          <Database size={13} />
                                           Campos BD
                                         </span>
                                         {widgetMeta && (
-                                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1" style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}>
                                             <span>{widgetMeta.icon}</span>
                                             <span>{widgetMeta.label}</span>
                                           </span>
@@ -5709,20 +5866,21 @@ const DB_FIELDS = [
                                       <button
                                         type="button"
                                         onClick={() => setShowDbInspectorPopover(false)}
-                                        className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-gray-400"
+                                        className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                                        style={{ color: 'var(--text-muted)' }}
                                       >
-                                        <X size={12} />
+                                        <X size={13} />
                                       </button>
                                     </div>
 
                                     <div className="relative">
-                                      <Search size={12} className="absolute left-2 top-2 text-gray-400" />
+                                      <Search size={13} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
                                       <input
                                         type="text"
                                         value={dbSearchQuery}
                                         onChange={(e) => setDbSearchQuery(e.target.value)}
                                         placeholder="Buscar campo (ej: días, invitado, mesa)..."
-                                        className="w-full pl-7 pr-2 py-1 text-[11px] rounded-lg border outline-none font-medium"
+                                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border outline-none font-medium transition-colors focus:border-[var(--primary-accent)]"
                                         style={{
                                           backgroundColor: 'var(--bg-app)',
                                           borderColor: 'var(--border-color)',
@@ -5731,11 +5889,11 @@ const DB_FIELDS = [
                                       />
                                     </div>
 
-                                    <div className="max-h-52 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                                       {/* RECOMENDADOS PARA EL WIDGET ACTUAL */}
                                       {recommended.length > 0 && (
                                         <div className="space-y-1">
-                                          <div className="text-[9px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+                                          <div className="text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--primary-accent)' }}>
                                             <span>⭐</span>
                                             <span>Recomendados para {widgetMeta?.label || 'Widget'}</span>
                                           </div>
@@ -5758,20 +5916,24 @@ const DB_FIELDS = [
                                                 setShowDbInspectorPopover(false);
                                                 setDbSearchQuery('');
                                               }}
-                                              className="w-full flex items-center justify-between p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-left transition-colors cursor-pointer group border border-cyan-500/30"
+                                              className="w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer group border shadow-2xs"
+                                              style={{
+                                                backgroundColor: 'var(--primary-accent-light)',
+                                                borderColor: 'var(--primary-accent)',
+                                              }}
                                             >
                                               <div className="flex items-center gap-2">
-                                                <span className="text-sm">{field.icon}</span>
+                                                <span className="text-base">{field.icon}</span>
                                                 <div>
-                                                  <div className="text-[11px] font-bold text-cyan-300">
+                                                  <div className="text-xs font-bold" style={{ color: 'var(--primary-accent)' }}>
                                                     {field.label}
                                                   </div>
-                                                  <div className="text-[9px] font-mono text-cyan-400">
+                                                  <div className="text-[10px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
                                                     [{field.key}]
                                                   </div>
                                                 </div>
                                               </div>
-                                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500 text-white">
+                                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
                                                 + Insertar
                                               </span>
                                             </button>
@@ -5783,7 +5945,7 @@ const DB_FIELDS = [
                                       {others.length > 0 && (
                                         <div className="space-y-1">
                                           {recommended.length > 0 && (
-                                            <div className="text-[9px] font-extrabold uppercase tracking-wider text-gray-400 pt-1">
+                                            <div className="text-[9px] font-extrabold uppercase tracking-wider pt-1" style={{ color: 'var(--text-muted)' }}>
                                               Otros Campos Disponibles
                                             </div>
                                           )}
@@ -5806,20 +5968,24 @@ const DB_FIELDS = [
                                                 setShowDbInspectorPopover(false);
                                                 setDbSearchQuery('');
                                               }}
-                                              className="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-left transition-colors cursor-pointer group border border-transparent hover:border-gray-500/20"
+                                              className="w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer group border"
+                                              style={{
+                                                backgroundColor: 'var(--bg-app)',
+                                                borderColor: 'var(--border-color)',
+                                              }}
                                             >
                                               <div className="flex items-center gap-2">
-                                                <span className="text-sm">{field.icon}</span>
+                                                <span className="text-base">{field.icon}</span>
                                                 <div>
-                                                  <div className="text-[11px] font-bold" style={{ color: 'var(--text-main)' }}>
+                                                  <div className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>
                                                     {field.label}
                                                   </div>
-                                                  <div className="text-[9px] font-mono text-cyan-400">
+                                                  <div className="text-[10px] font-mono font-bold" style={{ color: 'var(--primary-accent)' }}>
                                                     [{field.key}]
                                                   </div>
                                                 </div>
                                               </div>
-                                              <span className="text-[9px] font-semibold text-gray-400 group-hover:text-cyan-400">
+                                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-colors group-hover:bg-black/10 dark:group-hover:bg-white/10" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
                                                 + Insertar
                                               </span>
                                             </button>
@@ -5891,7 +6057,7 @@ const DB_FIELDS = [
                     </div>
 
                     {openSections.threeD && (() => {
-                      if (!isSuperAdmin && selectedElement.lockedSections?.threeD) {
+                      if (isElementSectionLocked(selectedElement, 'threeD')) {
                         return (
                           <div className="px-4 pb-4 pt-1">
                             <div className="p-3 rounded-lg border flex items-center gap-2 text-[10px] font-bold opacity-80" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
@@ -6168,7 +6334,7 @@ const DB_FIELDS = [
                     return (
                     <div
                       className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
-                        !isSuperAdmin && selectedElement.lockedSections?.transform
+                        isElementTransformLocked(selectedElement)
                           ? 'opacity-60 pointer-events-none select-none'
                           : ''
                       }`}
@@ -6589,7 +6755,7 @@ const DB_FIELDS = [
                     {openSections.imageFit && (
                       <div
                         className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
-                          !isSuperAdmin && selectedElement.lockedSections?.appearance
+                          isElementSectionLocked(selectedElement, 'appearance')
                             ? 'opacity-60 pointer-events-none select-none'
                             : ''
                         }`}
@@ -7305,7 +7471,7 @@ const DB_FIELDS = [
                     {openSections.mask && (
                       <div
                         className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
-                          !isSuperAdmin && selectedElement.lockedSections?.appearance
+                          isElementSectionLocked(selectedElement, 'appearance')
                             ? 'opacity-60 pointer-events-none select-none'
                             : ''
                         }`}
@@ -7690,7 +7856,7 @@ const DB_FIELDS = [
                     {openSections.typography && (
                       <div
                         className={`px-4 pb-3 pt-2 border-t space-y-3 transition-opacity ${
-                          !isSuperAdmin && selectedElement.lockedSections?.typography
+                          isElementSectionLocked(selectedElement, 'typography')
                             ? 'opacity-60 pointer-events-none select-none'
                             : ''
                         }`}
@@ -8052,7 +8218,7 @@ const DB_FIELDS = [
                   {openSections.container && (
                     <div
                       className={`px-4 pb-3 pt-2 border-t space-y-2 transition-opacity ${
-                        !isSuperAdmin && selectedElement.lockedSections?.container
+                        isElementSectionLocked(selectedElement, 'container')
                           ? 'opacity-60 pointer-events-none select-none'
                           : ''
                       }`}
@@ -8234,7 +8400,7 @@ const DB_FIELDS = [
                   )}
                 </div>
 
-                <div className={`space-y-4 transition-opacity ${!isSuperAdmin && selectedElement.lockedSections?.animation ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+                <div className={`space-y-4 transition-opacity ${isElementSectionLocked(selectedElement, 'animation') ? 'opacity-60 pointer-events-none select-none' : ''}`}>
                   
                   {/* Botón de Reproducir y Switch Loop */}
                   <div className="flex gap-2 w-full h-[38px]">
@@ -9385,21 +9551,36 @@ const DB_FIELDS = [
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div 
             className="w-full max-w-md rounded-2xl border shadow-2xl p-6 space-y-4"
-            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
           >
-            <div className="flex items-center gap-3 border-b pb-3" style={{ borderColor: 'var(--border-color)' }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/20 text-amber-500 border border-amber-500/30 shrink-0">
-                <AlertTriangle size={20} />
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
+                  style={{ backgroundColor: 'var(--primary-accent-light)', borderColor: 'var(--primary-accent)', color: 'var(--primary-accent)' }}
+                >
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base leading-tight" style={{ color: 'var(--text-main)' }}>¿Sobreescribir Widget?</h3>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Ya existe una plantilla guardada con este nombre.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-extrabold text-base leading-tight" style={{ color: 'var(--text-main)' }}>¿Sobreescribir Widget?</h3>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Ya existe una plantilla guardada con este nombre.</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setWidgetOverwriteModal(null)}
+                className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-muted transition-colors"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-main)' }}>
-              Ya existe una plantilla de widget llamada <strong>"{widgetOverwriteModal.targetTitle}"</strong>. ¿Deseas sobreescribir la plantilla existente o guardar una copia nueva?
-            </p>
+            <div 
+              className="p-3.5 rounded-xl border text-xs leading-relaxed"
+              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+            >
+              Ya existe una plantilla de widget registrada como <span className="font-bold underline" style={{ color: 'var(--primary-accent)' }}>"{widgetOverwriteModal.targetTitle}"</span>. ¿Qué acción deseas realizar?
+            </div>
 
             <div className="flex flex-col gap-2 pt-2">
               <button
@@ -9413,10 +9594,11 @@ const DB_FIELDS = [
                     'overwrite'
                   );
                 }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer ${isSavingWidgetTemplate ? 'opacity-70 cursor-not-allowed' : 'active:scale-95 hover:opacity-90'}`}
+                style={{ backgroundColor: 'var(--primary-accent)' }}
               >
-                <Save size={14} />
-                <span>Sobreescribir plantilla existente</span>
+                <Save size={14} className={isSavingWidgetTemplate ? 'animate-spin' : ''} />
+                <span>{isSavingWidgetTemplate ? 'Sobreescribiendo...' : 'Sobreescribir plantilla existente'}</span>
               </button>
 
               <button
@@ -9430,7 +9612,7 @@ const DB_FIELDS = [
                     'copy'
                   );
                 }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 hover:opacity-90 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 hover:opacity-80 active:scale-95 cursor-pointer"
                 style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', borderColor: 'var(--border-color)' }}
               >
                 <Copy size={14} />
@@ -9440,7 +9622,7 @@ const DB_FIELDS = [
               <button
                 type="button"
                 onClick={() => setWidgetOverwriteModal(null)}
-                className="w-full py-2 text-xs font-bold opacity-70 hover:opacity-100 transition-opacity mt-1 cursor-pointer"
+                className="w-full py-2 text-xs font-bold opacity-70 hover:opacity-100 transition-opacity mt-1 cursor-pointer text-center"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Cancelar
