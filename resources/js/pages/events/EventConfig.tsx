@@ -17,9 +17,14 @@ import {
   Clock,
   MapPin,
   ExternalLink,
+  Camera,
+  Sliders,
+  Tv,
+  X,
 } from 'lucide-react';
 import InvitationManager from '../../components/events/InvitationManager';
 import GuestManager from '../../components/events/GuestManager';
+import PhotoManager from '../../components/events/PhotoManager';
 import api from '../../lib/api';
 import type { Event } from '../../types';
 
@@ -71,6 +76,13 @@ const ALL_SERVICES = [
     description: 'Pantalla interactiva en la entrada del evento para auto check-in de invitados.',
     icon: Smartphone,
   },
+  {
+    id: 'FOTOS',
+    name: 'Fotos',
+    fullName: 'Fotos en Vivo & Galería Social',
+    description: 'Subida de fotos en vivo por invitados vía QR, moderación en directo y proyección en pantalla.',
+    icon: Camera,
+  },
 ];
 
 export default function EventConfig() {
@@ -85,6 +97,8 @@ export default function EventConfig() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<string>(tabParam ? tabParam.toUpperCase() : 'INVITADOS');
+  const [photoSubTab, setPhotoSubTab] = useState<'app_movil' | 'display' | 'totem' | 'moderation' | 'qr'>('app_movil');
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const fetchEvent = () => {
     if (!id) return;
@@ -330,7 +344,7 @@ export default function EventConfig() {
               </div>
             </div>
 
-            {/* Logo grande por encima de la franja */}
+            {/* Logo grande por encima de la franja alineado verticalmente a la derecha */}
             {event.logo && (
               <div className="shrink-0 self-center relative z-30 -my-10 mx-6 md:mx-10">
                 <img
@@ -351,7 +365,7 @@ export default function EventConfig() {
           backgroundColor: 'var(--primary-accent)',
         }}
       >
-        <div className="flex items-center gap-4 flex-1 overflow-visible">
+        <div className="flex items-center gap-4 shrink-0 overflow-visible">
           <div className="border-r border-white/30 pr-4 py-0.5 shrink-0">
             <span className="font-black text-sm uppercase tracking-wider">SERVICIOS</span>
           </div>
@@ -391,55 +405,215 @@ export default function EventConfig() {
           </div>
         </div>
 
-        {/* Contador de Invitados (Estilo Recuadro Blanco 3/4 del alto del item seleccionado) */}
+        {/* Recuadro Centrado en relación al Logo para Invitados (Contadores) */}
         {activeTab === 'INVITADOS' && (() => {
           const totalGuests = event.guest_count ?? (event.guests ? event.guests.length : 0);
           const acceptedGuests = event.confirmed_count ?? (event.guests ? event.guests.filter(g => g.rsvp_status === 'confirmed' || g.rsvp_status === 'accepted' || g.rsvp_status === 'attending').length : 0);
           const rejectedGuests = event.guests ? event.guests.filter(g => g.rsvp_status === 'declined' || g.rsvp_status === 'rejected' || g.rsvp_status === 'not_attending').length : 0;
 
           return (
-            <div
-              className="flex items-center gap-3.5 px-3.5 py-1 rounded-lg shrink-0 self-center z-30 shadow-xl bg-white border-[3.5px]"
-              style={{
-                borderColor: 'var(--primary-accent)',
-                color: 'var(--text-main)',
-              }}
-            >
-              {/* TOTAL */}
-              <div className="flex flex-col items-center px-1.5 pr-3 border-r leading-tight" style={{ borderColor: 'var(--border-color)' }}>
-                <div className="flex items-center gap-1">
-                  <Users size={12} className="text-slate-800" />
-                  <span className="font-black text-sm text-slate-800">{totalGuests}</span>
+            <div className="absolute right-[220px] translate-x-1/2 flex items-center z-30">
+              <div
+                className="flex items-center gap-3.5 px-3.5 py-1 rounded-lg shrink-0 shadow-xl bg-white border-[3.5px]"
+                style={{
+                  borderColor: 'var(--primary-accent)',
+                  color: 'var(--text-main)',
+                }}
+              >
+                {/* TOTAL */}
+                <div className="flex flex-col items-center px-1.5 pr-3 border-r leading-tight" style={{ borderColor: 'var(--border-color)' }}>
+                  <div className="flex items-center gap-1">
+                    <Users size={12} className="text-slate-800" />
+                    <span className="font-black text-sm text-slate-800">{totalGuests}</span>
+                  </div>
+                  <span className="text-[8px] uppercase font-black tracking-wider mt-0.5 text-slate-800">
+                    Total
+                  </span>
                 </div>
-                <span className="text-[8px] uppercase font-black tracking-wider mt-0.5 text-slate-800">
-                  Total
-                </span>
-              </div>
 
-              {/* ACEPTADOS */}
-              <div className="flex flex-col items-center px-1.5 pr-3 border-r leading-tight" style={{ borderColor: 'var(--border-color)' }}>
-                <div className="flex items-center gap-1">
-                  <UserCheck size={12} style={{ color: 'var(--success)' }} />
-                  <span className="font-black text-sm" style={{ color: 'var(--success)' }}>{acceptedGuests}</span>
+                {/* ACEPTADOS */}
+                <div className="flex flex-col items-center px-1.5 pr-3 border-r leading-tight" style={{ borderColor: 'var(--border-color)' }}>
+                  <div className="flex items-center gap-1">
+                    <UserCheck size={12} style={{ color: 'var(--success)' }} />
+                    <span className="font-black text-sm" style={{ color: 'var(--success)' }}>{acceptedGuests}</span>
+                  </div>
+                  <span className="text-[8px] uppercase font-black tracking-wider mt-0.5" style={{ color: 'var(--success)' }}>
+                    Aceptados
+                  </span>
                 </div>
-                <span className="text-[8px] uppercase font-black tracking-wider mt-0.5" style={{ color: 'var(--success)' }}>
-                  Aceptados
-                </span>
-              </div>
 
-              {/* RECHAZADOS */}
-              <div className="flex flex-col items-center px-1.5 leading-tight">
-                <div className="flex items-center gap-1">
-                  <UserX size={12} style={{ color: 'var(--danger)' }} />
-                  <span className="font-black text-sm" style={{ color: 'var(--danger)' }}>{rejectedGuests}</span>
+                {/* RECHAZADOS */}
+                <div className="flex flex-col items-center px-1.5 leading-tight">
+                  <div className="flex items-center gap-1">
+                    <UserX size={12} style={{ color: 'var(--danger)' }} />
+                    <span className="font-black text-sm" style={{ color: 'var(--danger)' }}>{rejectedGuests}</span>
+                  </div>
+                  <span className="text-[8px] uppercase font-black tracking-wider mt-0.5" style={{ color: 'var(--danger)' }}>
+                    Rechazados
+                  </span>
                 </div>
-                <span className="text-[8px] uppercase font-black tracking-wider mt-0.5" style={{ color: 'var(--danger)' }}>
-                  Rechazados
-                </span>
               </div>
             </div>
           );
         })()}
+
+        {/* Recuadros para Servicio FOTOS: Configuración Centrado con el Logo y QR a la extrema derecha */}
+        {activeTab === 'FOTOS' && (
+          <>
+            {/* Recuadro de Configuración Centrado con el Logo del Evento */}
+            <div className="absolute right-[220px] translate-x-1/2 flex items-center z-30">
+              <div
+                className="flex flex-col justify-center px-2.5 py-1.5 h-[52px] rounded-lg shrink-0 shadow-xl bg-white border-[3.5px] leading-none"
+                style={{
+                  borderColor: 'var(--primary-accent)',
+                  color: 'var(--text-main)',
+                }}
+              >
+                <span className="text-[8.5px] font-black uppercase tracking-wider text-slate-800 text-center mb-1.5">
+                  Configuración
+                </span>
+                <div className="flex items-center gap-1 h-[22px]">
+                  {[
+                    { id: 'app_movil', label: 'App Móvil', icon: Smartphone },
+                    { id: 'display', label: 'Pantalla', icon: Tv },
+                    { id: 'totem', label: 'Tótem', icon: Sliders },
+                  ].map((sub) => {
+                    const SubIcon = sub.icon;
+                    const isSubActive = photoSubTab === sub.id;
+                    return (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => setPhotoSubTab(sub.id as any)}
+                        className="h-full px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider rounded transition-all flex items-center gap-1 cursor-pointer"
+                        style={{
+                          backgroundColor: isSubActive ? 'var(--primary-accent)' : 'transparent',
+                          color: isSubActive ? '#ffffff' : '#475569',
+                        }}
+                        title={sub.label}
+                      >
+                        <SubIcon size={12} />
+                        {isSubActive && <span>{sub.label}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Recuadro de QR en la Extrema Derecha de la Barra */}
+            <div className="ml-auto flex items-center z-30">
+
+            {/* Cuadro de Código QR para Previsualización (Rectangular vertical) */}
+            {(() => {
+              const targetPath =
+                photoSubTab === 'app_movil'
+                  ? `/e/${event.id}/photos`
+                  : photoSubTab === 'display'
+                  ? `/e/${event.id}/display`
+                  : `/e/${event.id}/totem`;
+
+              const fullUrl = `${window.location.origin}${targetPath}`;
+              const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(fullUrl)}`;
+
+              const qrTitle =
+                photoSubTab === 'app_movil'
+                  ? 'Móvil'
+                  : photoSubTab === 'display'
+                  ? 'Pantalla'
+                  : 'Tótem';
+
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowQrModal(true)}
+                    title={`Ver código QR de ${qrTitle}`}
+                    className="flex flex-col items-center justify-center p-1.5 w-20 rounded-lg shrink-0 shadow-2xl bg-white border-[3.5px] transition-transform hover:scale-105 group relative z-40 cursor-pointer"
+                    style={{
+                      borderColor: 'var(--primary-accent)',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    {/* QR Arriba */}
+                    <img
+                      src={qrApiUrl}
+                      alt={qrTitle}
+                      className="w-14 h-14 object-contain rounded bg-white p-0.5"
+                    />
+                    {/* Info Abajo */}
+                    <div className="flex flex-col items-center leading-none mt-1 text-center w-full">
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-800 truncate max-w-full">
+                        {qrTitle}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* MODAL CÓDIGO QR */}
+                  {showQrModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+                      <div
+                        className="relative w-full max-w-sm rounded-md shadow-2xl overflow-hidden p-6 text-center space-y-5 border-y-2 border-l-[3px]"
+                        style={{
+                          backgroundColor: 'var(--bg-card)',
+                          borderColor: 'var(--primary-accent)',
+                        }}
+                      >
+                        {/* Botón cerrar */}
+                        <button
+                          type="button"
+                          onClick={() => setShowQrModal(false)}
+                          className="absolute top-3 right-3 text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-full cursor-pointer"
+                        >
+                          <X size={20} />
+                        </button>
+
+                        {/* 1. QR Grande Arriba */}
+                        <div className="flex justify-center pt-2">
+                          <div
+                            className="p-3 bg-white rounded-2xl shadow-md border-2"
+                            style={{ borderColor: 'var(--primary-accent)' }}
+                          >
+                            <img
+                              src={qrApiUrl}
+                              alt={qrTitle}
+                              className="w-56 h-56 object-contain"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 2. Título Abajo del QR */}
+                        <div>
+                          <h3 className="text-xl font-extrabold uppercase tracking-wide" style={{ color: 'var(--text-main)' }}>
+                            {qrTitle}
+                          </h3>
+                          <p className="text-xs font-medium mt-1" style={{ color: 'var(--text-muted)' }}>
+                            Escanea el código QR con un teléfono o haz clic en Ver
+                          </p>
+                        </div>
+
+                        {/* 3. Botón VER Abajo del Título */}
+                        <div className="pt-2 flex gap-3 justify-center">
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-extrabold text-white shadow-md transition-all hover:opacity-90"
+                            style={{ backgroundColor: 'var(--primary-accent)' }}
+                          >
+                            <span>Ver</span>
+                            <ExternalLink size={16} />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Contenido del Servicio Seleccionado */}
@@ -448,6 +622,8 @@ export default function EventConfig() {
           <GuestManager eventId={event.id} />
         ) : activeTab === 'INVITACION' ? (
           <InvitationManager eventId={event.id} />
+        ) : activeTab === 'FOTOS' ? (
+          <PhotoManager eventId={event.id} activeSubTab={photoSubTab} onSubTabChange={setPhotoSubTab} />
         ) : (
           ALL_SERVICES.map((srv) => {
             if (activeTab !== srv.id || (!event.services?.includes(srv.id) && srv.id !== 'INVITADOS')) return null;

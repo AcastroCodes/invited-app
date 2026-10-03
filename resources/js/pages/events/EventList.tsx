@@ -29,6 +29,7 @@ import {
   Sparkles,
   Check,
   Pipette,
+  Camera,
 } from 'lucide-react';
 import api from '../../lib/api';
 import type { Event } from '../../types';
@@ -101,6 +102,7 @@ const SERVICE_ICONS: Record<string, any> = {
   INVITACION: Mail,
   PROTOCOLO: Shield,
   TOTEM: Smartphone,
+  FOTOS: Camera,
 };
 
 import { usePartner } from '../../context/PartnerContext';
@@ -1447,7 +1449,7 @@ export default function EventList() {
                       SERVICIOS
                     </h4>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {['INVITACION', 'PROTOCOLO', 'TOTEM'].map((srv) => {
+                      {['INVITACION', 'PROTOCOLO', 'TOTEM', 'FOTOS'].map((srv) => {
                         const Icon = SERVICE_ICONS[srv];
                         return (
                           <button
