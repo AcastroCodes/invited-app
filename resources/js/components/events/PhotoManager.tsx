@@ -449,12 +449,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
           <div className="xl:col-span-3 flex flex-col items-center h-full">
             <div className="sticky top-[85px] z-10 w-full flex flex-col items-center justify-between h-full py-0">
               <div className="w-full flex flex-col items-center">
-                <div className="w-full flex items-center justify-between mb-2 px-1">
-                  <span className="text-[9.5px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                    <Sparkles size={12} style={{ color: 'var(--primary-accent)' }} /> Previsualización
-                  </span>
-                </div>
-
                 {/* FRAME DEL TELÉFONO CON MOBILE SIMULATOR DE DPHOTOS */}
                 <div className="w-full max-w-[260px] h-[520px] rounded-[16px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
                   {/* Isla Dinámica / Notch del teléfono */}
@@ -472,77 +466,80 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
             </div>
           </div>
 
-          {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN (CON SCROLL INDEPENDIENTE DESDE LA BARRA DE SERVICIOS) */}
-          <div className="xl:col-span-9 space-y-4 max-h-[calc(100vh-145px)] overflow-y-auto pr-1">
-            {/* PESTAÑAS PRINCIPALES DE PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
-            <div className="flex items-center justify-between gap-6">
-              {/* PESTAÑAS PRINCIPALES */}
-              <div
-                className="flex items-center gap-1.5 p-1.5 rounded-2xl border shadow-2xs flex-1"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
-              >
-                {[
-                  { id: 'general', label: 'General', icon: Sparkles },
-                  { id: 'welcome', label: 'Bienvenida', icon: Tv },
-                  { id: 'camera', label: 'Cámara', icon: Camera },
-                  { id: 'gallery', label: 'Galería', icon: ImageIcon },
-                ].map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = mobileActiveView === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => handleTabChange(tab.id as any)}
-                      className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
-                      style={{
-                        backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
-                        color: isActive ? '#ffffff' : 'var(--text-muted)',
-                        border: isActive ? 'none' : '1px solid var(--border-color)',
-                      }}
-                    >
-                      <Icon size={14} />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
+          {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN */}
+          <div className="xl:col-span-9 space-y-3 pt-3 flex flex-col max-h-[calc(100vh-145px)]">
+            {/* BARRA DE PANTALLA Y PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
+            <div
+              className="px-4 flex items-center justify-between gap-4 text-white shadow-md relative h-8 z-20 overflow-visible rounded-lg shrink-0"
+              style={{ backgroundColor: 'var(--primary-accent)' }}
+            >
+              <div className="flex items-center gap-4 flex-1 overflow-visible">
+                <div className="border-r border-white/30 pr-4 py-0.5 shrink-0">
+                  <span className="font-black text-sm uppercase tracking-wider">PANTALLA</span>
+                </div>
+
+                <div className="flex items-center gap-5 overflow-visible flex-1">
+                  {[
+                    { id: 'general', label: 'General', icon: Sparkles },
+                    { id: 'welcome', label: 'Bienvenida', icon: Tv },
+                    { id: 'camera', label: 'Cámara', icon: Camera },
+                    { id: 'gallery', label: 'Galería', icon: ImageIcon },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = mobileActiveView === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        title={!isActive ? tab.label : undefined}
+                        onClick={() => handleTabChange(tab.id as any)}
+                        className={`flex items-center gap-2 rounded-lg font-extrabold transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-white text-[var(--primary-accent)] shadow-2xl text-base px-6 py-2.5 -my-3.5 z-30 scale-110 border-[3.5px]'
+                            : 'bg-white/20 text-white hover:bg-white/35 p-1.5'
+                        }`}
+                        style={isActive ? { borderColor: 'var(--primary-accent)' } : undefined}
+                      >
+                        <Icon size={isActive ? 19 : 18} />
+                        {isActive && <span>{tab.label}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* SECCIÓN INDEPENDIENTE DE GUARDAR / ACTUALIZAR CONFIGURACIÓN */}
-              <div
-                className="p-1.5 rounded-2xl border shadow-2xs flex items-center"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
-              >
+              <div className="shrink-0 flex items-center pl-3 border-l border-white/30">
                 <button
                   type="button"
                   onClick={handleSaveSettings}
                   disabled={isSavingSettings}
-                  className="py-2 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: saveSuccess ? '#10B981' : 'var(--primary-accent)',
-                    color: '#ffffff',
-                  }}
+                  className="py-1 px-3.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md bg-white text-[var(--primary-accent)] hover:bg-slate-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={saveSuccess ? { backgroundColor: '#10B981', color: '#ffffff' } : undefined}
                   title="Guardar o actualizar configuración de la app móvil"
                 >
                   {isSavingSettings ? (
                     <>
-                      <Loader2 size={14} className="animate-spin" />
+                      <Loader2 size={13} className="animate-spin" />
                       <span>Guardando...</span>
                     </>
                   ) : saveSuccess ? (
                     <>
-                      <Check size={14} />
+                      <Check size={13} />
                       <span>¡Guardado!</span>
                     </>
                   ) : (
                     <>
-                      <Save size={14} />
+                      <Save size={13} />
                       <span>Guardar</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
+
+            {/* CONTENEDOR CON SCROLL ÚNICAMENTE PARA EL CONTENIDO (FUENTES, CONTENEDOR, LOGOS, ETC.) */}
+            <div className="overflow-y-auto pr-1 flex-1 space-y-4 pt-1">
                 {/* 1. GENERAL TAB */}
                 {mobileActiveView === 'general' && (
                   <div className="space-y-4">
@@ -1703,9 +1700,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* TÓTEMS SUB-TAB */}
       {subTab === 'totem' && (
