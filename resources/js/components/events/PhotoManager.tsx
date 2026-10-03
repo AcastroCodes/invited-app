@@ -31,6 +31,8 @@ import {
   Upload,
   Square,
   Check,
+  Save,
+  Loader2,
 } from 'lucide-react';
 import api from '../../lib/api';
 import MobileSimulator from './MobileSimulator';
@@ -80,8 +82,9 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   // Mobile app config states
   const [mobileActiveView, setMobileActiveView] = useState<'general' | 'welcome' | 'camera' | 'gallery'>('general');
   const [previewView, setPreviewView] = useState<string>('welcome');
-  const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos'>('fuentes');
+  const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
+  const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'barra'>('fondo');
   const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
 
   const [settings, setSettings] = useState<any>({
@@ -134,6 +137,33 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
     gallery_card_bg_color: '#1e293b',
     allow_downloads: true,
   });
+
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    setSaveSuccess(false);
+    try {
+      await api.put(`/events/${eventId}`, {
+        mobile_settings: settings,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error al guardar la configuración de la app móvil:', err);
+      // Reintento de respaldo o endpoint específico si no soporta mobile_settings directo
+      try {
+        await api.post(`/events/${eventId}/settings`, { settings });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } catch (fallbackErr) {
+        console.error('Error en fallback de guardado:', fallbackErr);
+      }
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const updateSetting = (key: string, val: any) => {
     setSettings((prev: any) => ({ ...prev, [key]: val }));
@@ -423,37 +453,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                   <span className="text-[9.5px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                     <Sparkles size={12} style={{ color: 'var(--primary-accent)' }} /> Previsualización
                   </span>
-
-                  {/* SELECTOR RÁPIDO DE PANTALLA EN SIMULADOR */}
-                  <div className="flex items-center gap-0.5 p-0.5 rounded-lg border bg-black/10">
-                    {[
-                      { id: 'welcome', icon: Tv, title: 'Bienvenida' },
-                      { id: 'camera', icon: Camera, title: 'Cámara' },
-                      { id: 'gallery', icon: ImageIcon, title: 'Galería' },
-                    ].map((pv) => {
-                      const PvIcon = pv.icon;
-                      const isPvActive = previewView === pv.id;
-                      return (
-                        <button
-                          key={pv.id}
-                          type="button"
-                          onClick={() => setPreviewView(pv.id)}
-                          title={pv.title}
-                          className={`p-1 rounded-md transition-all cursor-pointer ${
-                            isPvActive ? 'bg-primary-500 text-white shadow-xs' : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          <PvIcon size={11} />
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 {/* FRAME DEL TELÉFONO CON MOBILE SIMULATOR DE DPHOTOS */}
-                <div className="w-full max-w-[220px] h-[440px] rounded-[12px] p-1.5 border-[3.5px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
+                <div className="w-full max-w-[260px] h-[520px] rounded-[16px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
                   {/* Isla Dinámica / Notch del teléfono */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-3 bg-black rounded-full z-40 border border-slate-800 flex items-center justify-end px-1">
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-40 border border-slate-800 flex items-center justify-end px-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-900 border border-slate-700" />
                   </div>
 
@@ -464,54 +469,89 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                   />
                 </div>
               </div>
-
-              <p className="text-[9px] font-bold italic mt-2.5" style={{ color: 'var(--text-muted)' }}>
-                * Previsualización interactiva dPhotos
-              </p>
             </div>
           </div>
 
           {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN (CON SCROLL INDEPENDIENTE DESDE LA BARRA DE SERVICIOS) */}
           <div className="xl:col-span-9 space-y-4 max-h-[calc(100vh-145px)] overflow-y-auto pr-1">
-            {/* PESTAÑAS PRINCIPALES DE PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) */}
-            <div
-              className="flex items-center gap-1.5 p-1.5 rounded-2xl border shadow-2xs"
-              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
-            >
-              {[
-                { id: 'general', label: 'General', icon: Sparkles },
-                { id: 'welcome', label: 'Bienvenida', icon: Tv },
-                { id: 'camera', label: 'Cámara', icon: Camera },
-                { id: 'gallery', label: 'Galería', icon: ImageIcon },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = mobileActiveView === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => handleTabChange(tab.id as any)}
-                    className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    style={{
-                      backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
-                      color: isActive ? '#ffffff' : 'var(--text-muted)',
-                      border: isActive ? 'none' : '1px solid var(--border-color)',
-                    }}
-                  >
-                    <Icon size={14} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            {/* PESTAÑAS PRINCIPALES DE PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
+            <div className="flex items-center justify-between gap-6">
+              {/* PESTAÑAS PRINCIPALES */}
+              <div
+                className="flex items-center gap-1.5 p-1.5 rounded-2xl border shadow-2xs flex-1"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+              >
+                {[
+                  { id: 'general', label: 'General', icon: Sparkles },
+                  { id: 'welcome', label: 'Bienvenida', icon: Tv },
+                  { id: 'camera', label: 'Cámara', icon: Camera },
+                  { id: 'gallery', label: 'Galería', icon: ImageIcon },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = mobileActiveView === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => handleTabChange(tab.id as any)}
+                      className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      style={{
+                        backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
+                        color: isActive ? '#ffffff' : 'var(--text-muted)',
+                        border: isActive ? 'none' : '1px solid var(--border-color)',
+                      }}
+                    >
+                      <Icon size={14} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SECCIÓN INDEPENDIENTE DE GUARDAR / ACTUALIZAR CONFIGURACIÓN */}
+              <div
+                className="p-1.5 rounded-2xl border shadow-2xs flex items-center"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+              >
+                <button
+                  type="button"
+                  onClick={handleSaveSettings}
+                  disabled={isSavingSettings}
+                  className="py-2 px-5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: saveSuccess ? '#10B981' : 'var(--primary-accent)',
+                    color: '#ffffff',
+                  }}
+                  title="Guardar o actualizar configuración de la app móvil"
+                >
+                  {isSavingSettings ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <Check size={14} />
+                      <span>¡Guardado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      <span>Guardar</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
                 {/* 1. GENERAL TAB */}
                 {mobileActiveView === 'general' && (
                   <div className="space-y-4">
-                    {/* SUB-PESTAÑAS DE GENERAL: FUENTES, FONDOS */}
+                    {/* SUB-PESTAÑAS DE GENERAL: FUENTES, CONTENEDOR, LOGOS */}
                     <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       {[
                         { id: 'fuentes', label: 'Fuentes & Estilos', icon: Type },
-                        { id: 'fondos', label: 'Imágenes y fondos', icon: Palette },
+                        { id: 'fondos', label: 'Contenedor', icon: Palette },
+                        { id: 'logos', label: 'Logos', icon: ImageIcon },
                       ].map((sub) => {
                         const SubIcon = sub.icon;
                         const isSubActive = generalSubTab === sub.id;
@@ -1015,7 +1055,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     )}
 
 
-                    {/* FONDOS Y COLORES */}
+                    {/* CONTENEDOR */}
                     {generalSubTab === 'fondos' && (
                       <div className="rounded-2xl p-3 border space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                         <div className="pb-1 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
@@ -1023,20 +1063,45 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                             <Palette size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
                             <div className="flex flex-col leading-tight">
                               <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                                Fondo
+                                Contenedor ({containerTarget === 'fondo' ? 'Fondo' : containerTarget === 'mensaje' ? 'Mensaje' : 'Barra'})
                               </h3>
                               <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                                Imágenes y fondos
+                                Estilos y configuración del contenedor
                               </span>
                             </div>
+                          </div>
+
+                          {/* PESTAÑAS FONDO / MENSAJE / BARRA EN EL LADO DERECHO */}
+                          <div className="flex items-center gap-1 p-0.5 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            {[
+                              { id: 'fondo', label: 'Fondo' },
+                              { id: 'mensaje', label: 'Mensaje' },
+                              { id: 'barra', label: 'Barra' },
+                            ].map((cTarget) => {
+                              const isCTargetActive = containerTarget === cTarget.id;
+                              return (
+                                <button
+                                  key={cTarget.id}
+                                  type="button"
+                                  onClick={() => setContainerTarget(cTarget.id as any)}
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                    color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  {cTarget.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
-                          {/* COLUMNA IZQUIERDA: SUBIR IMAGEN DE FONDO (AMPLIA COMO ANTES) */}
+                          {/* COLUMNA IZQUIERDA: SUBIR IMAGEN / VIDEO DE FONDO */}
                           <div className="space-y-2">
                             <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                              Imagen de Fondo
+                              Imagen / Video
                             </label>
                             
                             <div
@@ -1045,25 +1110,37 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                             >
                               {settings.screen_image_url ? (
                                 <div className="relative w-full h-32 rounded-xl overflow-hidden group">
-                                  <img
-                                    src={settings.screen_image_url}
-                                    alt="Fondo de pantalla"
-                                    className="w-full h-full object-cover"
-                                  />
+                                  {settings.screen_bg_type === 'video' || String(settings.screen_image_url).startsWith('data:video') || String(settings.screen_image_url).match(/\.(mp4|webm|ogg)$/i) ? (
+                                    <video
+                                      src={settings.screen_image_url}
+                                      autoPlay
+                                      loop
+                                      muted
+                                      playsInline
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={settings.screen_image_url}
+                                      alt="Fondo de pantalla"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
                                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar imagen">
+                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
                                       <Upload size={16} />
                                       <input
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/*,video/*"
                                         className="hidden"
                                         onChange={(e) => {
                                           const file = e.target.files?.[0];
                                           if (file) {
+                                            const isVideo = file.type.startsWith('video/');
                                             const reader = new FileReader();
                                             reader.onload = (ev) => {
                                               updateSetting('screen_image_url', ev.target?.result);
-                                              updateSetting('screen_bg_type', 'image');
+                                              updateSetting('screen_bg_type', isVideo ? 'video' : 'image');
                                             };
                                             reader.readAsDataURL(file);
                                           }
@@ -1074,7 +1151,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                       type="button"
                                       onClick={() => updateSetting('screen_image_url', '')}
                                       className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
-                                      title="Eliminar imagen"
+                                      title="Eliminar archivo"
                                     >
                                       <Trash2 size={16} />
                                     </button>
@@ -1085,19 +1162,20 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   <div className="p-3 rounded-full mb-2" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
                                     <Upload size={20} />
                                   </div>
-                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen de Fondo</span>
-                                  <span className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>PNG, JPG o WEBP (máx. 5MB)</span>
+                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                  <span className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM (máx. 15MB)</span>
                                   <input
                                     type="file"
-                                    accept="image/*"
+                                    accept="image/*,video/*"
                                     className="hidden"
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) {
+                                        const isVideo = file.type.startsWith('video/');
                                         const reader = new FileReader();
                                         reader.onload = (ev) => {
                                           updateSetting('screen_image_url', ev.target?.result);
-                                          updateSetting('screen_bg_type', 'image');
+                                          updateSetting('screen_bg_type', isVideo ? 'video' : 'image');
                                         };
                                         reader.readAsDataURL(file);
                                       }
@@ -1108,37 +1186,72 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                             </div>
                           </div>
 
-                          {/* COLUMNA DERECHA: ESTILO DE FONDO, REDONDEZ Y EFECTO GLASS CON SUS RESPECTIVOS TÍTULOS SUPERIORES */}
+                          {/* COLUMNA DERECHA: CONTROLES ADAPTATIVOS EN UNA SOLA FILA DE 3 COMPONENTES */}
                           <div className="space-y-3">
-                            {/* Fila conjunta: Estilo de Fondo (izq) y Redondez (der) */}
-                            <div className="grid grid-cols-2 gap-3 items-end">
-                              {/* Estilo de fondo con StylePickerPopover */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                              {/* 1. Estilo con StylePickerPopover */}
                               <div>
                                 <StylePickerPopover
-                                  label="Estilo de fondo"
+                                  label={containerTarget === 'fondo' ? 'Estilo de fondo' : containerTarget === 'mensaje' ? 'Estilo mensaje' : 'Estilo barra'}
                                   elementType="box"
                                   eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
                                   eventColorImage={eventColorImage}
                                   styleConfig={{
-                                    fillType: settings.screen_bg_type === 'gradient' ? 'gradient' : 'color',
-                                    fillColor: settings.screen_bg_color || '#000000',
-                                    fillGradient: settings.screen_gradient_data,
+                                    backgroundColor: containerTarget === 'fondo'
+                                      ? (settings.screen_bg_color || '#000000')
+                                      : containerTarget === 'mensaje'
+                                      ? (settings.container_bg_color || '#0f172a')
+                                      : (settings.bar_bg_color || '#1e293b'),
+                                    fillType: containerTarget === 'fondo' 
+                                      ? (settings.screen_bg_type === 'gradient' ? 'gradient' : 'color')
+                                      : containerTarget === 'mensaje'
+                                      ? (settings.container_bg_type === 'gradient' ? 'gradient' : 'color')
+                                      : (settings.bar_bg_type === 'gradient' ? 'gradient' : 'color'),
+                                    fillColor: containerTarget === 'fondo'
+                                      ? (settings.screen_bg_color || '#000000')
+                                      : containerTarget === 'mensaje'
+                                      ? (settings.container_bg_color || '#0f172a')
+                                      : (settings.bar_bg_color || '#1e293b'),
+                                    fillGradient: containerTarget === 'fondo'
+                                      ? settings.screen_gradient_data
+                                      : containerTarget === 'mensaje'
+                                      ? settings.container_gradient_data
+                                      : settings.bar_gradient_data,
                                     strokeActive: false,
                                     shadowActive: false,
                                   }}
                                   onChange={(updated) => {
-                                    if (updated.fillType === 'gradient' && updated.fillGradient) {
-                                      updateSetting('screen_bg_type', 'gradient');
-                                      updateSetting('screen_gradient_data', updated.fillGradient);
-                                    } else if (updated.fillColor) {
-                                      updateSetting('screen_bg_type', 'color');
-                                      updateSetting('screen_bg_color', updated.fillColor);
+                                    const prefix = containerTarget === 'fondo' ? 'screen' : containerTarget === 'mensaje' ? 'container' : 'bar';
+                                    const bgPrefix = `${prefix}_bg`;
+                                    const gradKey = `${prefix}_gradient_data`;
+
+                                    const selectedColor = updated.backgroundColor || updated.fillColor;
+                                    const selectedGradient = updated.fillGradient;
+
+                                    if (updated.fillType === 'gradient' && selectedGradient) {
+                                      updateSetting(`${bgPrefix}_type`, 'gradient');
+                                      updateSetting(gradKey, selectedGradient);
+                                    } else if (selectedColor) {
+                                      if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
+                                        updateSetting(`${bgPrefix}_type`, 'gradient');
+                                        updateSetting(gradKey, selectedColor);
+                                      } else {
+                                        updateSetting(`${bgPrefix}_type`, 'color');
+                                        updateSetting(`${bgPrefix}_color`, selectedColor);
+                                      }
                                     }
+
+                                    if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                    if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
+                                    if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                    if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                    if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
+                                    if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
                                   }}
                                 />
                               </div>
 
-                              {/* Redondez del Contenedor */}
+                              {/* 2. Redondez */}
                               <div>
                                 <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                   Redondez
@@ -1153,9 +1266,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const curr = parseInt(settings.container_border_radius ?? '24');
+                                      const key = containerTarget === 'fondo' ? 'screen_border_radius' : containerTarget === 'mensaje' ? 'container_border_radius' : 'bar_border_radius';
+                                      const curr = parseInt(settings[key] ?? (containerTarget === 'mensaje' ? '24' : '12'));
                                       const nextVal = Math.max(0, curr - 2);
-                                      updateSetting('container_border_radius', nextVal);
+                                      updateSetting(key, nextVal);
                                     }}
                                     className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
                                     style={{
@@ -1173,8 +1287,17 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                       type="number"
                                       min={0}
                                       max={100}
-                                      value={settings.container_border_radius ?? 24}
-                                      onChange={(e) => updateSetting('container_border_radius', parseInt(e.target.value) || 0)}
+                                      value={
+                                        containerTarget === 'fondo'
+                                          ? (settings.screen_border_radius ?? 0)
+                                          : containerTarget === 'mensaje'
+                                          ? (settings.container_border_radius ?? 24)
+                                          : (settings.bar_border_radius ?? 16)
+                                      }
+                                      onChange={(e) => {
+                                        const key = containerTarget === 'fondo' ? 'screen_border_radius' : containerTarget === 'mensaje' ? 'container_border_radius' : 'bar_border_radius';
+                                        updateSetting(key, parseInt(e.target.value) || 0);
+                                      }}
                                       className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       style={{ color: 'var(--text-main)' }}
                                     />
@@ -1186,9 +1309,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const curr = parseInt(settings.container_border_radius ?? '24');
+                                      const key = containerTarget === 'fondo' ? 'screen_border_radius' : containerTarget === 'mensaje' ? 'container_border_radius' : 'bar_border_radius';
+                                      const curr = parseInt(settings[key] ?? (containerTarget === 'mensaje' ? '24' : '12'));
                                       const nextVal = Math.min(100, curr + 2);
-                                      updateSetting('container_border_radius', nextVal);
+                                      updateSetting(key, nextVal);
                                     }}
                                     className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
                                     style={{
@@ -1202,73 +1326,264 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   </button>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* EFECTO GLASS CON CHECKBOX, COLORPICKER ANCHO Y SLIDER CON COLORES DEL PROYECTO */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                                  Efecto Glass ({settings.container_bg_opacity ?? 75}%)
-                                </label>
-                              </div>
-                              <div
-                                className="flex items-center h-10 rounded-xl border px-2.5 gap-3 shadow-2xs w-full transition-all"
-                                style={{
-                                  backgroundColor: 'var(--bg-app)',
-                                  borderColor: 'var(--border-color)',
-                                }}
-                              >
-                                {/* Checkbox Estilizado con variables del tema */}
-                                <label className="relative flex items-center cursor-pointer shrink-0 select-none">
-                                  <input
-                                    type="checkbox"
-                                    checked={settings.container_glass_enabled ?? true}
-                                    onChange={(e) => updateSetting('container_glass_enabled', e.target.checked)}
-                                    className="sr-only peer"
-                                  />
-                                  <div
-                                    className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
-                                    style={{
-                                      borderColor: (settings.container_glass_enabled ?? true) ? 'var(--primary-accent)' : 'var(--border-color)',
-                                      backgroundColor: (settings.container_glass_enabled ?? true) ? 'var(--primary-accent)' : 'var(--bg-card)',
-                                    }}
-                                  >
-                                    {(settings.container_glass_enabled ?? true) && (
-                                      <Check size={11} className="text-white stroke-[3]" />
-                                    )}
-                                  </div>
-                                </label>
+                              {/* 3. Efecto Glass (misma fila, tercera columna) */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                    Glass ({
+                                      containerTarget === 'fondo'
+                                        ? (settings.screen_bg_opacity ?? 100)
+                                        : containerTarget === 'mensaje'
+                                        ? (settings.container_bg_opacity ?? 75)
+                                        : (settings.bar_bg_opacity ?? 85)
+                                    }%)
+                                  </label>
 
-                                {/* ColorPickerPopover más ancho */}
-                                <div className={`w-36 shrink-0 transition-opacity ${!(settings.container_glass_enabled ?? true) ? 'opacity-40 pointer-events-none' : ''}`}>
-                                  <ColorPickerPopover
-                                    value={settings.container_bg_color || '#0f172a'}
-                                    onChange={(val) => updateSetting('container_bg_color', val)}
-                                    allowGradient={false}
-                                    allowTransparent={true}
-                                    eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
-                                    eventColorImage={eventColorImage}
-                                  />
+                                  {/* Checkbox a la derecha del título de Glass */}
+                                  <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        containerTarget === 'fondo'
+                                          ? (settings.screen_glass_enabled ?? true)
+                                          : containerTarget === 'mensaje'
+                                          ? (settings.container_glass_enabled ?? true)
+                                          : (settings.bar_glass_enabled ?? true)
+                                      }
+                                      onChange={(e) => {
+                                        const key = containerTarget === 'fondo' ? 'screen_glass_enabled' : containerTarget === 'mensaje' ? 'container_glass_enabled' : 'bar_glass_enabled';
+                                        updateSetting(key, e.target.checked);
+                                      }}
+                                      className="sr-only peer"
+                                    />
+                                    <div
+                                      className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                      style={{
+                                        borderColor: (
+                                          containerTarget === 'fondo'
+                                            ? (settings.screen_glass_enabled ?? true)
+                                            : containerTarget === 'mensaje'
+                                            ? (settings.container_glass_enabled ?? true)
+                                            : (settings.bar_glass_enabled ?? true)
+                                        ) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        backgroundColor: (
+                                          containerTarget === 'fondo'
+                                            ? (settings.screen_glass_enabled ?? true)
+                                            : containerTarget === 'mensaje'
+                                            ? (settings.container_glass_enabled ?? true)
+                                            : (settings.bar_glass_enabled ?? true)
+                                        ) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                      }}
+                                    >
+                                      {(
+                                        containerTarget === 'fondo'
+                                          ? (settings.screen_glass_enabled ?? true)
+                                          : containerTarget === 'mensaje'
+                                          ? (settings.container_glass_enabled ?? true)
+                                          : (settings.bar_glass_enabled ?? true)
+                                      ) && (
+                                        <Check size={11} className="text-white stroke-[3]" />
+                                      )}
+                                    </div>
+                                  </label>
                                 </div>
 
-                                {/* Slider con accentColor explícito del tema */}
-                                <div className={`flex-1 flex items-center transition-opacity ${!(settings.container_glass_enabled ?? true) ? 'opacity-40 pointer-events-none' : ''}`}>
+                                <div
+                                  className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                    !(
+                                      containerTarget === 'fondo'
+                                        ? (settings.screen_glass_enabled ?? true)
+                                        : containerTarget === 'mensaje'
+                                        ? (settings.container_glass_enabled ?? true)
+                                        : (settings.bar_glass_enabled ?? true)
+                                    ) ? 'opacity-40 pointer-events-none' : ''
+                                  }`}
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
                                   <input
                                     type="range"
                                     min="0"
                                     max="100"
                                     step="1"
-                                    value={settings.container_bg_opacity ?? 75}
-                                    onChange={(e) => updateSetting('container_bg_opacity', parseInt(e.target.value))}
+                                    value={
+                                      containerTarget === 'fondo'
+                                        ? (settings.screen_bg_opacity ?? 100)
+                                        : containerTarget === 'mensaje'
+                                        ? (settings.container_bg_opacity ?? 75)
+                                        : (settings.bar_bg_opacity ?? 85)
+                                    }
+                                    onChange={(e) => {
+                                      const key = containerTarget === 'fondo' ? 'screen_bg_opacity' : containerTarget === 'mensaje' ? 'container_bg_opacity' : 'bar_bg_opacity';
+                                      updateSetting(key, parseInt(e.target.value));
+                                    }}
                                     className="w-full h-1.5 rounded-lg cursor-pointer"
                                     style={{
                                       accentColor: 'var(--primary-accent)',
                                     }}
                                     title="Opacidad del vidrio"
-                                    disabled={!(settings.container_glass_enabled ?? true)}
+                                    disabled={
+                                      !(
+                                        containerTarget === 'fondo'
+                                          ? (settings.screen_glass_enabled ?? true)
+                                          : containerTarget === 'mensaje'
+                                          ? (settings.container_glass_enabled ?? true)
+                                          : (settings.bar_glass_enabled ?? true)
+                                      )
+                                    }
                                   />
                                 </div>
                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LOGOS SUB-TAB */}
+                    {generalSubTab === 'logos' && (
+                      <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        <div className="pb-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className="flex items-center gap-2.5">
+                            <ImageIcon size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                            <div className="flex flex-col leading-tight">
+                              <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                Logos del Evento
+                              </h3>
+                              <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                Personalización de isotipo y logotipo institucional
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* LOGO PRINCIPAL */}
+                          <div className="space-y-2">
+                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                              Logo Principal
+                            </label>
+                            <div
+                              className="relative w-full h-36 rounded-xl border-2 border-dashed overflow-hidden flex flex-col items-center justify-center transition-all group"
+                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                            >
+                              {settings.event_logo_url ? (
+                                <div className="relative w-full h-full flex items-center justify-center p-3">
+                                  <img src={settings.event_logo_url} alt="Logo Principal" className="max-h-full max-w-full object-contain" />
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors">
+                                      <Upload size={16} />
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => updateSetting('event_logo_url', ev.target?.result);
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('event_logo_url', '')}
+                                      className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-3">
+                                  <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                    <Upload size={18} />
+                                  </div>
+                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Logo</span>
+                                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>PNG transparente (máx. 2MB)</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => updateSetting('event_logo_url', ev.target?.result);
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ISOTIPO / ICONO */}
+                          <div className="space-y-2">
+                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                              Isotipo / Ícono Secundario
+                            </label>
+                            <div
+                              className="relative w-full h-36 rounded-xl border-2 border-dashed overflow-hidden flex flex-col items-center justify-center transition-all group"
+                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                            >
+                              {settings.event_icon_url ? (
+                                <div className="relative w-full h-full flex items-center justify-center p-3">
+                                  <img src={settings.event_icon_url} alt="Isotipo" className="max-h-full max-w-full object-contain" />
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors">
+                                      <Upload size={16} />
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => updateSetting('event_icon_url', ev.target?.result);
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('event_icon_url', '')}
+                                      className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-3">
+                                  <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                    <Upload size={18} />
+                                  </div>
+                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Isotipo</span>
+                                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Formato PNG o SVG</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => updateSetting('event_icon_url', ev.target?.result);
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
                             </div>
                           </div>
                         </div>

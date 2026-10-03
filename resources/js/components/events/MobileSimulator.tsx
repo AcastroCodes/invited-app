@@ -163,13 +163,14 @@ export default function MobileSimulator({
 
     const getGalleryGradientColors = () => {
         let colors = ["#D6293A", "#F59218"];
-        const bgType = settings.container_bg_type || "color";
+        const bgType = settings.bar_bg_type || settings.container_bg_type || "color";
+        const gradData = settings.bar_gradient_data || settings.container_gradient_data;
         if (bgType === "gradient") {
-            if (settings.container_gradient_data) {
+            if (gradData) {
                 try {
-                    const parsed = typeof settings.container_gradient_data === 'string'
-                        ? JSON.parse(settings.container_gradient_data)
-                        : settings.container_gradient_data;
+                    const parsed = typeof gradData === 'string'
+                        ? JSON.parse(gradData)
+                        : gradData;
                         
                     if (parsed && Array.isArray(parsed.stops)) {
                         const visibleStops = parsed.stops.filter((s: any) => !s.hidden).sort((a: any, b: any) => a.position - b.position);
@@ -186,19 +187,20 @@ export default function MobileSimulator({
                 }
             } else {
                 colors = [
-                    settings.container_gradient_from || "#000000",
-                    settings.container_gradient_to || "#ffffff"
+                    settings.bar_gradient_from || settings.container_gradient_from || "#000000",
+                    settings.bar_gradient_to || settings.container_gradient_to || "#ffffff"
                 ];
             }
         } else {
-            colors = [settings.container_bg_color || "#ffffff", settings.container_bg_color || "#ffffff"];
+            const solidColor = settings.bar_bg_color || settings.container_bg_color || "#ffffff";
+            colors = [solidColor, solidColor];
         }
         return colors;
     };
     
     const galleryGradientColors = getGalleryGradientColors();
-    const galleryHasGradient = (settings.container_bg_type || "color") === "gradient";
-    const gallerySolidColor = settings.container_bg_color || "#ffffff";
+    const galleryHasGradient = (settings.bar_bg_type || settings.container_bg_type || "color") === "gradient";
+    const gallerySolidColor = settings.bar_bg_color || settings.container_bg_color || "#ffffff";
     const galleryDockFill = galleryHasGradient ? "url(#previewGalleryDockGradient)" : gallerySolidColor;
 
     // Logo from event
