@@ -97,7 +97,7 @@ export default function EventConfig() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<string>(tabParam ? tabParam.toUpperCase() : 'INVITADOS');
-  const [photoSubTab, setPhotoSubTab] = useState<'app_movil' | 'display' | 'totem' | 'moderation' | 'qr'>('app_movil');
+  const [photoSubTab, setPhotoSubTab] = useState<'app_movil' | 'display' | 'moderation' | 'qr'>('app_movil');
   const [showQrModal, setShowQrModal] = useState(false);
 
   const fetchEvent = () => {
@@ -476,7 +476,6 @@ export default function EventConfig() {
                   {[
                     { id: 'app_movil', label: 'App Móvil', icon: Smartphone },
                     { id: 'display', label: 'Pantalla', icon: Tv },
-                    { id: 'totem', label: 'Tótem', icon: Sliders },
                   ].map((sub) => {
                     const SubIcon = sub.icon;
                     const isSubActive = photoSubTab === sub.id;
@@ -509,9 +508,7 @@ export default function EventConfig() {
               const targetPath =
                 photoSubTab === 'app_movil'
                   ? `/e/${event.id}/photos`
-                  : photoSubTab === 'display'
-                  ? `/e/${event.id}/display`
-                  : `/e/${event.id}/totem`;
+                  : `/e/${event.id}/display`;
 
               const fullUrl = `${window.location.origin}${targetPath}`;
               const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(fullUrl)}`;
@@ -519,9 +516,7 @@ export default function EventConfig() {
               const qrTitle =
                 photoSubTab === 'app_movil'
                   ? 'Móvil'
-                  : photoSubTab === 'display'
-                  ? 'Pantalla'
-                  : 'Tótem';
+                  : 'Pantalla';
 
               return (
                 <>

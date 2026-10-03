@@ -299,9 +299,15 @@ export default function MobileSimulator({
                             >
                                 {/* Subtítulo bienvenida */}
                                 <h3
-                                    className="text-[9px] font-bold uppercase tracking-widest text-center mb-2 mt-1"
+                                    className="text-[9px] uppercase tracking-widest mb-2 mt-1"
                                     style={{
                                         color: settings.use_global_fonts ? settings.global_text_font_color : settings.subtitle_font_color || "#333",
+                                        fontFamily: settings.global_text_font_family || "Inter",
+                                        fontSize: settings.global_text_font_size ? `${Math.min(13, parseInt(settings.global_text_font_size) * 0.5)}px` : undefined,
+                                        fontWeight: (settings.global_text_font_weight as any) || "bold",
+                                        fontStyle: (settings.global_text_font_style as any) || "normal",
+                                        textDecoration: (settings.global_text_text_decoration as any) || "none",
+                                        textAlign: (settings.global_text_text_align as any) || "center",
                                     }}
                                 >
                                     {settings.welcome_subtitle || "¡Bienvenido al evento!"}
@@ -309,19 +315,29 @@ export default function MobileSimulator({
 
                                 {/* Nombre del invitado o Evento */}
                                 <h1
-                                    className="text-2xl font-black text-center drop-shadow-md leading-none uppercase mt-1 mb-2"
+                                    className="text-2xl drop-shadow-md leading-none uppercase mt-1 mb-2"
                                     style={{
                                         color: settings.use_global_fonts ? settings.global_title_font_color : settings.title_font_color || "#fff",
                                         fontFamily: settings.use_global_fonts ? settings.global_title_font_family : settings.title_font_family || "Inter",
+                                        fontSize: settings.global_title_font_size ? `${Math.min(26, parseInt(settings.global_title_font_size) * 0.7)}px` : undefined,
+                                        fontWeight: (settings.global_title_font_weight as any) || "bold",
+                                        fontStyle: (settings.global_title_font_style as any) || "normal",
+                                        textDecoration: (settings.global_title_text_decoration as any) || "none",
+                                        textAlign: (settings.global_title_text_align as any) || "center",
                                     }}
                                 >
                                     {(event?.event_name || event?.name || event?.title || "Nombre Invitado")}
                                 </h1>
 
                                 <p
-                                    className="text-center text-[11px] font-medium leading-tight mt-3 mb-6 opacity-90"
+                                    className="text-[11px] leading-tight mt-3 mb-6 opacity-90"
                                     style={{
                                         color: settings.use_global_fonts ? settings.global_text_font_color : settings.subtitle_font_color || "#333",
+                                        fontFamily: settings.global_text_font_family || "Inter",
+                                        fontWeight: (settings.global_text_font_weight as any) || "normal",
+                                        fontStyle: (settings.global_text_font_style as any) || "normal",
+                                        textDecoration: (settings.global_text_text_decoration as any) || "none",
+                                        textAlign: (settings.global_text_text_align as any) || "center",
                                     }}
                                 >
                                     Prepárate para capturar los mejores momentos

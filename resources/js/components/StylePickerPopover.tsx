@@ -232,7 +232,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
     <div className="relative">
       {/* Label section */}
       {label && (
-        <span className="block font-bold uppercase text-[9px] mb-1" style={{ color: 'var(--text-muted)' }}>
+        <span className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
           {label}
         </span>
       )}
@@ -242,7 +242,7 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full h-7 flex items-center justify-between p-1 rounded-lg border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
+        className="w-full h-9 flex items-center justify-between p-1.5 rounded-xl border transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-2xs"
         style={{
           backgroundColor: 'var(--bg-app)',
           borderColor: isOpen ? 'var(--primary-accent)' : 'var(--border-color)',

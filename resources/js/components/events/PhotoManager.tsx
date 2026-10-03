@@ -21,6 +21,16 @@ import {
   RotateCw,
   Plus,
   Minus,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Upload,
+  Square,
+  Check,
 } from 'lucide-react';
 import api from '../../lib/api';
 import MobileSimulator from './MobileSimulator';
@@ -28,6 +38,7 @@ import GradientPickerModal, { GradientData } from './GradientPickerModal';
 import FontPickerModal from './FontPickerModal';
 import FontPicker from './FontPicker';
 import { StylePickerPopover } from '../StylePickerPopover';
+import { ColorPickerPopover } from '../ColorPickerPopover';
 
 interface PhotoManagerProps {
   eventId: number;
@@ -71,6 +82,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [previewView, setPreviewView] = useState<string>('welcome');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
+  const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
 
   const [settings, setSettings] = useState<any>({
     welcome_title: 'Boda Laura & David',
@@ -495,12 +507,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                 {/* 1. GENERAL TAB */}
                 {mobileActiveView === 'general' && (
                   <div className="space-y-4">
-                    {/* SUB-PESTAÑAS DE GENERAL: FUENTES, BOTONES, FONDOS */}
+                    {/* SUB-PESTAÑAS DE GENERAL: FUENTES, FONDOS */}
                     <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       {[
                         { id: 'fuentes', label: 'Fuentes & Estilos', icon: Type },
-                        { id: 'botones', label: 'Botones Globale', icon: MousePointer2 },
-                        { id: 'fondos', label: 'Fondos & Colores', icon: Palette },
+                        { id: 'fondos', label: 'Imágenes y fondos', icon: Palette },
                       ].map((sub) => {
                         const SubIcon = sub.icon;
                         const isSubActive = generalSubTab === sub.id;
@@ -525,54 +536,63 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                     {/* FUENTES Y ESTILOS */}
                     {generalSubTab === 'fuentes' && (
-                      <div className="space-y-4">
-                        <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                              <Type size={16} style={{ color: 'var(--primary-accent)' }} /> Tipografía y Estilos
-                            </h3>
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1 p-0.5 rounded-lg border bg-black/10">
-                                <button
-                                  type="button"
-                                  onClick={() => setTextTarget('global_title')}
-                                  className={`px-2.5 py-1 text-[10px] font-bold rounded-md cursor-pointer ${
-                                    textTarget === 'global_title' ? 'bg-primary-500 text-white' : 'text-slate-400'
-                                  }`}
-                                >
-                                  Encabezados
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setTextTarget('global_text')}
-                                  className={`px-2.5 py-1 text-[10px] font-bold rounded-md cursor-pointer ${
-                                    textTarget === 'global_text' ? 'bg-primary-500 text-white' : 'text-slate-400'
-                                  }`}
-                                >
-                                  Texto Cuerpo
-                                </button>
+                      <div className="space-y-2">
+                        <div className="rounded-2xl p-3 border space-y-2 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <div className="pb-1 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-2.5">
+                              {textTarget === 'global_title' ? (
+                                <Type size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                              ) : (
+                                <AlignJustify size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                              )}
+                              <div className="flex flex-col leading-tight">
+                                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                  {textTarget === 'global_title' ? 'Fuentes (Encabezado)' : 'Fuente (Contenido)'}
+                                </h3>
+                                <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                  Tipografía y Estilos
+                                </span>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setShowFontModal(true)}
-                                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                              >
-                                <Type size={12} />
-                                <span>Abrir Catálogo</span>
-                              </button>
+                            </div>
+
+                            {/* PESTAÑAS ENCABEZADO / CONTENIDO EN EL LADO DERECHO */}
+                            <div className="flex items-center gap-1 p-0.5 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              {[
+                                { id: 'global_title', label: 'Encabezado' },
+                                { id: 'global_text', label: 'Contenido' },
+                              ].map((targetItem) => {
+                                const isTargetActive = textTarget === targetItem.id;
+                                return (
+                                  <button
+                                    key={targetItem.id}
+                                    type="button"
+                                    onClick={() => setTextTarget(targetItem.id as any)}
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                      color: isTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    {targetItem.label}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
+                          {/* CONTROLES DE TIPOGRAFÍA EN UNA SOLA FILA ALINEADOS VERTICALMENTE */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                            {/* FUENTE: MÁS ANCHO QUE LOS DEMÁS (COL-SPAN 2) */}
+                            <div className="lg:col-span-2">
                               <FontPicker
-                                label="Familia Tipográfica"
+                                label="Fuente"
                                 value={settings[`${textTarget}_font_family`]}
                                 onChange={(fontName) => updateSetting(`${textTarget}_font_family`, fontName)}
                               />
                             </div>
 
-                            <div>
+                            {/* TAMAÑO */}
+                            <div className="lg:col-span-1">
                               <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                 Tamaño
                               </label>
@@ -636,7 +656,98 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                               </div>
                             </div>
 
-                            <div>
+                            {/* FORMATO DE TEXTO (NEGRITA, ITÁLICA, SUBRAYADO) */}
+                            <div className="lg:col-span-1">
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Formato
+                              </label>
+                              <div
+                                className="flex items-center h-9 rounded-xl border p-0.5 gap-1 shadow-2xs"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting(`${textTarget}_font_weight`, settings[`${textTarget}_font_weight`] === 'bold' ? 'normal' : 'bold')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: settings[`${textTarget}_font_weight`] === 'bold' ? 'var(--primary-accent)' : 'transparent',
+                                    color: settings[`${textTarget}_font_weight`] === 'bold' ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Negrita"
+                                >
+                                  <Bold size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting(`${textTarget}_font_style`, settings[`${textTarget}_font_style`] === 'italic' ? 'normal' : 'italic')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: settings[`${textTarget}_font_style`] === 'italic' ? 'var(--primary-accent)' : 'transparent',
+                                    color: settings[`${textTarget}_font_style`] === 'italic' ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Itálica"
+                                >
+                                  <Italic size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting(`${textTarget}_text_decoration`, settings[`${textTarget}_text_decoration`] === 'underline' ? 'none' : 'underline')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: settings[`${textTarget}_text_decoration`] === 'underline' ? 'var(--primary-accent)' : 'transparent',
+                                    color: settings[`${textTarget}_text_decoration`] === 'underline' ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Subrayado"
+                                >
+                                  <Underline size={14} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* ALINEACIÓN HORIZONTAL DE TEXTO */}
+                            <div className="lg:col-span-1">
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Alineación
+                              </label>
+                              <div
+                                className="flex items-center h-9 rounded-xl border p-0.5 gap-1 shadow-2xs"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                }}
+                              >
+                                {[
+                                  { id: 'left', icon: AlignLeft, title: 'Izquierda' },
+                                  { id: 'center', icon: AlignCenter, title: 'Centro' },
+                                  { id: 'right', icon: AlignRight, title: 'Derecha' },
+                                  { id: 'justify', icon: AlignJustify, title: 'Justificado' },
+                                ].map((align) => {
+                                  const AlignIcon = align.icon;
+                                  const isAlignActive = (settings[`${textTarget}_text_align`] || 'center') === align.id;
+                                  return (
+                                    <button
+                                      key={align.id}
+                                      type="button"
+                                      onClick={() => updateSetting(`${textTarget}_text_align`, align.id)}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: isAlignActive ? 'var(--primary-accent)' : 'transparent',
+                                        color: isAlignActive ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                      title={align.title}
+                                    >
+                                      <AlignIcon size={14} />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* ESTILO DEL TEXTO */}
+                            <div className="lg:col-span-1">
                               <StylePickerPopover
                                 label="Estilo del texto"
                                 elementType="text"
@@ -668,200 +779,496 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           </div>
                         </div>
 
-                        {/* EFECTOS AVANZADOS: BORDE Y SOMBRA DE TEXTO */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="rounded-2xl p-4 border space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold uppercase" style={{ color: 'var(--text-main)' }}>Borde de Texto (Stroke)</span>
-                              <input
-                                type="checkbox"
-                                checked={settings[`${textTarget}_stroke_active`]}
-                                onChange={(e) => updateSetting(`${textTarget}_stroke_active`, e.target.checked)}
-                                className="w-4 h-4 rounded cursor-pointer"
-                              />
-                            </div>
-                            {settings[`${textTarget}_stroke_active`] && (
-                              <div className="space-y-3 pt-2">
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Grosor ({settings[`${textTarget}_stroke_width`]}px)</label>
-                                  <input
-                                    type="range"
-                                    min="1"
-                                    max="10"
-                                    value={settings[`${textTarget}_stroke_width`]}
-                                    onChange={(e) => updateSetting(`${textTarget}_stroke_width`, e.target.value)}
-                                    className="w-24 accent-primary-500"
-                                  />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Color de Borde</label>
-                                  <input
-                                    type="color"
-                                    value={settings[`${textTarget}_stroke_color`]}
-                                    onChange={(e) => updateSetting(`${textTarget}_stroke_color`, e.target.value)}
-                                    className="w-8 h-7 rounded border-0"
-                                  />
-                                </div>
+                        {/* 3. BOTONES */}
+                        <div className="rounded-2xl p-3 border space-y-2 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          <div className="pb-1 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center gap-2.5">
+                              <MousePointer2 size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                              <div className="flex flex-col leading-tight">
+                                <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                  {buttonState === 'normal' ? 'Botones (Normal)' : 'Botones (Sobre)'}
+                                </h3>
+                                <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                  Tipografía y Estilos
+                                </span>
                               </div>
-                            )}
+                            </div>
+
+                            {/* PESTAÑAS NORMAL / SOBRE EN EL LADO DERECHO */}
+                            <div className="flex items-center gap-1 p-0.5 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              {[
+                                { id: 'normal', label: 'Normal' },
+                                { id: 'hover', label: 'Sobre' },
+                              ].map((modeItem) => {
+                                const isModeActive = buttonState === modeItem.id;
+                                return (
+                                  <button
+                                    key={modeItem.id}
+                                    type="button"
+                                    onClick={() => setButtonState(modeItem.id as any)}
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                      color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                    }}
+                                  >
+                                    {modeItem.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
 
-                          <div className="rounded-2xl p-4 border space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold uppercase" style={{ color: 'var(--text-main)' }}>Sombra de Texto (Drop Shadow)</span>
-                              <input
-                                type="checkbox"
-                                checked={settings[`${textTarget}_shadow_active`]}
-                                onChange={(e) => updateSetting(`${textTarget}_shadow_active`, e.target.checked)}
-                                className="w-4 h-4 rounded cursor-pointer"
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                            <div className="lg:col-span-2">
+                              <FontPicker
+                                label="Fuente"
+                                value={settings['global_button_font_family']}
+                                onChange={(fontName) => updateSetting('global_button_font_family', fontName)}
                               />
                             </div>
-                            {settings[`${textTarget}_shadow_active`] && (
-                              <div className="space-y-3 pt-2">
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Desenfoque ({settings[`${textTarget}_shadow_blur`]}px)</label>
+
+                            <div className="lg:col-span-1">
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Tamaño
+                              </label>
+                              <div
+                                className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const curr = parseInt(settings['global_button_font_size'] || '14');
+                                    const nextVal = Math.max(8, curr - 1);
+                                    updateSetting('global_button_font_size', nextVal.toString());
+                                  }}
+                                  className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--primary-accent)',
+                                  }}
+                                  title="Disminuir tamaño"
+                                >
+                                  <Minus size={12} />
+                                </button>
+
+                                <div className="flex-1 flex items-center justify-center px-2">
                                   <input
-                                    type="range"
-                                    min="0"
-                                    max="20"
-                                    value={settings[`${textTarget}_shadow_blur`]}
-                                    onChange={(e) => updateSetting(`${textTarget}_shadow_blur`, e.target.value)}
-                                    className="w-24 accent-primary-500"
+                                    type="number"
+                                    min={8}
+                                    max={100}
+                                    value={settings['global_button_font_size'] || 14}
+                                    onChange={(e) => updateSetting('global_button_font_size', e.target.value)}
+                                    className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    style={{ color: 'var(--text-main)' }}
                                   />
+                                  <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                    px
+                                  </span>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Color Sombra</label>
-                                  <input
-                                    type="color"
-                                    value={settings[`${textTarget}_shadow_color`]}
-                                    onChange={(e) => updateSetting(`${textTarget}_shadow_color`, e.target.value)}
-                                    className="w-8 h-7 rounded border-0"
-                                  />
-                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const curr = parseInt(settings['global_button_font_size'] || '14');
+                                    const nextVal = Math.min(100, curr + 1);
+                                    updateSetting('global_button_font_size', nextVal.toString());
+                                  }}
+                                  className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                  style={{
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--primary-accent)',
+                                  }}
+                                  title="Aumentar tamaño"
+                                >
+                                  <Plus size={12} />
+                                </button>
                               </div>
-                            )}
+                            </div>
+
+                            <div className="lg:col-span-1">
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Formato
+                              </label>
+                              <div
+                                className="flex items-center h-9 rounded-xl border p-0.5 gap-1 shadow-2xs"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting('global_button_font_weight', settings['global_button_font_weight'] === 'bold' ? 'normal' : 'bold')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: settings['global_button_font_weight'] === 'bold' ? 'var(--primary-accent)' : 'transparent',
+                                    color: settings['global_button_font_weight'] === 'bold' ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Negrita"
+                                >
+                                  <Bold size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting('global_button_font_style', settings['global_button_font_style'] === 'italic' ? 'normal' : 'italic')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: settings['global_button_font_style'] === 'italic' ? 'var(--primary-accent)' : 'transparent',
+                                    color: settings['global_button_font_style'] === 'italic' ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Itálica"
+                                >
+                                  <Italic size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting('global_button_text_decoration', settings['global_button_text_decoration'] === 'underline' ? 'none' : 'underline')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: settings['global_button_text_decoration'] === 'underline' ? 'var(--primary-accent)' : 'transparent',
+                                    color: settings['global_button_text_decoration'] === 'underline' ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Subrayado"
+                                >
+                                  <Underline size={14} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="lg:col-span-1">
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Alineación
+                              </label>
+                              <div
+                                className="flex items-center h-9 rounded-xl border p-0.5 gap-1 shadow-2xs"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                }}
+                              >
+                                {[
+                                  { id: 'left', icon: AlignLeft, title: 'Izquierda' },
+                                  { id: 'center', icon: AlignCenter, title: 'Centro' },
+                                  { id: 'right', icon: AlignRight, title: 'Derecha' },
+                                  { id: 'justify', icon: AlignJustify, title: 'Justificado' },
+                                ].map((align) => {
+                                  const AlignIcon = align.icon;
+                                  const isAlignActive = (settings['global_button_text_align'] || 'center') === align.id;
+                                  return (
+                                    <button
+                                      key={align.id}
+                                      type="button"
+                                      onClick={() => updateSetting('global_button_text_align', align.id)}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: isAlignActive ? 'var(--primary-accent)' : 'transparent',
+                                        color: isAlignActive ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                      title={align.title}
+                                    >
+                                      <AlignIcon size={14} />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="lg:col-span-1">
+                              <StylePickerPopover
+                                label="Estilo del texto"
+                                elementType="text"
+                                eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                eventColorImage={eventColorImage}
+                                styleConfig={{
+                                  fillType: 'color',
+                                  fillColor: settings['global_button_font_color'] || '#ffffff',
+                                  strokeActive: settings['global_button_stroke_active'] || false,
+                                  strokeColor: settings['global_button_stroke_color'] || '#000000',
+                                  strokeWidth: parseInt(settings['global_button_stroke_width'] || '2'),
+                                  strokeType: settings['global_button_stroke_type'] || 'OUT',
+                                  shadowActive: settings['global_button_shadow_active'] || false,
+                                  shadowColor: settings['global_button_shadow_color'] || '#000000',
+                                  shadowBlur: parseInt(settings['global_button_shadow_blur'] || '8'),
+                                }}
+                                onChange={(updated) => {
+                                  if (updated.fillColor) updateSetting('global_button_font_color', updated.fillColor);
+                                  if (updated.strokeActive !== undefined) updateSetting('global_button_stroke_active', updated.strokeActive);
+                                  if (updated.strokeColor) updateSetting('global_button_stroke_color', updated.strokeColor);
+                                  if (updated.strokeWidth !== undefined) updateSetting('global_button_stroke_width', updated.strokeWidth.toString());
+                                  if (updated.strokeType) updateSetting('global_button_stroke_type', updated.strokeType);
+                                  if (updated.shadowActive !== undefined) updateSetting('global_button_shadow_active', updated.shadowActive);
+                                  if (updated.shadowColor) updateSetting('global_button_shadow_color', updated.shadowColor);
+                                  if (updated.shadowBlur !== undefined) updateSetting('global_button_shadow_blur', updated.shadowBlur.toString());
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* BOTONES GLOBALES */}
-                    {generalSubTab === 'botones' && (
-                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                          <MousePointer2 size={16} style={{ color: 'var(--primary-accent)' }} /> Estilo de Botones Principales
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Fondo del Botón</label>
-                            <input
-                              type="color"
-                              value={settings.global_button_bg}
-                              onChange={(e) => updateSetting('global_button_bg', e.target.value)}
-                              className="w-10 h-9 rounded-lg cursor-pointer border-0"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Color de Texto</label>
-                            <input
-                              type="color"
-                              value={settings.global_button_text}
-                              onChange={(e) => updateSetting('global_button_text', e.target.value)}
-                              className="w-10 h-9 rounded-lg cursor-pointer border-0"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Radio de Borde ({settings.global_button_radius}px)</label>
-                            <input
-                              type="range"
-                              min="0"
-                              max="32"
-                              value={settings.global_button_radius}
-                              onChange={(e) => updateSetting('global_button_radius', parseInt(e.target.value))}
-                              className="w-full accent-primary-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* FONDOS Y COLORES */}
                     {generalSubTab === 'fondos' && (
-                      <div className="space-y-4">
-                        <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                            <Palette size={16} style={{ color: 'var(--primary-accent)' }} /> Fondo de Pantalla Principal
-                          </h3>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Tipo de Fondo</label>
-                              <select
-                                value={settings.screen_bg_type}
-                                onChange={(e) => updateSetting('screen_bg_type', e.target.value)}
-                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                              >
-                                <option value="color">Color Sólido</option>
-                                <option value="gradient">Gradiente Elegante</option>
-                                <option value="image">Imagen Personalizada</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Color de Fondo</label>
-                              <input
-                                type="color"
-                                value={settings.screen_bg_color}
-                                onChange={(e) => updateSetting('screen_bg_color', e.target.value)}
-                                className="w-10 h-9 rounded-lg cursor-pointer border-0"
-                              />
+                      <div className="rounded-2xl p-3 border space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        <div className="pb-1 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+                          <div className="flex items-center gap-2.5">
+                            <Palette size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                            <div className="flex flex-col leading-tight">
+                              <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                Fondo
+                              </h3>
+                              <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                Imágenes y fondos
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        {/* VIDRIO GLASSMORPHISM DEL CONTENEDOR */}
-                        <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                            <Sliders size={16} style={{ color: 'var(--primary-accent)' }} /> Estilo de Contenedor Glassmorphism
-                          </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+                          {/* COLUMNA IZQUIERDA: SUBIR IMAGEN DE FONDO (AMPLIA COMO ANTES) */}
+                          <div className="space-y-2">
+                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                              Imagen de Fondo
+                            </label>
+                            
+                            <div
+                              className="border-2 border-dashed rounded-2xl p-4 text-center space-y-2 flex flex-col items-center justify-center transition-all relative overflow-hidden group min-h-[160px]"
+                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                            >
+                              {settings.screen_image_url ? (
+                                <div className="relative w-full h-32 rounded-xl overflow-hidden group">
+                                  <img
+                                    src={settings.screen_image_url}
+                                    alt="Fondo de pantalla"
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar imagen">
+                                      <Upload size={16} />
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => {
+                                              updateSetting('screen_image_url', ev.target?.result);
+                                              updateSetting('screen_bg_type', 'image');
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('screen_image_url', '')}
+                                      className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                      title="Eliminar imagen"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                  <div className="p-3 rounded-full mb-2" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                    <Upload size={20} />
+                                  </div>
+                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen de Fondo</span>
+                                  <span className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>PNG, JPG o WEBP (máx. 5MB)</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                          updateSetting('screen_image_url', ev.target?.result);
+                                          updateSetting('screen_bg_type', 'image');
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Color del Vidrio</label>
-                              <input
-                                type="color"
-                                value={settings.container_bg_color}
-                                onChange={(e) => updateSetting('container_bg_color', e.target.value)}
-                                className="w-10 h-9 rounded-lg cursor-pointer border-0"
-                              />
+                          {/* COLUMNA DERECHA: ESTILO DE FONDO, REDONDEZ Y EFECTO GLASS CON SUS RESPECTIVOS TÍTULOS SUPERIORES */}
+                          <div className="space-y-3">
+                            {/* Fila conjunta: Estilo de Fondo (izq) y Redondez (der) */}
+                            <div className="grid grid-cols-2 gap-3 items-end">
+                              {/* Estilo de fondo con StylePickerPopover */}
+                              <div>
+                                <StylePickerPopover
+                                  label="Estilo de fondo"
+                                  elementType="box"
+                                  eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                  eventColorImage={eventColorImage}
+                                  styleConfig={{
+                                    fillType: settings.screen_bg_type === 'gradient' ? 'gradient' : 'color',
+                                    fillColor: settings.screen_bg_color || '#000000',
+                                    fillGradient: settings.screen_gradient_data,
+                                    strokeActive: false,
+                                    shadowActive: false,
+                                  }}
+                                  onChange={(updated) => {
+                                    if (updated.fillType === 'gradient' && updated.fillGradient) {
+                                      updateSetting('screen_bg_type', 'gradient');
+                                      updateSetting('screen_gradient_data', updated.fillGradient);
+                                    } else if (updated.fillColor) {
+                                      updateSetting('screen_bg_type', 'color');
+                                      updateSetting('screen_bg_color', updated.fillColor);
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              {/* Redondez del Contenedor */}
+                              <div>
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Redondez
+                                </label>
+                                <div
+                                  className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const curr = parseInt(settings.container_border_radius ?? '24');
+                                      const nextVal = Math.max(0, curr - 2);
+                                      updateSetting('container_border_radius', nextVal);
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Disminuir redondez"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+
+                                  <div className="flex-1 flex items-center justify-center px-1">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={settings.container_border_radius ?? 24}
+                                      onChange={(e) => updateSetting('container_border_radius', parseInt(e.target.value) || 0)}
+                                      className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      style={{ color: 'var(--text-main)' }}
+                                    />
+                                    <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                      px
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const curr = parseInt(settings.container_border_radius ?? '24');
+                                      const nextVal = Math.min(100, curr + 2);
+                                      updateSetting('container_border_radius', nextVal);
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Aumentar redondez"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
 
+                            {/* EFECTO GLASS CON CHECKBOX, COLORPICKER ANCHO Y SLIDER CON COLORES DEL PROYECTO */}
                             <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Opacidad ({settings.container_bg_opacity}%)</label>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={settings.container_bg_opacity}
-                                onChange={(e) => updateSetting('container_bg_opacity', parseInt(e.target.value))}
-                                className="w-full accent-primary-500"
-                              />
-                            </div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                  Efecto Glass ({settings.container_bg_opacity ?? 75}%)
+                                </label>
+                              </div>
+                              <div
+                                className="flex items-center h-10 rounded-xl border px-2.5 gap-3 shadow-2xs w-full transition-all"
+                                style={{
+                                  backgroundColor: 'var(--bg-app)',
+                                  borderColor: 'var(--border-color)',
+                                }}
+                              >
+                                {/* Checkbox Estilizado con variables del tema */}
+                                <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.container_glass_enabled ?? true}
+                                    onChange={(e) => updateSetting('container_glass_enabled', e.target.checked)}
+                                    className="sr-only peer"
+                                  />
+                                  <div
+                                    className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                    style={{
+                                      borderColor: (settings.container_glass_enabled ?? true) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                      backgroundColor: (settings.container_glass_enabled ?? true) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                    }}
+                                  >
+                                    {(settings.container_glass_enabled ?? true) && (
+                                      <Check size={11} className="text-white stroke-[3]" />
+                                    )}
+                                  </div>
+                                </label>
 
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Esquinas Redondeadas ({settings.container_border_radius}px)</label>
-                              <input
-                                type="range"
-                                min="8"
-                                max="40"
-                                value={settings.container_border_radius}
-                                onChange={(e) => updateSetting('container_border_radius', parseInt(e.target.value))}
-                                className="w-full accent-primary-500"
-                              />
+                                {/* ColorPickerPopover más ancho */}
+                                <div className={`w-36 shrink-0 transition-opacity ${!(settings.container_glass_enabled ?? true) ? 'opacity-40 pointer-events-none' : ''}`}>
+                                  <ColorPickerPopover
+                                    value={settings.container_bg_color || '#0f172a'}
+                                    onChange={(val) => updateSetting('container_bg_color', val)}
+                                    allowGradient={false}
+                                    allowTransparent={true}
+                                    eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                    eventColorImage={eventColorImage}
+                                  />
+                                </div>
+
+                                {/* Slider con accentColor explícito del tema */}
+                                <div className={`flex-1 flex items-center transition-opacity ${!(settings.container_glass_enabled ?? true) ? 'opacity-40 pointer-events-none' : ''}`}>
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="1"
+                                    value={settings.container_bg_opacity ?? 75}
+                                    onChange={(e) => updateSetting('container_bg_opacity', parseInt(e.target.value))}
+                                    className="w-full h-1.5 rounded-lg cursor-pointer"
+                                    style={{
+                                      accentColor: 'var(--primary-accent)',
+                                    }}
+                                    title="Opacidad del vidrio"
+                                    disabled={!(settings.container_glass_enabled ?? true)}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
