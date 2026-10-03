@@ -54,9 +54,13 @@ export default function MobileSimulator({
     const activeGetButtonStyles = getButtonStyles || defaultButtonStyles;
 
     const defaultGenerateGradient = (gData: any) => {
-        if (!gData || !gData.stops) return "linear-gradient(180deg, #F7B731, #D49D2B)";
-        const stops = gData.stops.map((s: any) => `${s.color} ${s.position}%`).join(", ");
-        return `linear-gradient(${gData.angle || 180}deg, ${stops})`;
+        if (!gData) return "linear-gradient(180deg, #F7B731, #D49D2B)";
+        if (typeof gData === 'string' && gData.includes('gradient')) return gData;
+        if (gData.stops && Array.isArray(gData.stops)) {
+            const stops = gData.stops.map((s: any) => `${s.color} ${s.position}%`).join(", ");
+            return `linear-gradient(${gData.angle || 180}deg, ${stops})`;
+        }
+        return typeof gData === 'string' ? gData : "linear-gradient(180deg, #F7B731, #D49D2B)";
     };
 
     const activeGenerateGradient = generateGradientString || defaultGenerateGradient;
@@ -143,10 +147,22 @@ export default function MobileSimulator({
             }
         }
 
+        const borderWidth = settings.container_border_width ?? 0;
+        const borderStyle = settings.container_border_style || "solid";
+        const borderColor = settings.container_border_color || "#E07A5F";
+        const shadowBlur = settings.container_shadow_blur ?? 0;
+        const shadowColor = settings.container_shadow_color || "#000000";
+        const shadowX = settings.container_shadow_offset_x ?? 0;
+        const shadowY = settings.container_shadow_offset_y ?? 0;
+
         const styles: React.CSSProperties = {
             borderRadius: `${borderRadius}px`,
             backgroundColor: innerBackground,
-            backgroundImage: innerBackgroundImage,
+            backgroundImage: innerBackgroundImage !== "none" ? innerBackgroundImage : undefined,
+            borderWidth: borderWidth > 0 && borderStyle !== "none" ? `${borderWidth}px` : undefined,
+            borderStyle: borderWidth > 0 && borderStyle !== "none" ? borderStyle : undefined,
+            borderColor: borderWidth > 0 && borderStyle !== "none" ? borderColor : undefined,
+            boxShadow: (shadowBlur || shadowX || shadowY) ? `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}` : undefined,
             fontFamily: settings.global_text_font_family || "Inter",
         };
 

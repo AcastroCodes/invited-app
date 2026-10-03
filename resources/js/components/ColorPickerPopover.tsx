@@ -209,9 +209,10 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
     }
   }, [isOpen]);
 
-  // Update current draft value
+  // Update current draft value and notify parent live
   const updateDraft = (newVal: string) => {
     setDraftValue(newVal);
+    onChange(newVal);
   };
 
   const handleSolidChange = (newColor: string) => {
@@ -659,6 +660,38 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                     </div>
                   </div>
 
+                  {/* Colores del Evento en modo Degradado */}
+                  {eventColors && eventColors.length > 0 && (
+                    <div className="p-1.5 rounded-lg border space-y-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-extrabold uppercase opacity-70 tracking-wider">
+                          COLORES DEL EVENTO
+                        </span>
+                        <span className="text-[8px] opacity-50 font-bold">({eventColors.length})</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-wrap max-h-14 overflow-y-auto pr-0.5">
+                        {eventColors.map((col, idx) => (
+                          <button
+                            key={`ev-grad-col-${idx}`}
+                            type="button"
+                            onClick={() => {
+                              const updated = gradStops.map((s) => (s.id === activeStopId ? { ...s, color: col } : s));
+                              setGradStops(updated);
+                              updateDraft(buildGradientCss(gradType, gradAngle, updated));
+                            }}
+                            className="h-5 w-5 rounded-md border shadow-2xs transition-transform hover:scale-115 cursor-pointer relative overflow-hidden flex items-center justify-center shrink-0"
+                            style={{
+                              backgroundColor: col,
+                              borderColor: 'var(--border-color)',
+                            }}
+                            title={`Aplicar al punto activo: ${col}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Paleta Rápida para seleccionar color base de degradado */}
                   <div>
                     <label className="block text-[9px] font-extrabold uppercase opacity-70 tracking-wider mb-1">
@@ -714,13 +747,20 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                         key={idx}
                         type="button"
                         onClick={() => {
-                          updateDraft(col);
-                          onChange(col);
-                          if (col.includes('gradient')) {
-                            setMode('gradient');
+                          if (mode === 'gradient' && !col.includes('gradient')) {
+                            // Si estamos en la pestaña Degradado y se pulsa un color sólido guardado, aplicarlo al punto (stop) activo del degradado
+                            const updated = gradStops.map((s) => (s.id === activeStopId ? { ...s, color: col } : s));
+                            setGradStops(updated);
+                            updateDraft(buildGradientCss(gradType, gradAngle, updated));
                           } else {
-                            setMode('solid');
-                            setSolidColor(col);
+                            // Si se pulsa un degradado guardado o estamos en pestaña Sólido, aplicar directamente
+                            updateDraft(col);
+                            if (col.includes('gradient')) {
+                              setMode('gradient');
+                            } else {
+                              setMode('solid');
+                              setSolidColor(col);
+                            }
                           }
                         }}
                         onDoubleClick={(e) => {

@@ -1195,27 +1195,24 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   eventColorImage={eventColorImage}
                                   styleConfig={{
                                     backgroundColor: containerTarget === 'fondo'
-                                      ? (settings.screen_bg_color || '#000000')
+                                      ? (settings.screen_bg_type === 'gradient' && settings.screen_gradient_data
+                                          ? (typeof settings.screen_gradient_data === 'string' ? settings.screen_gradient_data : settings.screen_bg_color || '#000000')
+                                          : (settings.screen_bg_color || '#000000'))
                                       : containerTarget === 'mensaje'
-                                      ? (settings.container_bg_color || '#0f172a')
-                                      : (settings.bar_bg_color || '#1e293b'),
-                                    fillType: containerTarget === 'fondo' 
-                                      ? (settings.screen_bg_type === 'gradient' ? 'gradient' : 'color')
-                                      : containerTarget === 'mensaje'
-                                      ? (settings.container_bg_type === 'gradient' ? 'gradient' : 'color')
-                                      : (settings.bar_bg_type === 'gradient' ? 'gradient' : 'color'),
-                                    fillColor: containerTarget === 'fondo'
-                                      ? (settings.screen_bg_color || '#000000')
-                                      : containerTarget === 'mensaje'
-                                      ? (settings.container_bg_color || '#0f172a')
-                                      : (settings.bar_bg_color || '#1e293b'),
-                                    fillGradient: containerTarget === 'fondo'
-                                      ? settings.screen_gradient_data
-                                      : containerTarget === 'mensaje'
-                                      ? settings.container_gradient_data
-                                      : settings.bar_gradient_data,
-                                    strokeActive: false,
-                                    shadowActive: false,
+                                      ? (settings.container_bg_type === 'gradient' && settings.container_gradient_data
+                                          ? (typeof settings.container_gradient_data === 'string' ? settings.container_gradient_data : settings.container_bg_color || '#0f172a')
+                                          : (settings.container_bg_color || '#0f172a'))
+                                      : (settings.bar_bg_type === 'gradient' && settings.bar_gradient_data
+                                          ? (typeof settings.bar_gradient_data === 'string' ? settings.bar_gradient_data : settings.bar_bg_color || '#1e293b')
+                                          : (settings.bar_bg_color || '#1e293b')),
+                                    borderWidth: containerTarget === 'fondo' ? settings.screen_border_width ?? 0 : containerTarget === 'mensaje' ? settings.container_border_width ?? 0 : settings.bar_border_width ?? 0,
+                                    borderStyle: containerTarget === 'fondo' ? settings.screen_border_style || 'solid' : containerTarget === 'mensaje' ? settings.container_border_style || 'solid' : settings.bar_border_style || 'solid',
+                                    borderColor: containerTarget === 'fondo' ? settings.screen_border_color || '#E07A5F' : containerTarget === 'mensaje' ? settings.container_border_color || '#E07A5F' : settings.bar_border_color || '#E07A5F',
+                                    borderRadius: containerTarget === 'fondo' ? settings.screen_border_radius ?? 0 : containerTarget === 'mensaje' ? settings.container_border_radius ?? 24 : settings.bar_border_radius ?? 0,
+                                    shadowColor: containerTarget === 'fondo' ? settings.screen_shadow_color || '#000000' : containerTarget === 'mensaje' ? settings.container_shadow_color || '#000000' : settings.bar_shadow_color || '#000000',
+                                    shadowBlur: containerTarget === 'fondo' ? settings.screen_shadow_blur ?? 0 : containerTarget === 'mensaje' ? settings.container_shadow_blur ?? 0 : settings.bar_shadow_blur ?? 0,
+                                    shadowOffsetX: containerTarget === 'fondo' ? settings.screen_shadow_offset_x ?? 0 : containerTarget === 'mensaje' ? settings.container_shadow_offset_x ?? 0 : settings.bar_shadow_offset_x ?? 0,
+                                    shadowOffsetY: containerTarget === 'fondo' ? settings.screen_shadow_offset_y ?? 0 : containerTarget === 'mensaje' ? settings.container_shadow_offset_y ?? 0 : settings.bar_shadow_offset_y ?? 0,
                                   }}
                                   onChange={(updated) => {
                                     const prefix = containerTarget === 'fondo' ? 'screen' : containerTarget === 'mensaje' ? 'container' : 'bar';
@@ -1244,6 +1241,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                     if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
                                     if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
                                     if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
+                                    if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
+                                    if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
                                   }}
                                 />
                               </div>

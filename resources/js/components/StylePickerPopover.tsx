@@ -533,7 +533,18 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold mb-1 opacity-70">Grosor (px)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold opacity-70">Grosor (px)</label>
+                      <label className="flex items-center cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Redibujar por encima del borde">
+                        <input
+                          type="checkbox"
+                          checked={textAboveBorder}
+                          onChange={(e) => onChange({ textAboveBorder: e.target.checked })}
+                          className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                          style={{ accentColor: 'var(--primary-accent)' }}
+                        />
+                      </label>
+                    </div>
                     <NumberInput
                       min={0}
                       max={30}
@@ -550,17 +561,17 @@ export const StylePickerPopover: React.FC<StylePickerPopoverProps> = ({
                     <select
                       value={borderStyle}
                       onChange={(e) => onChange({ borderStyle: e.target.value as any })}
-                      className="w-full h-8 rounded-lg px-2 border outline-none font-bold text-xs cursor-pointer transition-colors focus:ring-1 focus:ring-[var(--primary-accent)]"
+                      className="w-full h-6.5 rounded-md px-1 border outline-none font-bold text-[10px] cursor-pointer transition-colors focus:ring-1 focus:ring-[var(--primary-accent)]"
                       style={{
                         backgroundColor: 'var(--bg-app)',
                         borderColor: 'var(--border-color)',
                         color: 'var(--text-main)',
                       }}
                     >
-                      <option value="solid" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Sólida (Continua)</option>
-                      <option value="dashed" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Discontinua (Dashed)</option>
-                      <option value="dotted" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Punteada (Dotted)</option>
-                      <option value="double" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Doble (Double)</option>
+                      <option value="solid" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Sólida</option>
+                      <option value="dashed" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Discontinua</option>
+                      <option value="dotted" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Punteada</option>
+                      <option value="double" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Doble</option>
                       <option value="none" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>Sin borde</option>
                     </select>
                   </div>
