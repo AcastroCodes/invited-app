@@ -16,6 +16,7 @@ import {
   Smartphone,
   Type,
   MousePointer2,
+  MousePointerClick,
   Palette,
   Maximize2,
   RotateCw,
@@ -33,6 +34,8 @@ import {
   Check,
   Save,
   Loader2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import api from '../../lib/api';
 import MobileSimulator from './MobileSimulator';
@@ -82,9 +85,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   // Mobile app config states
   const [mobileActiveView, setMobileActiveView] = useState<'general' | 'welcome' | 'camera' | 'gallery'>('general');
   const [previewView, setPreviewView] = useState<string>('welcome');
+  const [activeLogoState, setActiveLogoState] = useState<'welcome' | 'camera' | 'gallery'>('welcome');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
-  const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'barra'>('fondo');
+  const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'barra' | 'botones'>('fondo');
   const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
 
   const [settings, setSettings] = useState<any>({
@@ -171,8 +175,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
   const handleTabChange = (view: 'general' | 'welcome' | 'camera' | 'gallery') => {
     setMobileActiveView(view);
-    if (view === 'general') setPreviewView('welcome');
-    else setPreviewView(view);
+    if (view === 'general') {
+      setPreviewView('welcome');
+    } else {
+      setPreviewView(view);
+      setActiveLogoState(view);
+    }
   };
 
   // Event colors state
@@ -222,6 +230,20 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
     fetchPhotos();
     fetchEventDetails();
   }, [eventId]);
+
+  const targetPrefix = containerTarget === 'fondo'
+    ? 'screen'
+    : containerTarget === 'mensaje'
+    ? 'container'
+    : containerTarget === 'barra'
+    ? 'bar'
+    : (buttonState === 'hover' ? 'button_hover' : 'button');
+  const currentImageKey = `${targetPrefix}_image_url`;
+  const currentBgTypeKey = `${targetPrefix}_bg_type`;
+  const currentVideoRotateKey = `${targetPrefix}_video_rotate`;
+  const currentImageUrl = settings[currentImageKey] || '';
+  const currentBgType = settings[currentBgTypeKey] || 'color';
+  const currentVideoRotate = !!settings[currentVideoRotateKey];
 
   const safePhotos = Array.isArray(photos) ? photos : [];
 
@@ -446,9 +468,9 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
       {subTab === 'app_movil' && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           {/* COLUMNA IZQUIERDA: PREVISUALIZACIÓN DE LA APP MÓVIL (MOBILE SIMULATOR) */}
-          <div className="xl:col-span-3 flex flex-col items-center h-full">
+          <div className="xl:col-span-3 flex flex-col items-center h-[520px]">
             <div className="sticky top-[85px] z-10 w-full flex flex-col items-center justify-between h-full py-0">
-              <div className="w-full flex flex-col items-center">
+              <div className="w-full flex flex-col items-center h-full">
                 {/* FRAME DEL TELÉFONO CON MOBILE SIMULATOR DE DPHOTOS */}
                 <div className="w-full max-w-[260px] h-[520px] rounded-[16px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
                   {/* Isla Dinámica / Notch del teléfono */}
@@ -456,10 +478,42 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-900 border border-slate-700" />
                   </div>
 
+                  {/* ICONOS FLOTANTES FUERA DEL TELÉFONO EN LA PARTE SUPERIOR DERECHA (UNO SOBRE OTRO) AL ESTAR EN PANTALLA GENERAL */}
+                  {mobileActiveView === 'general' && (
+                    <div className="absolute left-[calc(100%+10px)] top-1 z-50 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 shadow-2xl">
+                      {[
+                        { id: 'welcome', label: 'Bienvenida', icon: Tv },
+                        { id: 'camera', label: 'Cámara', icon: Camera },
+                        { id: 'gallery', label: 'Galería', icon: ImageIcon },
+                      ].map((viewItem) => {
+                        const Icon = viewItem.icon;
+                        const isActive = previewView === viewItem.id;
+                        return (
+                          <button
+                            key={viewItem.id}
+                            type="button"
+                            title={`Ver vista de ${viewItem.label}`}
+                            onClick={() => setPreviewView(viewItem.id)}
+                            className="p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                            style={{
+                              backgroundColor: isActive ? 'var(--primary-accent)' : 'rgba(255, 255, 255, 0.1)',
+                              color: '#ffffff',
+                              border: isActive ? '1px solid var(--primary-accent)' : '1px solid rgba(255, 255, 255, 0.1)',
+                              boxShadow: isActive ? '0 0 8px var(--primary-accent)' : 'none',
+                            }}
+                          >
+                            <Icon size={15} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <MobileSimulator
                     data={{ settings }}
                     event={{ ...eventData, title: settings.welcome_title || eventData?.name || eventData?.title }}
                     previewView={previewView}
+                    previewButtonState={containerTarget === 'botones' ? buttonState : undefined}
                   />
                 </div>
               </div>
@@ -467,7 +521,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
           </div>
 
           {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN */}
-          <div className="xl:col-span-9 space-y-3 pt-3 flex flex-col max-h-[calc(100vh-145px)]">
+          <div className="xl:col-span-9 space-y-3 pt-3 flex flex-col h-[520px]">
             {/* BARRA DE PANTALLA Y PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
             <div
               className="px-4 flex items-center justify-between gap-4 text-white shadow-md relative h-8 z-20 overflow-visible rounded-lg shrink-0"
@@ -546,7 +600,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     {/* SUB-PESTAÑAS DE GENERAL: FUENTES, CONTENEDOR, LOGOS */}
                     <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       {[
-                        { id: 'fuentes', label: 'Fuentes & Estilos', icon: Type },
+                        { id: 'fuentes', label: 'Fuente', icon: Type },
                         { id: 'fondos', label: 'Contenedor', icon: Palette },
                         { id: 'logos', label: 'Logos', icon: ImageIcon },
                       ].map((sub) => {
@@ -1053,538 +1107,1369 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
 
                     {/* CONTENEDOR */}
-                    {generalSubTab === 'fondos' && (
-                      <div className="rounded-2xl p-3 border space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                        <div className="pb-1 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
-                          <div className="flex items-center gap-2.5">
-                            <Palette size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
-                            <div className="flex flex-col leading-tight">
-                              <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                                Contenedor ({containerTarget === 'fondo' ? 'Fondo' : containerTarget === 'mensaje' ? 'Mensaje' : 'Barra'})
-                              </h3>
-                              <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                                Estilos y configuración del contenedor
-                              </span>
-                            </div>
-                          </div>
+                    {generalSubTab === 'fondos' && (() => {
+                      const activeLeftTarget = containerTarget === 'botones' ? 'fondo' : containerTarget;
+                      const leftPrefix = activeLeftTarget === 'fondo' ? 'screen' : activeLeftTarget === 'mensaje' ? 'container' : 'bar';
+                      const leftImageKey = `${leftPrefix}_image_url`;
+                      const leftBgTypeKey = `${leftPrefix}_bg_type`;
+                      const leftVideoRotateKey = `${leftPrefix}_video_rotate`;
+                      const leftImageUrl = settings[leftImageKey] || '';
+                      const leftBgType = settings[leftBgTypeKey] || 'color';
+                      const leftVideoRotate = !!settings[leftVideoRotateKey];
 
-                          {/* PESTAÑAS FONDO / MENSAJE / BARRA EN EL LADO DERECHO */}
-                          <div className="flex items-center gap-1 p-0.5 rounded-lg border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                            {[
-                              { id: 'fondo', label: 'Fondo' },
-                              { id: 'mensaje', label: 'Mensaje' },
-                              { id: 'barra', label: 'Barra' },
-                            ].map((cTarget) => {
-                              const isCTargetActive = containerTarget === cTarget.id;
-                              return (
-                                <button
-                                  key={cTarget.id}
-                                  type="button"
-                                  onClick={() => setContainerTarget(cTarget.id as any)}
-                                  className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
-                                  style={{
-                                    backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
-                                    color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
-                                  }}
-                                >
-                                  {cTarget.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                      const buttonPrefix = buttonState === 'hover' ? 'button_hover' : 'button';
+                      const buttonImageKey = `${buttonPrefix}_image_url`;
+                      const buttonBgTypeKey = `${buttonPrefix}_bg_type`;
+                      const buttonVideoRotateKey = `${buttonPrefix}_video_rotate`;
+                      const buttonImageUrl = settings[buttonImageKey] || '';
+                      const buttonBgType = settings[buttonBgTypeKey] || 'color';
+                      const buttonVideoRotate = !!settings[buttonVideoRotateKey];
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
-                          {/* COLUMNA IZQUIERDA: SUBIR IMAGEN / VIDEO DE FONDO */}
-                          <div className="space-y-2">
-                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                              Imagen / Video
-                            </label>
-                            
-                            <div
-                              className="border-2 border-dashed rounded-2xl p-4 text-center space-y-2 flex flex-col items-center justify-center transition-all relative overflow-hidden group min-h-[160px]"
-                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                            >
-                              {settings.screen_image_url ? (
-                                <div className="relative w-full h-32 rounded-xl overflow-hidden group">
-                                  {settings.screen_bg_type === 'video' || String(settings.screen_image_url).startsWith('data:video') || String(settings.screen_image_url).match(/\.(mp4|webm|ogg)$/i) ? (
-                                    <video
-                                      src={settings.screen_image_url}
-                                      autoPlay
-                                      loop
-                                      muted
-                                      playsInline
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <img
-                                      src={settings.screen_image_url}
-                                      alt="Fondo de pantalla"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  )}
-                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
-                                      <Upload size={16} />
-                                      <input
-                                        type="file"
-                                        accept="image/*,video/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            const isVideo = file.type.startsWith('video/');
-                                            const reader = new FileReader();
-                                            reader.onload = (ev) => {
-                                              updateSetting('screen_image_url', ev.target?.result);
-                                              updateSetting('screen_bg_type', isVideo ? 'video' : 'image');
-                                            };
-                                            reader.readAsDataURL(file);
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateSetting('screen_image_url', '')}
-                                      className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
-                                      title="Eliminar archivo"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
-                                  <div className="p-3 rounded-full mb-2" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
-                                    <Upload size={20} />
-                                  </div>
-                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
-                                  <span className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM (máx. 15MB)</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*,video/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        const isVideo = file.type.startsWith('video/');
-                                        const reader = new FileReader();
-                                        reader.onload = (ev) => {
-                                          updateSetting('screen_image_url', ev.target?.result);
-                                          updateSetting('screen_bg_type', isVideo ? 'video' : 'image');
-                                        };
-                                        reader.readAsDataURL(file);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* COLUMNA DERECHA: CONTROLES ADAPTATIVOS EN UNA SOLA FILA DE 3 COMPONENTES */}
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                              {/* 1. Estilo con StylePickerPopover */}
-                              <div>
-                                <StylePickerPopover
-                                  label={containerTarget === 'fondo' ? 'Estilo de fondo' : containerTarget === 'mensaje' ? 'Estilo mensaje' : 'Estilo barra'}
-                                  elementType="box"
-                                  eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
-                                  eventColorImage={eventColorImage}
-                                  styleConfig={{
-                                    backgroundColor: containerTarget === 'fondo'
-                                      ? (settings.screen_bg_type === 'gradient' && settings.screen_gradient_data
-                                          ? (typeof settings.screen_gradient_data === 'string' ? settings.screen_gradient_data : settings.screen_bg_color || '#000000')
-                                          : (settings.screen_bg_color || '#000000'))
-                                      : containerTarget === 'mensaje'
-                                      ? (settings.container_bg_type === 'gradient' && settings.container_gradient_data
-                                          ? (typeof settings.container_gradient_data === 'string' ? settings.container_gradient_data : settings.container_bg_color || '#0f172a')
-                                          : (settings.container_bg_color || '#0f172a'))
-                                      : (settings.bar_bg_type === 'gradient' && settings.bar_gradient_data
-                                          ? (typeof settings.bar_gradient_data === 'string' ? settings.bar_gradient_data : settings.bar_bg_color || '#1e293b')
-                                          : (settings.bar_bg_color || '#1e293b')),
-                                    borderWidth: containerTarget === 'fondo' ? settings.screen_border_width ?? 0 : containerTarget === 'mensaje' ? settings.container_border_width ?? 0 : settings.bar_border_width ?? 0,
-                                    borderStyle: containerTarget === 'fondo' ? settings.screen_border_style || 'solid' : containerTarget === 'mensaje' ? settings.container_border_style || 'solid' : settings.bar_border_style || 'solid',
-                                    borderColor: containerTarget === 'fondo' ? settings.screen_border_color || '#E07A5F' : containerTarget === 'mensaje' ? settings.container_border_color || '#E07A5F' : settings.bar_border_color || '#E07A5F',
-                                    borderRadius: containerTarget === 'fondo' ? settings.screen_border_radius ?? 0 : containerTarget === 'mensaje' ? settings.container_border_radius ?? 24 : settings.bar_border_radius ?? 0,
-                                    shadowColor: containerTarget === 'fondo' ? settings.screen_shadow_color || '#000000' : containerTarget === 'mensaje' ? settings.container_shadow_color || '#000000' : settings.bar_shadow_color || '#000000',
-                                    shadowBlur: containerTarget === 'fondo' ? settings.screen_shadow_blur ?? 0 : containerTarget === 'mensaje' ? settings.container_shadow_blur ?? 0 : settings.bar_shadow_blur ?? 0,
-                                    shadowOffsetX: containerTarget === 'fondo' ? settings.screen_shadow_offset_x ?? 0 : containerTarget === 'mensaje' ? settings.container_shadow_offset_x ?? 0 : settings.bar_shadow_offset_x ?? 0,
-                                    shadowOffsetY: containerTarget === 'fondo' ? settings.screen_shadow_offset_y ?? 0 : containerTarget === 'mensaje' ? settings.container_shadow_offset_y ?? 0 : settings.bar_shadow_offset_y ?? 0,
-                                  }}
-                                  onChange={(updated) => {
-                                    const prefix = containerTarget === 'fondo' ? 'screen' : containerTarget === 'mensaje' ? 'container' : 'bar';
-                                    const bgPrefix = `${prefix}_bg`;
-                                    const gradKey = `${prefix}_gradient_data`;
-
-                                    const selectedColor = updated.backgroundColor || updated.fillColor;
-                                    const selectedGradient = updated.fillGradient;
-
-                                    if (updated.fillType === 'gradient' && selectedGradient) {
-                                      updateSetting(`${bgPrefix}_type`, 'gradient');
-                                      updateSetting(gradKey, selectedGradient);
-                                    } else if (selectedColor) {
-                                      if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
-                                        updateSetting(`${bgPrefix}_type`, 'gradient');
-                                        updateSetting(gradKey, selectedColor);
-                                      } else {
-                                        updateSetting(`${bgPrefix}_type`, 'color');
-                                        updateSetting(`${bgPrefix}_color`, selectedColor);
-                                      }
-                                    }
-
-                                    if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
-                                    if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
-                                    if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
-                                    if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
-                                    if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
-                                    if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
-                                    if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
-                                    if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
-                                  }}
-                                />
-                              </div>
-
-                              {/* 2. Redondez */}
-                              <div>
-                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                                  Redondez
-                                </label>
-                                <div
-                                  className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
-                                  style={{
-                                    backgroundColor: 'var(--bg-app)',
-                                    borderColor: 'var(--border-color)',
-                                  }}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const key = containerTarget === 'fondo' ? 'screen_border_radius' : containerTarget === 'mensaje' ? 'container_border_radius' : 'bar_border_radius';
-                                      const curr = parseInt(settings[key] ?? (containerTarget === 'mensaje' ? '24' : '12'));
-                                      const nextVal = Math.max(0, curr - 2);
-                                      updateSetting(key, nextVal);
-                                    }}
-                                    className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                                    style={{
-                                      backgroundColor: 'var(--bg-card)',
-                                      borderColor: 'var(--border-color)',
-                                      color: 'var(--primary-accent)',
-                                    }}
-                                    title="Disminuir redondez"
-                                  >
-                                    <Minus size={12} />
-                                  </button>
-
-                                  <div className="flex-1 flex items-center justify-center px-1">
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={100}
-                                      value={
-                                        containerTarget === 'fondo'
-                                          ? (settings.screen_border_radius ?? 0)
-                                          : containerTarget === 'mensaje'
-                                          ? (settings.container_border_radius ?? 24)
-                                          : (settings.bar_border_radius ?? 16)
-                                      }
-                                      onChange={(e) => {
-                                        const key = containerTarget === 'fondo' ? 'screen_border_radius' : containerTarget === 'mensaje' ? 'container_border_radius' : 'bar_border_radius';
-                                        updateSetting(key, parseInt(e.target.value) || 0);
-                                      }}
-                                      className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                      style={{ color: 'var(--text-main)' }}
-                                    />
-                                    <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
-                                      px
+                      return (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {/* COLUMNA IZQUIERDA: CONTENEDORES (FONDO, MENSAJE, BARRA) */}
+                          <div className="rounded-2xl p-3 border space-y-3 shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2">
+                                  <Palette size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                      Contenedores ({activeLeftTarget === 'fondo' ? 'Fondo' : activeLeftTarget === 'mensaje' ? 'Mensaje' : 'Barra'})
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      Estilos y fondos de pantalla
                                     </span>
                                   </div>
+                                </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const key = containerTarget === 'fondo' ? 'screen_border_radius' : containerTarget === 'mensaje' ? 'container_border_radius' : 'bar_border_radius';
-                                      const curr = parseInt(settings[key] ?? (containerTarget === 'mensaje' ? '24' : '12'));
-                                      const nextVal = Math.min(100, curr + 2);
-                                      updateSetting(key, nextVal);
-                                    }}
-                                    className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                                    style={{
-                                      backgroundColor: 'var(--bg-card)',
-                                      borderColor: 'var(--border-color)',
-                                      color: 'var(--primary-accent)',
-                                    }}
-                                    title="Aumentar redondez"
-                                  >
-                                    <Plus size={12} />
-                                  </button>
+                                {/* PESTAÑAS FONDO / MENSAJE / BARRA */}
+                                <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'fondo', label: 'Fondo' },
+                                    { id: 'mensaje', label: 'Mensaje' },
+                                    { id: 'barra', label: 'Barra' },
+                                  ].map((cTarget) => {
+                                    const isCTargetActive = activeLeftTarget === cTarget.id;
+                                    return (
+                                      <button
+                                        key={cTarget.id}
+                                        type="button"
+                                        onClick={() => setContainerTarget(cTarget.id as any)}
+                                        className="px-2 py-0.5 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                        style={{
+                                          backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                          color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                        }}
+                                      >
+                                        {cTarget.label}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
 
-                              {/* 3. Efecto Glass (misma fila, tercera columna) */}
-                              <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                                    Glass ({
-                                      containerTarget === 'fondo'
-                                        ? (settings.screen_bg_opacity ?? 100)
-                                        : containerTarget === 'mensaje'
-                                        ? (settings.container_bg_opacity ?? 75)
-                                        : (settings.bar_bg_opacity ?? 85)
-                                    }%)
-                                  </label>
-
-                                  {/* Checkbox a la derecha del título de Glass */}
-                                  <label className="relative flex items-center cursor-pointer shrink-0 select-none">
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        containerTarget === 'fondo'
-                                          ? (settings.screen_glass_enabled ?? true)
-                                          : containerTarget === 'mensaje'
-                                          ? (settings.container_glass_enabled ?? true)
-                                          : (settings.bar_glass_enabled ?? true)
-                                      }
-                                      onChange={(e) => {
-                                        const key = containerTarget === 'fondo' ? 'screen_glass_enabled' : containerTarget === 'mensaje' ? 'container_glass_enabled' : 'bar_glass_enabled';
-                                        updateSetting(key, e.target.checked);
-                                      }}
-                                      className="sr-only peer"
-                                    />
-                                    <div
-                                      className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
-                                      style={{
-                                        borderColor: (
-                                          containerTarget === 'fondo'
-                                            ? (settings.screen_glass_enabled ?? true)
-                                            : containerTarget === 'mensaje'
-                                            ? (settings.container_glass_enabled ?? true)
-                                            : (settings.bar_glass_enabled ?? true)
-                                        ) ? 'var(--primary-accent)' : 'var(--border-color)',
-                                        backgroundColor: (
-                                          containerTarget === 'fondo'
-                                            ? (settings.screen_glass_enabled ?? true)
-                                            : containerTarget === 'mensaje'
-                                            ? (settings.container_glass_enabled ?? true)
-                                            : (settings.bar_glass_enabled ?? true)
-                                        ) ? 'var(--primary-accent)' : 'var(--bg-card)',
-                                      }}
-                                    >
-                                      {(
-                                        containerTarget === 'fondo'
-                                          ? (settings.screen_glass_enabled ?? true)
-                                          : containerTarget === 'mensaje'
-                                          ? (settings.container_glass_enabled ?? true)
-                                          : (settings.bar_glass_enabled ?? true)
-                                      ) && (
-                                        <Check size={11} className="text-white stroke-[3]" />
-                                      )}
-                                    </div>
-                                  </label>
+                              <div className="space-y-3 pt-2">
+                                {/* SUBIR IMAGEN / VIDEO DEL CONTENEDOR */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                      Imagen / Video ({activeLeftTarget === 'fondo' ? 'Fondo' : activeLeftTarget === 'mensaje' ? 'Mensaje' : 'Barra'})
+                                    </label>
+                                    <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Rotar orientación de video 90° en la pantalla del teléfono">
+                                      <input
+                                        type="checkbox"
+                                        checked={leftVideoRotate}
+                                        onChange={(e) => updateSetting(leftVideoRotateKey, e.target.checked)}
+                                        className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                        style={{ accentColor: 'var(--primary-accent)' }}
+                                      />
+                                      <span>Rotar Video</span>
+                                    </label>
+                                  </div>
+                                  
+                                  <div
+                                    className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[180px] min-h-[180px]"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                  >
+                                    {leftImageUrl ? (
+                                      <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
+                                        {leftBgType === 'video' || String(leftImageUrl).startsWith('data:video') || String(leftImageUrl).match(/\.(mp4|webm|ogg)$/i) ? (
+                                          <video
+                                            src={leftImageUrl}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className="w-full h-full object-contain"
+                                          />
+                                        ) : (
+                                          <img
+                                            src={leftImageUrl}
+                                            alt="Imagen de fondo"
+                                            className="w-full h-full object-contain"
+                                          />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                          <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
+                                            <Upload size={16} />
+                                            <input
+                                              type="file"
+                                              accept="image/*,video/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const isVideo = file.type.startsWith('video/');
+                                                  const reader = new FileReader();
+                                                  reader.onload = (ev) => {
+                                                    updateSetting(leftImageKey, ev.target?.result);
+                                                    updateSetting(leftBgTypeKey, isVideo ? 'video' : 'image');
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSetting(leftImageKey, '')}
+                                            className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                            title="Eliminar archivo"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                        <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                          <Upload size={18} />
+                                        </div>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                        <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM</span>
+                                        <input
+                                          type="file"
+                                          accept="image/*,video/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const isVideo = file.type.startsWith('video/');
+                                              const reader = new FileReader();
+                                              reader.onload = (ev) => {
+                                                updateSetting(leftImageKey, ev.target?.result);
+                                                updateSetting(leftBgTypeKey, isVideo ? 'video' : 'image');
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
                                 </div>
 
-                                <div
-                                  className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
-                                    !(
-                                      containerTarget === 'fondo'
-                                        ? (settings.screen_glass_enabled ?? true)
-                                        : containerTarget === 'mensaje'
-                                        ? (settings.container_glass_enabled ?? true)
-                                        : (settings.bar_glass_enabled ?? true)
-                                    ) ? 'opacity-40 pointer-events-none' : ''
-                                  }`}
-                                  style={{
-                                    backgroundColor: 'var(--bg-app)',
-                                    borderColor: 'var(--border-color)',
-                                  }}
-                                >
-                                  <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    step="1"
-                                    value={
-                                      containerTarget === 'fondo'
-                                        ? (settings.screen_bg_opacity ?? 100)
-                                        : containerTarget === 'mensaje'
-                                        ? (settings.container_bg_opacity ?? 75)
-                                        : (settings.bar_bg_opacity ?? 85)
-                                    }
-                                    onChange={(e) => {
-                                      const key = containerTarget === 'fondo' ? 'screen_bg_opacity' : containerTarget === 'mensaje' ? 'container_bg_opacity' : 'bar_bg_opacity';
-                                      updateSetting(key, parseInt(e.target.value));
-                                    }}
-                                    className="w-full h-1.5 rounded-lg cursor-pointer"
-                                    style={{
-                                      accentColor: 'var(--primary-accent)',
-                                    }}
-                                    title="Opacidad del vidrio"
-                                    disabled={
-                                      !(
-                                        containerTarget === 'fondo'
-                                          ? (settings.screen_glass_enabled ?? true)
-                                          : containerTarget === 'mensaje'
-                                          ? (settings.container_glass_enabled ?? true)
-                                          : (settings.bar_glass_enabled ?? true)
-                                      )
-                                    }
-                                  />
+                                {/* CONTROLES IZQUIERDA: ESTILO, REDONDEZ, GLASS */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
+                                  {/* Estilo */}
+                                  <div>
+                                    <StylePickerPopover
+                                      label="Estilo"
+                                      elementType="box"
+                                      eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                      eventColorImage={eventColorImage}
+                                      styleConfig={{
+                                        backgroundColor: settings[`${leftPrefix}_bg_type`] === 'gradient' && settings[`${leftPrefix}_gradient_data`]
+                                          ? (typeof settings[`${leftPrefix}_gradient_data`] === 'string' ? settings[`${leftPrefix}_gradient_data`] : settings[`${leftPrefix}_bg_color`] || '#E07A5F')
+                                          : (settings[`${leftPrefix}_bg_color`] || '#E07A5F'),
+                                        borderWidth: settings[`${leftPrefix}_border_width`] ?? 0,
+                                        borderStyle: settings[`${leftPrefix}_border_style`] || 'solid',
+                                        borderColor: settings[`${leftPrefix}_border_color`] || '#E07A5F',
+                                        borderRadius: settings[`${leftPrefix}_border_radius`] ?? (activeLeftTarget === 'mensaje' ? 24 : 12),
+                                        shadowColor: settings[`${leftPrefix}_shadow_color`] || '#000000',
+                                        shadowBlur: settings[`${leftPrefix}_shadow_blur`] ?? 0,
+                                        shadowOffsetX: settings[`${leftPrefix}_shadow_offset_x`] ?? 0,
+                                        shadowOffsetY: settings[`${leftPrefix}_shadow_offset_y`] ?? 0,
+                                      }}
+                                      onChange={(updated) => {
+                                        const prefix = leftPrefix;
+                                        const bgPrefix = `${prefix}_bg`;
+                                        const gradKey = `${prefix}_gradient_data`;
+
+                                        const selectedColor = updated.backgroundColor || updated.fillColor;
+                                        const selectedGradient = updated.fillGradient;
+
+                                        if (updated.fillType === 'gradient' && selectedGradient) {
+                                          updateSetting(`${bgPrefix}_type`, 'gradient');
+                                          updateSetting(gradKey, selectedGradient);
+                                        } else if (selectedColor) {
+                                          if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
+                                            updateSetting(`${bgPrefix}_type`, 'gradient');
+                                            updateSetting(gradKey, selectedColor);
+                                          } else {
+                                            updateSetting(`${bgPrefix}_type`, 'color');
+                                            updateSetting(`${bgPrefix}_color`, selectedColor);
+                                          }
+                                        }
+
+                                        if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                        if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
+                                        if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                        if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                        if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
+                                        if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
+                                        if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
+                                        if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
+                                      }}
+                                    />
+                                  </div>
+
+                                  {/* Redondez */}
+                                  <div>
+                                    <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Redondez
+                                    </label>
+                                    <div
+                                      className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                      style={{
+                                        backgroundColor: 'var(--bg-app)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const key = `${leftPrefix}_border_radius`;
+                                          const curr = parseInt(settings[key] ?? (activeLeftTarget === 'mensaje' ? '24' : '12'));
+                                          const nextVal = Math.max(0, curr - 2);
+                                          updateSetting(key, nextVal);
+                                        }}
+                                        className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--primary-accent)',
+                                        }}
+                                        title="Disminuir redondez"
+                                      >
+                                        <Minus size={12} />
+                                      </button>
+
+                                      <div className="flex-1 flex items-center justify-center px-1">
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={settings[`${leftPrefix}_border_radius`] ?? (activeLeftTarget === 'mensaje' ? 24 : 12)}
+                                          onChange={(e) => {
+                                            const key = `${leftPrefix}_border_radius`;
+                                            updateSetting(key, parseInt(e.target.value) || 0);
+                                          }}
+                                          className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          style={{ color: 'var(--text-main)' }}
+                                        />
+                                        <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                          px
+                                        </span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const key = `${leftPrefix}_border_radius`;
+                                          const curr = parseInt(settings[key] ?? (activeLeftTarget === 'mensaje' ? '24' : '12'));
+                                          const nextVal = Math.min(100, curr + 2);
+                                          updateSetting(key, nextVal);
+                                        }}
+                                        className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--primary-accent)',
+                                        }}
+                                        title="Aumentar redondez"
+                                      >
+                                        <Plus size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Glass */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                        Glass ({settings[`${leftPrefix}_bg_opacity`] ?? 100}%)
+                                      </label>
+                                      <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={settings[`${leftPrefix}_glass_enabled`] ?? true}
+                                          onChange={(e) => {
+                                            const key = `${leftPrefix}_glass_enabled`;
+                                            updateSetting(key, e.target.checked);
+                                          }}
+                                          className="sr-only peer"
+                                        />
+                                        <div
+                                          className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                          style={{
+                                            borderColor: (settings[`${leftPrefix}_glass_enabled`] ?? true) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                            backgroundColor: (settings[`${leftPrefix}_glass_enabled`] ?? true) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                          }}
+                                        >
+                                          {(settings[`${leftPrefix}_glass_enabled`] ?? true) && (
+                                            <Check size={11} className="text-white stroke-[3]" />
+                                          )}
+                                        </div>
+                                      </label>
+                                    </div>
+
+                                    <div
+                                      className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                        !(settings[`${leftPrefix}_glass_enabled`] ?? true) ? 'opacity-40 pointer-events-none' : ''
+                                      }`}
+                                      style={{
+                                        backgroundColor: 'var(--bg-app)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value={settings[`${leftPrefix}_bg_opacity`] ?? 100}
+                                        onChange={(e) => {
+                                          const key = `${leftPrefix}_bg_opacity`;
+                                          updateSetting(key, parseInt(e.target.value));
+                                        }}
+                                        className="w-full h-1.5 rounded-lg cursor-pointer"
+                                        style={{
+                                          accentColor: 'var(--primary-accent)',
+                                        }}
+                                        title="Opacidad del vidrio"
+                                        disabled={!(settings[`${leftPrefix}_glass_enabled`] ?? true)}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* COLUMNA DERECHA: BOTONES (NORMAL / SOBRE) */}
+                          <div className="rounded-2xl p-3 border space-y-3 shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2">
+                                  <MousePointerClick size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                      Botones ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      Estilos y efectos de botón
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* PESTAÑAS NORMAL / SOBRE */}
+                                <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'normal', label: 'Normal' },
+                                    { id: 'hover', label: 'Sobre' },
+                                  ].map((modeItem) => {
+                                    const isModeActive = buttonState === modeItem.id;
+                                    return (
+                                      <button
+                                        key={modeItem.id}
+                                        type="button"
+                                        onClick={() => setButtonState(modeItem.id as any)}
+                                        className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer"
+                                        style={{
+                                          backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                          color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                        }}
+                                      >
+                                        {modeItem.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="space-y-3 pt-2">
+                                {/* SUBIR IMAGEN / VIDEO DEL BOTÓN */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                      Imagen / Video ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                    </label>
+                                    <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Rotar orientación de video 90° en el botón">
+                                      <input
+                                        type="checkbox"
+                                        checked={buttonVideoRotate}
+                                        onChange={(e) => updateSetting(buttonVideoRotateKey, e.target.checked)}
+                                        className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                        style={{ accentColor: 'var(--primary-accent)' }}
+                                      />
+                                      <span>Rotar Video</span>
+                                    </label>
+                                  </div>
+                                  
+                                  <div
+                                    className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[180px] min-h-[180px]"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                  >
+                                    {buttonImageUrl ? (
+                                      <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
+                                        {buttonBgType === 'video' || String(buttonImageUrl).startsWith('data:video') || String(buttonImageUrl).match(/\.(mp4|webm|ogg)$/i) ? (
+                                          <video
+                                            src={buttonImageUrl}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className="w-full h-full object-contain"
+                                          />
+                                        ) : (
+                                          <img
+                                            src={buttonImageUrl}
+                                            alt="Imagen del botón"
+                                            className="w-full h-full object-contain"
+                                          />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                          <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
+                                            <Upload size={16} />
+                                            <input
+                                              type="file"
+                                              accept="image/*,video/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const isVideo = file.type.startsWith('video/');
+                                                  const reader = new FileReader();
+                                                  reader.onload = (ev) => {
+                                                    updateSetting(buttonImageKey, ev.target?.result);
+                                                    updateSetting(buttonBgTypeKey, isVideo ? 'video' : 'image');
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSetting(buttonImageKey, '')}
+                                            className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                            title="Eliminar archivo"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                        <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                          <Upload size={18} />
+                                        </div>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                        <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM</span>
+                                        <input
+                                          type="file"
+                                          accept="image/*,video/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const isVideo = file.type.startsWith('video/');
+                                              const reader = new FileReader();
+                                              reader.onload = (ev) => {
+                                                updateSetting(buttonImageKey, ev.target?.result);
+                                                updateSetting(buttonBgTypeKey, isVideo ? 'video' : 'image');
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* CONTROLES DERECHA: ESTILO, REDONDEZ, GLASS */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
+                                  {/* Estilo */}
+                                  <div>
+                                    <StylePickerPopover
+                                      label={`Estilo (${buttonState === 'hover' ? 'Sobre' : 'Normal'})`}
+                                      elementType="box"
+                                      eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                      eventColorImage={eventColorImage}
+                                      styleConfig={{
+                                        backgroundColor: settings[`${buttonPrefix}_bg_type`] === 'gradient' && settings[`${buttonPrefix}_gradient_data`]
+                                          ? (typeof settings[`${buttonPrefix}_gradient_data`] === 'string' ? settings[`${buttonPrefix}_gradient_data`] : settings[`${buttonPrefix}_bg_color`] || '#E07A5F')
+                                          : (settings[`${buttonPrefix}_bg_color`] || '#E07A5F'),
+                                        borderWidth: settings[`${buttonPrefix}_border_width`] ?? 0,
+                                        borderStyle: settings[`${buttonPrefix}_border_style`] || 'solid',
+                                        borderColor: settings[`${buttonPrefix}_border_color`] || '#E07A5F',
+                                        borderRadius: settings[`${buttonPrefix}_border_radius`] ?? 12,
+                                        shadowColor: settings[`${buttonPrefix}_shadow_color`] || '#000000',
+                                        shadowBlur: settings[`${buttonPrefix}_shadow_blur`] ?? 0,
+                                        shadowOffsetX: settings[`${buttonPrefix}_shadow_offset_x`] ?? 0,
+                                        shadowOffsetY: settings[`${buttonPrefix}_shadow_offset_y`] ?? 0,
+                                      }}
+                                      onChange={(updated) => {
+                                        const prefix = buttonPrefix;
+                                        const bgPrefix = `${prefix}_bg`;
+                                        const gradKey = `${prefix}_gradient_data`;
+
+                                        const selectedColor = updated.backgroundColor || updated.fillColor;
+                                        const selectedGradient = updated.fillGradient;
+
+                                        if (updated.fillType === 'gradient' && selectedGradient) {
+                                          updateSetting(`${bgPrefix}_type`, 'gradient');
+                                          updateSetting(gradKey, selectedGradient);
+                                        } else if (selectedColor) {
+                                          if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
+                                            updateSetting(`${bgPrefix}_type`, 'gradient');
+                                            updateSetting(gradKey, selectedColor);
+                                          } else {
+                                            updateSetting(`${bgPrefix}_type`, 'color');
+                                            updateSetting(`${bgPrefix}_color`, selectedColor);
+                                          }
+                                        }
+
+                                        if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                        if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
+                                        if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                        if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                        if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
+                                        if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
+                                        if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
+                                        if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
+                                      }}
+                                    />
+                                  </div>
+
+                                  {/* Redondez */}
+                                  <div>
+                                    <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Redondez
+                                    </label>
+                                    <div
+                                      className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                      style={{
+                                        backgroundColor: 'var(--bg-app)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const key = `${buttonPrefix}_border_radius`;
+                                          const curr = parseInt(settings[key] ?? '12');
+                                          const nextVal = Math.max(0, curr - 2);
+                                          updateSetting(key, nextVal);
+                                        }}
+                                        className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--primary-accent)',
+                                        }}
+                                        title="Disminuir redondez"
+                                      >
+                                        <Minus size={12} />
+                                      </button>
+
+                                      <div className="flex-1 flex items-center justify-center px-1">
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={settings[`${buttonPrefix}_border_radius`] ?? 12}
+                                          onChange={(e) => {
+                                            const key = `${buttonPrefix}_border_radius`;
+                                            updateSetting(key, parseInt(e.target.value) || 0);
+                                          }}
+                                          className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          style={{ color: 'var(--text-main)' }}
+                                        />
+                                        <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                          px
+                                        </span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const key = `${buttonPrefix}_border_radius`;
+                                          const curr = parseInt(settings[key] ?? '12');
+                                          const nextVal = Math.min(100, curr + 2);
+                                          updateSetting(key, nextVal);
+                                        }}
+                                        className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--primary-accent)',
+                                        }}
+                                        title="Aumentar redondez"
+                                      >
+                                        <Plus size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Glass */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                        Glass ({settings[`${buttonPrefix}_bg_opacity`] ?? 100}%)
+                                      </label>
+                                      <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={settings[`${buttonPrefix}_glass_enabled`] ?? true}
+                                          onChange={(e) => {
+                                            const key = `${buttonPrefix}_glass_enabled`;
+                                            updateSetting(key, e.target.checked);
+                                          }}
+                                          className="sr-only peer"
+                                        />
+                                        <div
+                                          className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                          style={{
+                                            borderColor: (settings[`${buttonPrefix}_glass_enabled`] ?? true) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                            backgroundColor: (settings[`${buttonPrefix}_glass_enabled`] ?? true) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                          }}
+                                        >
+                                          {(settings[`${buttonPrefix}_glass_enabled`] ?? true) && (
+                                            <Check size={11} className="text-white stroke-[3]" />
+                                          )}
+                                        </div>
+                                      </label>
+                                    </div>
+
+                                    <div
+                                      className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                        !(settings[`${buttonPrefix}_glass_enabled`] ?? true) ? 'opacity-40 pointer-events-none' : ''
+                                      }`}
+                                      style={{
+                                        backgroundColor: 'var(--bg-app)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value={settings[`${buttonPrefix}_bg_opacity`] ?? 100}
+                                        onChange={(e) => {
+                                          const key = `${buttonPrefix}_bg_opacity`;
+                                          updateSetting(key, parseInt(e.target.value));
+                                        }}
+                                        className="w-full h-1.5 rounded-lg cursor-pointer"
+                                        style={{
+                                          accentColor: 'var(--primary-accent)',
+                                        }}
+                                        title="Opacidad del vidrio"
+                                        disabled={!(settings[`${buttonPrefix}_glass_enabled`] ?? true)}
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* LOGOS SUB-TAB */}
-                    {generalSubTab === 'logos' && (
-                      <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                        <div className="pb-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
-                          <div className="flex items-center gap-2.5">
-                            <ImageIcon size={22} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
-                            <div className="flex flex-col leading-tight">
-                              <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                                Logos del Evento
-                              </h3>
-                              <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                                Personalización de isotipo y logotipo institucional
-                              </span>
+                    {generalSubTab === 'logos' && (() => {
+                      const displayEventLogo = settings.event_logo_url || eventData?.logo_url || (eventData?.logo ? `/storage/${eventData.logo}` : null);
+                      const displayPartnerLogo = settings.partner_logo_url 
+                        || eventData?.partner_logo_url 
+                        || (eventData?.partner_logo ? `/storage/${eventData.partner_logo}` : null)
+                        || eventData?.partner?.logo_url
+                        || (eventData?.partner?.logo ? `/storage/${eventData.partner.logo}` : null)
+                        || eventData?.branding?.logo;
+
+                      // Determinar pantalla activa a configurar para Logos
+                      const activeState = activeLogoState;
+                      const stateLabels: Record<string, string> = { welcome: 'Bienvenida', camera: 'Cámara', gallery: 'Galería' };
+
+                      // Helper para leer un ajuste con fallback al valor legacy
+                      const getSettingVal = (type: 'event' | 'partner', field: string, defaultVal: any) => {
+                        const key = `${type}_logo_${activeState}_${field}`;
+                        if (settings[key] !== undefined) return settings[key];
+                        const legacyKey = `${type}_logo_${field}`;
+                        if (settings[legacyKey] !== undefined) return settings[legacyKey];
+                        return defaultVal;
+                      };
+
+                      // Helper para actualizar ajuste específico de la pantalla activa
+                      const updateLogoSetting = (type: 'event' | 'partner', field: string, value: any) => {
+                        updateSetting(`${type}_logo_${activeState}_${field}`, value);
+                      };
+
+                      // Valores actuales para la pantalla activa
+                      const eventV = getSettingVal('event', 'position_v', 'top');
+                      const eventH = getSettingVal('event', 'position_h', 'center');
+                      const eventSize = getSettingVal('event', 'size', 60);
+                      const eventUnit = getSettingVal('event', 'unit', 'px');
+                      const eventEnabled = settings[`event_logo_show_${activeState}`] ?? settings[`event_logo_${activeState}_show`] ?? settings.event_logo_enabled ?? true;
+
+                      const partnerV = getSettingVal('partner', 'position_v', 'bottom');
+                      const partnerH = getSettingVal('partner', 'position_h', 'center');
+                      const partnerSize = getSettingVal('partner', 'size', 40);
+                      const partnerUnit = getSettingVal('partner', 'unit', 'px');
+                      const partnerEnabled = settings[`partner_logo_show_${activeState}`] ?? settings[`partner_logo_${activeState}_show`] ?? settings.partner_logo_enabled ?? true;
+
+                      return (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {/* COLUMNA 1: LOGO DEL EVENTO */}
+                          <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2">
+                                  <Sparkles size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                      <span>Logo del Evento</span>
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                        {stateLabels[activeState]}
+                                      </span>
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      Configurando la pantalla de {stateLabels[activeState]}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* SELECCIÓN DE PANTALLA Y VISIBILIDAD (BIENVENIDA, CÁMARA, GALERÍA) */}
+                                <div className="flex items-center gap-1 p-0.5 rounded-xl border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'welcome', label: 'Bienvenida', icon: Tv, key: 'event_logo_show_welcome' },
+                                    { id: 'camera', label: 'Cámara', icon: Camera, key: 'event_logo_show_camera' },
+                                    { id: 'gallery', label: 'Galería', icon: ImageIcon, key: 'event_logo_show_gallery' },
+                                  ].map((st) => {
+                                    const Icon = st.icon;
+                                    const isSelected = activeState === st.id;
+                                    const isVisible = settings[st.key] ?? true;
+                                    return (
+                                      <div
+                                        key={st.id}
+                                        className="flex items-center rounded-lg border transition-all overflow-hidden"
+                                        style={{
+                                          backgroundColor: isSelected ? 'var(--primary-accent)' : 'transparent',
+                                          borderColor: isSelected ? 'var(--primary-accent)' : 'transparent',
+                                        }}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveLogoState(st.id as any);
+                                            setPreviewView(st.id);
+                                          }}
+                                          className="flex items-center justify-center p-1.5 transition-all cursor-pointer"
+                                          style={{
+                                            color: isSelected ? '#ffffff' : 'var(--text-muted)',
+                                          }}
+                                          title={`Configurar para ${st.label}`}
+                                        >
+                                          <Icon size={14} />
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateSetting(st.key, !isVisible);
+                                          }}
+                                          className="px-1.5 py-1 border-l transition-all cursor-pointer flex items-center justify-center opacity-80 hover:opacity-100"
+                                          style={{
+                                            borderColor: isSelected ? 'rgba(255,255,255,0.3)' : 'var(--border-color)',
+                                            color: isSelected ? '#ffffff' : isVisible ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                          }}
+                                          title={isVisible ? `Visible en ${st.label} (Clic para ocultar)` : `Oculto en ${st.label} (Clic para mostrar)`}
+                                        >
+                                          {isVisible ? <Eye size={12} /> : <EyeOff size={12} className="opacity-40" />}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* GRID INTERNO: IZQ = LOGO, DER = CONTROLES */}
+                              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                {/* LADO IZQUIERDO: VISTA PREVIA LOGO (5 cols) */}
+                                <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                  <div
+                                    className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                  >
+                                    {displayEventLogo ? (
+                                      <div className="relative w-full h-full flex flex-col items-center justify-center">
+                                        <img src={displayEventLogo} alt="Logo Evento BD" className="max-h-24 max-w-full object-contain drop-shadow-md" />
+                                        <span className="text-[9px] font-extrabold opacity-60 mt-1 select-none text-center" style={{ color: 'var(--text-muted)' }}>
+                                          Logo BD
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center text-center p-2">
+                                        <ImageIcon size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
+                                        <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>
+                                          Sin logo registrado
+                                        </span>
+                                        <span className="text-[10px] opacity-60 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          El evento en BD no tiene un logo cargado
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* LADO DERECHO: CONTROLES (8 cols) */}
+                                <div className="md:col-span-8 space-y-2.5">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {/* Alineación Vertical Evento */}
+                                    <div>
+                                      <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                        Alineación Vertical
+                                      </label>
+                                      <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {[
+                                          { id: 'top', label: 'Arriba' },
+                                          { id: 'center', label: 'Centro' },
+                                          { id: 'bottom', label: 'Abajo' },
+                                        ].map((pos) => {
+                                          const isActive = eventV === pos.id;
+                                          const isDisabled = partnerEnabled && partnerV === pos.id && partnerH === eventH;
+
+                                          return (
+                                            <button
+                                              key={pos.id}
+                                              type="button"
+                                              disabled={isDisabled}
+                                              onClick={() => updateLogoSetting('event', 'position_v', pos.id)}
+                                              className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                              style={{
+                                                backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                              }}
+                                              title={isDisabled ? 'Ocupado por el Logo del Partner' : undefined}
+                                            >
+                                              {pos.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Alineación Horizontal Evento */}
+                                    <div>
+                                      <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                        Alineación Horizontal
+                                      </label>
+                                      <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {[
+                                          { id: 'left', label: 'Izq' },
+                                          { id: 'center', label: 'Centro' },
+                                          { id: 'right', label: 'Der' },
+                                        ].map((pos) => {
+                                          const isActive = eventH === pos.id;
+                                          const isDisabled = partnerEnabled && partnerH === pos.id && partnerV === eventV;
+
+                                          return (
+                                            <button
+                                              key={pos.id}
+                                              type="button"
+                                              disabled={isDisabled}
+                                              onClick={() => updateLogoSetting('event', 'position_h', pos.id)}
+                                              className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                              style={{
+                                                backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                              }}
+                                              title={isDisabled ? 'Ocupado por el Logo del Partner' : undefined}
+                                            >
+                                              {pos.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Tamaño / Ancho Máximo */}
+                                  <div>
+                                    <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Tamaño / Ancho Máximo
+                                    </label>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        <input
+                                          type="number"
+                                          min={10}
+                                          max={eventUnit === '%' ? 100 : 300}
+                                          value={eventSize}
+                                          onChange={(e) => updateLogoSetting('event', 'size', parseInt(e.target.value) || 30)}
+                                          className="w-full bg-transparent outline-none font-bold text-xs text-center"
+                                          style={{ color: 'var(--text-main)' }}
+                                        />
+                                      </div>
+                                      <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {['px', '%'].map((u) => {
+                                          const isActive = eventUnit === u;
+                                          return (
+                                            <button
+                                              key={u}
+                                              type="button"
+                                              onClick={() => updateLogoSetting('event', 'unit', u)}
+                                              className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all"
+                                              style={{
+                                                backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                              }}
+                                            >
+                                              {u}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Márgenes independientes */}
+                                  <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
+                                    <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Márgenes
+                                    </label>
+
+                                    {/* Fila 1: Arriba / Abajo */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {[
+                                        { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                        { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                      ].map((m) => {
+                                        const val = getSettingVal('event', m.field, 0);
+                                        const currentUnit = getSettingVal('event', m.unitField, getSettingVal('event', 'margin_unit', 'px'));
+                                        return (
+                                          <div key={m.field} className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                            <div className="flex items-center gap-1">
+                                              <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                <input
+                                                  type="number"
+                                                  value={val}
+                                                  onChange={(e) => updateLogoSetting('event', m.field, parseInt(e.target.value) || 0)}
+                                                  className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                  style={{ color: 'var(--text-main)' }}
+                                                />
+                                              </div>
+                                              <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                {['px', '%'].map((u) => {
+                                                  const isActive = currentUnit === u;
+                                                  return (
+                                                    <button
+                                                      key={u}
+                                                      type="button"
+                                                      onClick={() => updateLogoSetting('event', m.unitField, u)}
+                                                      className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                      style={{
+                                                        backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                        color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                      }}
+                                                    >
+                                                      {u}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Fila 2: Izquierda / Derecha */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {[
+                                        { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                        { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                      ].map((m) => {
+                                        const val = getSettingVal('event', m.field, 0);
+                                        const currentUnit = getSettingVal('event', m.unitField, getSettingVal('event', 'margin_unit', 'px'));
+                                        return (
+                                          <div key={m.field} className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                            <div className="flex items-center gap-1">
+                                              <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                <input
+                                                  type="number"
+                                                  value={val}
+                                                  onChange={(e) => updateLogoSetting('event', m.field, parseInt(e.target.value) || 0)}
+                                                  className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                  style={{ color: 'var(--text-main)' }}
+                                                />
+                                              </div>
+                                              <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                {['px', '%'].map((u) => {
+                                                  const isActive = currentUnit === u;
+                                                  return (
+                                                    <button
+                                                      key={u}
+                                                      type="button"
+                                                      onClick={() => updateLogoSetting('event', m.unitField, u)}
+                                                      className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                      style={{
+                                                        backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                        color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                      }}
+                                                    >
+                                                      {u}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* COLUMNA 2: LOGO DEL PARTNER / MARCA */}
+                          <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2">
+                                  <Smartphone size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                      <span>Logo del Partner</span>
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                        {stateLabels[activeState]}
+                                      </span>
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      Configurando la pantalla de {stateLabels[activeState]}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* SELECCIÓN DE PANTALLA Y VISIBILIDAD (BIENVENIDA, CÁMARA, GALERÍA) */}
+                                <div className="flex items-center gap-1 p-0.5 rounded-xl border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'welcome', label: 'Bienvenida', icon: Tv, key: 'partner_logo_show_welcome' },
+                                    { id: 'camera', label: 'Cámara', icon: Camera, key: 'partner_logo_show_camera' },
+                                    { id: 'gallery', label: 'Galería', icon: ImageIcon, key: 'partner_logo_show_gallery' },
+                                  ].map((st) => {
+                                    const Icon = st.icon;
+                                    const isSelected = activeState === st.id;
+                                    const isVisible = settings[st.key] ?? true;
+                                    return (
+                                      <div
+                                        key={st.id}
+                                        className="flex items-center rounded-lg border transition-all overflow-hidden"
+                                        style={{
+                                          backgroundColor: isSelected ? 'var(--primary-accent)' : 'transparent',
+                                          borderColor: isSelected ? 'var(--primary-accent)' : 'transparent',
+                                        }}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveLogoState(st.id as any);
+                                            setPreviewView(st.id);
+                                          }}
+                                          className="flex items-center justify-center p-1.5 transition-all cursor-pointer"
+                                          style={{
+                                            color: isSelected ? '#ffffff' : 'var(--text-muted)',
+                                          }}
+                                          title={`Configurar para ${st.label}`}
+                                        >
+                                          <Icon size={14} />
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateSetting(st.key, !isVisible);
+                                          }}
+                                          className="px-1.5 py-1 border-l transition-all cursor-pointer flex items-center justify-center opacity-80 hover:opacity-100"
+                                          style={{
+                                            borderColor: isSelected ? 'rgba(255,255,255,0.3)' : 'var(--border-color)',
+                                            color: isSelected ? '#ffffff' : isVisible ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                          }}
+                                          title={isVisible ? `Visible en ${st.label} (Clic para ocultar)` : `Oculto en ${st.label} (Clic para mostrar)`}
+                                        >
+                                          {isVisible ? <Eye size={12} /> : <EyeOff size={12} className="opacity-40" />}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* GRID INTERNO: IZQ = LOGO, DER = CONTROLES */}
+                              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                {/* LADO IZQUIERDO: VISTA PREVIA LOGO PARTNER (5 cols) */}
+                                <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                  <div
+                                    className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                  >
+                                    {displayPartnerLogo ? (
+                                      <div className="relative w-full h-full flex flex-col items-center justify-center">
+                                        <img src={displayPartnerLogo} alt="Logo Partner BD" className="max-h-24 max-w-full object-contain drop-shadow-md" />
+                                        <span className="text-[9px] font-extrabold opacity-60 mt-1 select-none text-center" style={{ color: 'var(--text-muted)' }}>
+                                          Logo Partner BD
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center text-center p-2">
+                                        <Smartphone size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
+                                        <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>
+                                          Sin logo partner registrado
+                                        </span>
+                                        <span className="text-[10px] opacity-60 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          El evento en BD no tiene un partner asignado
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* LADO DERECHO: CONTROLES PARTNER (8 cols) */}
+                                <div className="md:col-span-8 space-y-2.5">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {/* Alineación Vertical Partner */}
+                                    <div>
+                                      <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                        Alineación Vertical
+                                      </label>
+                                      <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {[
+                                          { id: 'top', label: 'Arriba' },
+                                          { id: 'center', label: 'Centro' },
+                                          { id: 'bottom', label: 'Abajo' },
+                                        ].map((pos) => {
+                                          const isActive = partnerV === pos.id;
+                                          const isDisabled = eventEnabled && eventV === pos.id && eventH === partnerH;
+
+                                          return (
+                                            <button
+                                              key={pos.id}
+                                              type="button"
+                                              disabled={isDisabled}
+                                              onClick={() => updateLogoSetting('partner', 'position_v', pos.id)}
+                                              className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                              style={{
+                                                backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                              }}
+                                              title={isDisabled ? 'Ocupado por el Logo del Evento' : undefined}
+                                            >
+                                              {pos.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Alineación Horizontal Partner */}
+                                    <div>
+                                      <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                        Alineación Horizontal
+                                      </label>
+                                      <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {[
+                                          { id: 'left', label: 'Izq' },
+                                          { id: 'center', label: 'Centro' },
+                                          { id: 'right', label: 'Der' },
+                                        ].map((pos) => {
+                                          const isActive = partnerH === pos.id;
+                                          const isDisabled = eventEnabled && eventH === pos.id && eventV === partnerV;
+
+                                          return (
+                                            <button
+                                              key={pos.id}
+                                              type="button"
+                                              disabled={isDisabled}
+                                              onClick={() => updateLogoSetting('partner', 'position_h', pos.id)}
+                                              className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                              style={{
+                                                backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                              }}
+                                              title={isDisabled ? 'Ocupado por el Logo del Evento' : undefined}
+                                            >
+                                              {pos.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Tamaño / Ancho Máximo */}
+                                  <div>
+                                    <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Tamaño / Ancho Máximo
+                                    </label>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        <input
+                                          type="number"
+                                          min={10}
+                                          max={partnerUnit === '%' ? 100 : 300}
+                                          value={partnerSize}
+                                          onChange={(e) => updateLogoSetting('partner', 'size', parseInt(e.target.value) || 30)}
+                                          className="w-full bg-transparent outline-none font-bold text-xs text-center"
+                                          style={{ color: 'var(--text-main)' }}
+                                        />
+                                      </div>
+                                      <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {['px', '%'].map((u) => {
+                                          const isActive = partnerUnit === u;
+                                          return (
+                                            <button
+                                              key={u}
+                                              type="button"
+                                              onClick={() => updateLogoSetting('partner', 'unit', u)}
+                                              className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all"
+                                              style={{
+                                                backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                              }}
+                                            >
+                                              {u}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Márgenes independientes */}
+                                  <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
+                                    <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Márgenes
+                                    </label>
+
+                                    {/* Fila 1: Arriba / Abajo */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {[
+                                        { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                        { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                      ].map((m) => {
+                                        const val = getSettingVal('partner', m.field, 0);
+                                        const currentUnit = getSettingVal('partner', m.unitField, getSettingVal('partner', 'margin_unit', 'px'));
+                                        return (
+                                          <div key={m.field} className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                            <div className="flex items-center gap-1">
+                                              <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                <input
+                                                  type="number"
+                                                  value={val}
+                                                  onChange={(e) => updateLogoSetting('partner', m.field, parseInt(e.target.value) || 0)}
+                                                  className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                  style={{ color: 'var(--text-main)' }}
+                                                />
+                                              </div>
+                                              <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                {['px', '%'].map((u) => {
+                                                  const isActive = currentUnit === u;
+                                                  return (
+                                                    <button
+                                                      key={u}
+                                                      type="button"
+                                                      onClick={() => updateLogoSetting('partner', m.unitField, u)}
+                                                      className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                      style={{
+                                                        backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                        color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                      }}
+                                                    >
+                                                      {u}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Fila 2: Izquierda / Derecha */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {[
+                                        { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                        { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                      ].map((m) => {
+                                        const val = getSettingVal('partner', m.field, 0);
+                                        const currentUnit = getSettingVal('partner', m.unitField, getSettingVal('partner', 'margin_unit', 'px'));
+                                        return (
+                                          <div key={m.field} className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                            <div className="flex items-center gap-1">
+                                              <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                <input
+                                                  type="number"
+                                                  value={val}
+                                                  onChange={(e) => updateLogoSetting('partner', m.field, parseInt(e.target.value) || 0)}
+                                                  className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                  style={{ color: 'var(--text-main)' }}
+                                                />
+                                              </div>
+                                              <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                {['px', '%'].map((u) => {
+                                                  const isActive = currentUnit === u;
+                                                  return (
+                                                    <button
+                                                      key={u}
+                                                      type="button"
+                                                      onClick={() => updateLogoSetting('partner', m.unitField, u)}
+                                                      className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                      style={{
+                                                        backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                        color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                      }}
+                                                    >
+                                                      {u}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* LOGO PRINCIPAL */}
-                          <div className="space-y-2">
-                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                              Logo Principal
-                            </label>
-                            <div
-                              className="relative w-full h-36 rounded-xl border-2 border-dashed overflow-hidden flex flex-col items-center justify-center transition-all group"
-                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                            >
-                              {settings.event_logo_url ? (
-                                <div className="relative w-full h-full flex items-center justify-center p-3">
-                                  <img src={settings.event_logo_url} alt="Logo Principal" className="max-h-full max-w-full object-contain" />
-                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors">
-                                      <Upload size={16} />
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            const reader = new FileReader();
-                                            reader.onload = (ev) => updateSetting('event_logo_url', ev.target?.result);
-                                            reader.readAsDataURL(file);
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateSetting('event_logo_url', '')}
-                                      className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-3">
-                                  <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
-                                    <Upload size={18} />
-                                  </div>
-                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Logo</span>
-                                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>PNG transparente (máx. 2MB)</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        const reader = new FileReader();
-                                        reader.onload = (ev) => updateSetting('event_logo_url', ev.target?.result);
-                                        reader.readAsDataURL(file);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* ISOTIPO / ICONO */}
-                          <div className="space-y-2">
-                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                              Isotipo / Ícono Secundario
-                            </label>
-                            <div
-                              className="relative w-full h-36 rounded-xl border-2 border-dashed overflow-hidden flex flex-col items-center justify-center transition-all group"
-                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                            >
-                              {settings.event_icon_url ? (
-                                <div className="relative w-full h-full flex items-center justify-center p-3">
-                                  <img src={settings.event_icon_url} alt="Isotipo" className="max-h-full max-w-full object-contain" />
-                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors">
-                                      <Upload size={16} />
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            const reader = new FileReader();
-                                            reader.onload = (ev) => updateSetting('event_icon_url', ev.target?.result);
-                                            reader.readAsDataURL(file);
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateSetting('event_icon_url', '')}
-                                      className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-3">
-                                  <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
-                                    <Upload size={18} />
-                                  </div>
-                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Isotipo</span>
-                                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Formato PNG o SVG</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        const reader = new FileReader();
-                                        reader.onload = (ev) => updateSetting('event_icon_url', ev.target?.result);
-                                        reader.readAsDataURL(file);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
 

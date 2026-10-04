@@ -27,6 +27,7 @@ interface MobileSimulatorProps {
     event?: any;
     previewView: string;
     previewOrientation?: string;
+    previewButtonState?: "normal" | "hover";
     getButtonStyles?: (hover?: boolean, type?: string) => React.CSSProperties;
     generateGradientString?: (data: any) => string;
 }
@@ -36,6 +37,7 @@ export default function MobileSimulator({
     event,
     previewView,
     previewOrientation = "vertical",
+    previewButtonState,
     getButtonStyles,
     generateGradientString,
 }: MobileSimulatorProps) {
@@ -43,11 +45,80 @@ export default function MobileSimulator({
 
     const isLandscape = previewOrientation === "horizontal";
 
+    React.useEffect(() => {
+        const fontsToLoad = [
+            settings.global_title_font_family,
+            settings.global_text_font_family,
+            settings.global_button_font_family,
+            settings.title_font_family,
+            settings.subtitle_font_family
+        ].filter(Boolean);
+
+        fontsToLoad.forEach(fontName => {
+            if (!fontName || fontName === 'Inter' || fontName === 'system-ui') return;
+            const fontId = `google-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+            if (!document.getElementById(fontId)) {
+                const link = document.createElement('link');
+                link.id = fontId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,400;1,700&display=swap`;
+                document.head.appendChild(link);
+            }
+        });
+    }, [
+        settings.global_title_font_family,
+        settings.global_text_font_family,
+        settings.global_button_font_family,
+        settings.title_font_family,
+        settings.subtitle_font_family
+    ]);
+
     const defaultButtonStyles = (hover?: boolean, type?: string): React.CSSProperties => {
+        const isHover = hover || previewButtonState === "hover";
+        const prefix = isHover ? "button_hover" : "button";
+
+        const bgType = settings[`${prefix}_bg_type`] || (isHover ? (settings.button_bg_type || "color") : "color");
+        const bgColor = settings[`${prefix}_bg_color`] || (isHover ? (settings.button_bg_color || settings.global_button_bg || "var(--primary-accent)") : (settings.button_bg_color || settings.global_button_bg || "var(--primary-accent)"));
+        const bgOpacity = settings[`${prefix}_bg_opacity`] ?? (isHover ? (settings.button_bg_opacity ?? 100) : 100);
+        const borderRadius = settings[`${prefix}_border_radius`] ?? (isHover ? (settings.button_border_radius ?? settings.global_button_radius ?? 16) : (settings.button_border_radius ?? settings.global_button_radius ?? 16));
+
+        let background = bgColor;
+        let backgroundImage: string | undefined = undefined;
+
+        if (bgType === "color") {
+            const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+            background = `${bgColor}${opacityHex}`;
+        } else if (bgType === "gradient") {
+            const gradData = settings[`${prefix}_gradient_data`] || (isHover ? settings.button_gradient_data : undefined);
+            if (gradData) {
+                backgroundImage = activeGenerateGradient(gradData);
+            }
+        } else if (bgType === "image" || bgType === "video" || (settings[`${prefix}_image_url`] && bgType !== "gradient")) {
+            const imgUrl = settings[`${prefix}_image_url`] || (isHover ? settings.button_image_url : undefined);
+            if (imgUrl && !String(imgUrl).startsWith('data:video') && !String(imgUrl).match(/\.(mp4|webm|ogg)$/i)) {
+                backgroundImage = `url(${imgUrl})`;
+            }
+        }
+
+        const borderWidth = settings[`${prefix}_border_width`] ?? (isHover ? (settings.button_border_width ?? 0) : 0);
+        const borderStyle = settings[`${prefix}_border_style`] || (isHover ? (settings.button_border_style || "solid") : "solid");
+        const borderColor = settings[`${prefix}_border_color`] || (isHover ? (settings.button_border_color || "#E07A5F") : "#E07A5F");
+        const shadowBlur = settings[`${prefix}_shadow_blur`] ?? (isHover ? (settings.button_shadow_blur ?? 0) : 0);
+        const shadowColor = settings[`${prefix}_shadow_color`] || (isHover ? (settings.button_shadow_color || "#000000") : "#000000");
+        const shadowX = settings[`${prefix}_shadow_offset_x`] ?? (isHover ? (settings.button_shadow_offset_x ?? 0) : 0);
+        const shadowY = settings[`${prefix}_shadow_offset_y`] ?? (isHover ? (settings.button_shadow_offset_y ?? 0) : 0);
+
         return {
-            backgroundColor: settings.global_button_bg || "var(--primary-accent)",
+            backgroundColor: background,
+            backgroundImage,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
             color: settings.global_button_text || "#ffffff",
-            borderRadius: `${settings.global_button_radius || 16}px`,
+            borderRadius: `${borderRadius}px`,
+            borderWidth: borderWidth > 0 && borderStyle !== "none" ? `${borderWidth}px` : undefined,
+            borderStyle: borderWidth > 0 && borderStyle !== "none" ? borderStyle : undefined,
+            borderColor: borderWidth > 0 && borderStyle !== "none" ? borderColor : undefined,
+            boxShadow: (shadowBlur || shadowX || shadowY) ? `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}` : undefined,
         };
     };
 
@@ -141,8 +212,8 @@ export default function MobileSimulator({
                 const opacityHex = Math.round((parseInt(settings.container_gradient_opacity || "100") || 0) * 2.55).toString(16).padStart(2, "0");
                 innerBackgroundImage = `linear-gradient(${angle}deg, ${from}${opacityHex}, ${to}${opacityHex})`;
             }
-        } else if (bgType === "image") {
-            if (settings.container_image_url) {
+        } else if (bgType === "image" || bgType === "video" || (settings.container_image_url && bgType !== "gradient")) {
+            if (settings.container_image_url && !String(settings.container_image_url).startsWith('data:video') && !String(settings.container_image_url).match(/\.(mp4|webm|ogg)$/i)) {
                 innerBackgroundImage = `url(${settings.container_image_url})`;
             }
         }
@@ -174,8 +245,56 @@ export default function MobileSimulator({
         return styles;
     };
 
+    const getBarStyles = (): React.CSSProperties => {
+        const bgType = settings.bar_bg_type || "color";
+        const bgColor = settings.bar_bg_color || "#1e293b";
+        const bgOpacity = settings.bar_bg_opacity ?? 85;
+        const borderRadius = settings.bar_border_radius ?? 12;
+
+        let innerBackground = "transparent";
+        let innerBackgroundImage = "none";
+
+        if (bgType === "color") {
+            const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+            innerBackground = `${bgColor}${opacityHex}`;
+        } else if (bgType === "gradient") {
+            if (settings.bar_gradient_data) {
+                innerBackgroundImage = activeGenerateGradient(settings.bar_gradient_data);
+            } else {
+                const angle = settings.bar_gradient_angle || "180";
+                const from = settings.bar_gradient_from || "#000000";
+                const to = settings.bar_gradient_to || "#ffffff";
+                const opacityHex = Math.round((parseInt(settings.bar_gradient_opacity || "100") || 0) * 2.55).toString(16).padStart(2, "0");
+                innerBackgroundImage = `linear-gradient(${angle}deg, ${from}${opacityHex}, ${to}${opacityHex})`;
+            }
+        } else if (bgType === "image" || bgType === "video" || (settings.bar_image_url && bgType !== "gradient")) {
+            if (settings.bar_image_url && !String(settings.bar_image_url).startsWith('data:video') && !String(settings.bar_image_url).match(/\.(mp4|webm|ogg)$/i)) {
+                innerBackgroundImage = `url(${settings.bar_image_url})`;
+            }
+        }
+
+        const borderWidth = settings.bar_border_width ?? 0;
+        const borderStyle = settings.bar_border_style || "solid";
+        const borderColor = settings.bar_border_color || "#E07A5F";
+        const shadowBlur = settings.bar_shadow_blur ?? 0;
+        const shadowColor = settings.bar_shadow_color || "#000000";
+        const shadowX = settings.bar_shadow_offset_x ?? 0;
+        const shadowY = settings.bar_shadow_offset_y ?? 0;
+
+        return {
+            borderRadius: `${borderRadius}px`,
+            backgroundColor: innerBackground,
+            backgroundImage: innerBackgroundImage !== "none" ? innerBackgroundImage : undefined,
+            borderWidth: borderWidth > 0 && borderStyle !== "none" ? `${borderWidth}px` : undefined,
+            borderStyle: borderWidth > 0 && borderStyle !== "none" ? borderStyle : undefined,
+            borderColor: borderWidth > 0 && borderStyle !== "none" ? borderColor : undefined,
+            boxShadow: (shadowBlur || shadowX || shadowY) ? `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}` : undefined,
+        };
+    };
+
     const brandingStyles = getBrandingStyles();
     const containerStyles = getContainerStyles();
+    const barStyles = getBarStyles();
 
     const getGalleryGradientColors = () => {
         let colors = ["#D6293A", "#F59218"];
@@ -219,13 +338,119 @@ export default function MobileSimulator({
     const gallerySolidColor = settings.bar_bg_color || settings.container_bg_color || "#ffffff";
     const galleryDockFill = galleryHasGradient ? "url(#previewGalleryDockGradient)" : gallerySolidColor;
 
-    // Logo from event
+    // Logo resolution
     const rawLogo = event?.logo_url || event?.logo || event?.logo_path || event?.cover_image || event?.banner_image || event?.image_url;
     const eventLogoUrl = rawLogo
         ? (typeof rawLogo === 'string' && (rawLogo.startsWith("http") || rawLogo.startsWith("/")))
             ? rawLogo
             : `/storage/${rawLogo}`
         : null;
+
+    const rawPartnerLogo = event?.partner_logo_url 
+        || event?.partner_logo 
+        || event?.partner?.logo_url 
+        || event?.partner?.logo 
+        || data?.branding?.logo;
+
+    const partnerLogoUrl = rawPartnerLogo
+        ? (typeof rawPartnerLogo === 'string' && (rawPartnerLogo.startsWith("http") || rawPartnerLogo.startsWith("/")))
+            ? rawPartnerLogo
+            : `/storage/${rawPartnerLogo}`
+        : null;
+
+    const activeEventLogoUrl = settings.event_logo_url || eventLogoUrl;
+    const activePartnerLogoUrl = settings.partner_logo_url || partnerLogoUrl || settings.event_icon_url;
+
+    const getLogoConfig = (type: 'event' | 'partner', view: string) => {
+        const isEvent = type === 'event';
+        const logoUrl = isEvent ? activeEventLogoUrl : activePartnerLogoUrl;
+
+        const showKey1 = `${type}_logo_show_${view}`;
+        const showKey2 = `${type}_logo_${view}_show`;
+        const showKeyLegacy = `${type}_logo_enabled`;
+        const isShowSetting = settings[showKey1] ?? settings[showKey2] ?? settings[showKeyLegacy] ?? true;
+        const show = isShowSetting && !!logoUrl;
+
+        const getValue = (field: string, legacyField: string, defaultVal: any) => {
+            const viewKey = `${type}_logo_${view}_${field}`;
+            if (settings[viewKey] !== undefined) return settings[viewKey];
+            if (settings[legacyField] !== undefined) return settings[legacyField];
+            return defaultVal;
+        };
+
+        const vPos = getValue('position_v', `${type}_logo_position_v`, isEvent ? 'top' : 'bottom');
+        const hPos = getValue('position_h', `${type}_logo_position_h`, 'center');
+        const size = getValue('size', `${type}_logo_size`, isEvent ? 60 : 40);
+        const unit = getValue('unit', `${type}_logo_unit`, 'px');
+        const mTop = getValue('margin_top', `${type}_logo_margin_top`, 0);
+        const mBottom = getValue('margin_bottom', `${type}_logo_margin_bottom`, 0);
+        const mLeft = getValue('margin_left', `${type}_logo_margin_left`, 0);
+        const mRight = getValue('margin_right', `${type}_logo_margin_right`, 0);
+        const mTopUnit = getValue('margin_top_unit', `${type}_logo_margin_top_unit`, getValue('margin_unit', `${type}_logo_margin_unit`, 'px'));
+        const mBottomUnit = getValue('margin_bottom_unit', `${type}_logo_margin_bottom_unit`, getValue('margin_unit', `${type}_logo_margin_unit`, 'px'));
+        const mLeftUnit = getValue('margin_left_unit', `${type}_logo_margin_left_unit`, getValue('margin_unit', `${type}_logo_margin_unit`, 'px'));
+        const mRightUnit = getValue('margin_right_unit', `${type}_logo_margin_right_unit`, getValue('margin_unit', `${type}_logo_margin_unit`, 'px'));
+
+        const style = getLogoStyle(
+            vPos, hPos, size, unit,
+            mTop, mBottom, mLeft, mRight,
+            mTopUnit, mBottomUnit, mLeftUnit, mRightUnit
+        );
+
+        return { show, style, logoUrl };
+    };
+
+    const getLogoStyle = (
+        vPos = 'top', 
+        hPos = 'center', 
+        size = 60, 
+        unit = 'px',
+        mTop = 0,
+        mBottom = 0,
+        mLeft = 0,
+        mRight = 0,
+        mTopUnit = 'px',
+        mBottomUnit = 'px',
+        mLeftUnit = 'px',
+        mRightUnit = 'px'
+    ): React.CSSProperties => {
+        const isPercent = unit === '%';
+        const style: React.CSSProperties = {
+            position: 'absolute',
+            objectFit: 'contain',
+            zIndex: 35,
+            pointerEvents: 'none',
+        };
+
+        if (isPercent) {
+            style.width = `${Math.min(Math.max(size, 10), 100)}%`;
+            style.maxHeight = '50%';
+        } else {
+            style.maxHeight = `${size}px`;
+            style.maxWidth = '85%';
+        }
+
+        const topVal = vPos === 'top' ? 12 : 0;
+        const bottomVal = vPos === 'bottom' ? 12 : 0;
+        const leftVal = hPos === 'left' ? 12 : 0;
+        const rightVal = hPos === 'right' ? 12 : 0;
+
+        if (vPos === 'top') style.top = `calc(${topVal}px + ${mTop}${mTopUnit} - ${mBottom}${mBottomUnit})`;
+        else if (vPos === 'bottom') style.bottom = `calc(${bottomVal}px + ${mBottom}${mBottomUnit} - ${mTop}${mTopUnit})`;
+        else {
+            style.top = `calc(50% + ${mTop}${mTopUnit} - ${mBottom}${mBottomUnit})`;
+            style.transform = (hPos === 'center') ? 'translate(-50%, -50%)' : 'translateY(-50%)';
+        }
+
+        if (hPos === 'left') style.left = `calc(${leftVal}px + ${mLeft}${mLeftUnit} - ${mRight}${mRightUnit})`;
+        else if (hPos === 'right') style.right = `calc(${rightVal}px + ${mRight}${mRightUnit} - ${mLeft}${mLeftUnit})`;
+        else {
+            style.left = `calc(50% + ${mLeft}${mLeftUnit} - ${mRight}${mRightUnit})`;
+            if (vPos !== 'center') style.transform = 'translateX(-50%)';
+        }
+
+        return style;
+    };
 
     // El contenedor MobileSimulator tiene 296px de ancho real (320px - 24px de bordes)
     const winWidth = 296; 
@@ -287,9 +512,53 @@ export default function MobileSimulator({
                 style={{ backgroundImage: "url('/images/global-bg-vertical.jpg')" }}
             />
 
-            {/* cFondo_Evento — event branding background (used for welcome and gallery) */}
+            {/* cFondo_Imagen — background image if screen_image_url exists and bgType is image or transparent */}
+            {settings.screen_image_url && (settings.screen_bg_type === 'image' || settings.screen_bg_color === 'transparent') && settings.screen_bg_type !== 'video' && ["welcome", "gallery"].includes(previewView) && (
+                <div
+                    className="absolute inset-0 z-[1] bg-cover bg-center transition-opacity duration-300"
+                    style={{ backgroundImage: `url(${settings.screen_image_url})` }}
+                />
+            )}
+
+            {/* cFondo_Video — background video if screen_bg_type is video or screen_bg_color is transparent and video loaded */}
+            {(settings.screen_bg_type === 'video' || (settings.screen_bg_color === 'transparent' && settings.screen_bg_type === 'video')) && settings.screen_image_url && ["welcome", "gallery"].includes(previewView) && (
+                <div className="absolute inset-0 z-[1] w-full h-full overflow-hidden flex items-center justify-center bg-black">
+                    <video
+                        src={settings.screen_image_url}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className={`object-cover transition-transform duration-300 ${
+                            settings.screen_video_rotate
+                                ? 'w-[520px] h-[260px] max-w-none max-h-none rotate-90 scale-[2.2]'
+                                : 'w-full h-full'
+                        }`}
+                    />
+                </div>
+            )}
+
+            {/* Capa de tinte / color y desenfoque glass sobre el FONDO (screen) de pantalla */}
+            {settings.screen_image_url && ["welcome", "gallery"].includes(previewView) && (
+                <div
+                    className={`absolute inset-0 w-full h-full z-[1] pointer-events-none transition-all ${
+                        (settings.screen_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                    }`}
+                    style={{
+                        backgroundColor: (() => {
+                            const bgColor = settings.screen_bg_color || "#0a0a0a";
+                            const bgOpacity = settings.screen_bg_opacity ?? 100;
+                            if (bgColor === 'transparent') return 'transparent';
+                            const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                            return `${bgColor}${opacityHex}`;
+                        })()
+                    }}
+                />
+            )}
+
+            {/* cFondo_Evento — event branding background (used for welcome and gallery when not transparent/image/video) */}
             <div
-                className={`absolute inset-0 z-[1] transition-opacity duration-[800ms] ease-in-out ${["welcome", "gallery"].includes(previewView) ? "opacity-100" : "opacity-0"}`}
+                className={`absolute inset-0 z-[1] transition-opacity duration-[800ms] ease-in-out ${["welcome", "gallery"].includes(previewView) && settings.screen_bg_type !== 'video' && (!settings.screen_image_url || settings.screen_bg_color !== 'transparent') ? "opacity-100" : "opacity-0"}`}
                 style={brandingStyles}
             />
 
@@ -298,88 +567,162 @@ export default function MobileSimulator({
                 className={`relative z-20 flex flex-col items-center justify-between w-full h-full transition-all duration-300 ${isLandscape ? "rotate-90" : ""}`}
             >
                 {/* ===== VISTA WELCOME / BIENVENIDA ===== */}
-                {previewView === "welcome" && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
-                        <div className={`w-full flex flex-col items-center gap-4 transition-opacity duration-[800ms] ease-in-out opacity-100 mb-8`}>
-                            {/* Logo del evento */}
-                            {eventLogoUrl && (
-                                <img
-                                    src={eventLogoUrl}
-                                    alt="Logo Evento"
-                                    className="h-20 w-auto max-w-[200px] object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] mb-4"
-                                />
-                            )}
+                {previewView === "welcome" && (() => {
+                    const eventCfg = getLogoConfig('event', 'welcome');
+                    const partnerCfg = getLogoConfig('partner', 'welcome');
+                    return (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+                            <div className={`w-full flex flex-col items-center gap-4 transition-opacity duration-[800ms] ease-in-out opacity-100 mb-8`}>
+                                {/* Logo del evento */}
+                                {eventCfg.show && (
+                                    <img
+                                        src={eventCfg.logoUrl!}
+                                        alt="Logo Evento"
+                                        style={eventCfg.style}
+                                        className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    />
+                                )}
 
-                            {/* Contenedor principal — igual que EventLogin */}
-                            <div
-                                className="backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-white/10 flex flex-col items-center justify-center w-full max-w-[320px]"
-                                style={containerStyles}
-                            >
-                                {/* Subtítulo bienvenida */}
-                                <h3
-                                    className="text-[9px] uppercase tracking-widest mb-2 mt-1"
-                                    style={{
-                                        color: settings.use_global_fonts ? settings.global_text_font_color : settings.subtitle_font_color || "#333",
-                                        fontFamily: settings.global_text_font_family || "Inter",
-                                        fontSize: settings.global_text_font_size ? `${Math.min(13, parseInt(settings.global_text_font_size) * 0.5)}px` : undefined,
-                                        fontWeight: (settings.global_text_font_weight as any) || "bold",
-                                        fontStyle: (settings.global_text_font_style as any) || "normal",
-                                        textDecoration: (settings.global_text_text_decoration as any) || "none",
-                                        textAlign: (settings.global_text_text_align as any) || "center",
-                                    }}
-                                >
-                                    {settings.welcome_subtitle || "¡Bienvenido al evento!"}
-                                </h3>
+                                {/* Logo del Partner / Marca */}
+                                {partnerCfg.show && (
+                                    <img
+                                        src={partnerCfg.logoUrl!}
+                                        alt="Logo Partner"
+                                        style={partnerCfg.style}
+                                        className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    />
+                                )}
 
-                                {/* Nombre del invitado o Evento */}
-                                <h1
-                                    className="text-2xl drop-shadow-md leading-none uppercase mt-1 mb-2"
-                                    style={{
-                                        color: settings.use_global_fonts ? settings.global_title_font_color : settings.title_font_color || "#fff",
-                                        fontFamily: settings.use_global_fonts ? settings.global_title_font_family : settings.title_font_family || "Inter",
-                                        fontSize: settings.global_title_font_size ? `${Math.min(26, parseInt(settings.global_title_font_size) * 0.7)}px` : undefined,
-                                        fontWeight: (settings.global_title_font_weight as any) || "bold",
-                                        fontStyle: (settings.global_title_font_style as any) || "normal",
-                                        textDecoration: (settings.global_title_text_decoration as any) || "none",
-                                        textAlign: (settings.global_title_text_align as any) || "center",
-                                    }}
+                                {/* Contenedor principal — igual que EventLogin */}
+                                <div
+                                    className="backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-white/10 flex flex-col items-center justify-center w-full max-w-[320px] relative overflow-hidden"
+                                    style={containerStyles}
                                 >
-                                    {(event?.event_name || event?.name || event?.title || "Nombre Invitado")}
-                                </h1>
+                                    {/* Video de fondo para el contenedor de Mensaje */}
+                                    {(settings.container_bg_type === 'video' ||
+                                      String(settings.container_image_url || '').startsWith('data:video') ||
+                                      String(settings.container_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.container_image_url ? (
+                                        <video
+                                            src={settings.container_image_url}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                        />
+                                    ) : settings.container_image_url ? (
+                                        <div
+                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                            style={{ backgroundImage: `url(${settings.container_image_url})` }}
+                                        />
+                                    ) : null}
 
-                                <p
-                                    className="text-[11px] leading-tight mt-3 mb-6 opacity-90"
-                                    style={{
-                                        color: settings.use_global_fonts ? settings.global_text_font_color : settings.subtitle_font_color || "#333",
-                                        fontFamily: settings.global_text_font_family || "Inter",
-                                        fontWeight: (settings.global_text_font_weight as any) || "normal",
-                                        fontStyle: (settings.global_text_font_style as any) || "normal",
-                                        textDecoration: (settings.global_text_text_decoration as any) || "none",
-                                        textAlign: (settings.global_text_text_align as any) || "center",
-                                    }}
-                                >
-                                    Prepárate para capturar los mejores momentos
-                                </p>
+                                    {/* Capa de tinte / color y desenfoque glass sobre la imagen o video */}
+                                    {settings.container_image_url && (
+                                        <div
+                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                            }`}
+                                            style={{
+                                                backgroundColor: (() => {
+                                                    const bgColor = settings.container_bg_color || "#0f172a";
+                                                    const bgOpacity = settings.container_bg_opacity ?? 75;
+                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                    return `${bgColor}${opacityHex}`;
+                                                })()
+                                            }}
+                                        />
+                                    )}
 
-                                {/* Botón Continuar */}
-                                <button
-                                    type="button"
-                                    className="w-4/5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                                    style={activeGetButtonStyles(false)}
-                                >
-                                    Continuar <ArrowLeft className="w-3 h-3 rotate-180" />
-                                </button>
+                                    <div className="relative z-10 w-full flex flex-col items-center justify-center">
+                                    {/* Subtítulo bienvenida */}
+                                    <h3
+                                        className="text-[9px] uppercase tracking-widest mb-2 mt-1"
+                                        style={{
+                                            color: settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
+                                            fontFamily: settings.global_text_font_family || "Inter",
+                                            fontSize: settings.global_text_font_size ? `${Math.min(13, parseInt(settings.global_text_font_size) * 0.5)}px` : undefined,
+                                            fontWeight: (settings.global_text_font_weight as any) || "bold",
+                                            fontStyle: (settings.global_text_font_style as any) || "normal",
+                                            textDecoration: (settings.global_text_text_decoration as any) || "none",
+                                            textAlign: (settings.global_text_text_align as any) || "center",
+                                        }}
+                                    >
+                                        {settings.welcome_subtitle || "¡Bienvenido al evento!"}
+                                    </h3>
+
+                                    {/* Nombre del invitado o Evento */}
+                                    <h1
+                                        className="text-2xl drop-shadow-md leading-none uppercase mt-1 mb-2"
+                                        style={{
+                                            color: settings.global_title_font_color || settings.title_font_color || "#ffffff",
+                                            fontFamily: settings.global_title_font_family || settings.title_font_family || "Inter",
+                                            fontSize: settings.global_title_font_size ? `${Math.min(26, parseInt(settings.global_title_font_size) * 0.7)}px` : undefined,
+                                            fontWeight: (settings.global_title_font_weight as any) || "bold",
+                                            fontStyle: (settings.global_title_font_style as any) || "normal",
+                                            textDecoration: (settings.global_title_text_decoration as any) || "none",
+                                            textAlign: (settings.global_title_text_align as any) || "center",
+                                        }}
+                                    >
+                                        {(event?.event_name || event?.name || event?.title || "Nombre Invitado")}
+                                    </h1>
+
+                                    <p
+                                        className="text-[11px] leading-tight mt-3 mb-6 opacity-90"
+                                        style={{
+                                            color: settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
+                                            fontFamily: settings.global_text_font_family || "Inter",
+                                            fontWeight: (settings.global_text_font_weight as any) || "normal",
+                                            fontStyle: (settings.global_text_font_style as any) || "normal",
+                                            textDecoration: (settings.global_text_text_decoration as any) || "none",
+                                            textAlign: (settings.global_text_text_align as any) || "center",
+                                        }}
+                                    >
+                                        Prepárate para capturar los mejores momentos
+                                    </p>
+
+                                    {/* Botón Continuar */}
+                                    <button
+                                        type="button"
+                                        className="w-4/5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                                        style={activeGetButtonStyles(false)}
+                                    >
+                                        Continuar <ArrowLeft className="w-3 h-3 rotate-180" />
+                                    </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* ===== VISTA CÁMARA ===== */}
-                {previewView === "camera" && (
+                {previewView === "camera" && (() => {
+                    const eventCfg = getLogoConfig('event', 'camera');
+                    const partnerCfg = getLogoConfig('partner', 'camera');
+                    return (
                     <div
                         className="absolute inset-0 z-[2] bg-cover bg-center overflow-hidden flex flex-col"
                         style={{ backgroundColor: "#111", backgroundImage: "linear-gradient(135deg, #2a1a3e 0%, #16213e 50%, #0f3460 100%)" }}
                     >
+                        {/* Logos en Cámara */}
+                        {eventCfg.show && (
+                            <img
+                                src={eventCfg.logoUrl!}
+                                alt="Logo Evento"
+                                style={eventCfg.style}
+                                className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                            />
+                        )}
+                        {partnerCfg.show && (
+                            <img
+                                src={partnerCfg.logoUrl!}
+                                alt="Logo Partner"
+                                style={partnerCfg.style}
+                                className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                            />
+                        )}
+
                         {/* GUÍA DE ENCUADRE 9:16 (ZONA SEGURA) */}
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 overflow-hidden">
                             <div
@@ -443,17 +786,6 @@ export default function MobileSimulator({
 
                         {/* Bottom Dock Area */}
                         <div className="w-full relative z-30 h-[100px]">
-                            {/* Floating Logo positioned centered like in the photo */}
-                            {eventLogoUrl && (
-                                <div className="absolute bottom-[80px] w-full flex justify-center z-50 pointer-events-none">
-                                    <img
-                                        src={eventLogoUrl}
-                                        alt="Logo Evento"
-                                        className="h-[40px] w-auto max-w-[120px] object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-                                    />
-                                </div>
-                            )}
-
                             {/* 1. Square box for Galería on the bottom left (56px) exactly matching dock height */}
                             <div
                                 className="absolute shadow-xl flex flex-col items-center justify-center cursor-pointer z-50 backdrop-blur-md"
@@ -483,17 +815,52 @@ export default function MobileSimulator({
                             >
                                 {/* Background with Mask */}
                                 <div
-                                    className="absolute inset-0 z-[-1] pointer-events-none shadow-xl backdrop-blur-md"
+                                    className="absolute inset-0 z-[-1] pointer-events-none shadow-xl backdrop-blur-md overflow-hidden"
                                     style={{
                                         borderRadius: "12px 12px 0 0",
-                                        ...getContainerStyles(),
-                                        opacity: 0.75,
+                                        ...barStyles,
                                         WebkitMaskImage: dockEncodedMask,
                                         maskImage: dockEncodedMask,
                                         WebkitMaskSize: "100% 100%",
                                         maskSize: "100% 100%",
                                     }}
-                                />
+                                >
+                                    {/* Video o Imagen de fondo para la Barra */}
+                                    {(settings.bar_bg_type === 'video' ||
+                                      String(settings.bar_image_url || '').startsWith('data:video') ||
+                                      String(settings.bar_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.bar_image_url ? (
+                                        <video
+                                            src={settings.bar_image_url}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.bar_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                        />
+                                    ) : settings.bar_image_url ? (
+                                        <div
+                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                            style={{ backgroundImage: `url(${settings.bar_image_url})` }}
+                                        />
+                                    ) : null}
+
+                                    {/* Capa de tinte / color y desenfoque glass para Barra */}
+                                    {settings.bar_image_url && (
+                                        <div
+                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                (settings.bar_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                            }`}
+                                            style={{
+                                                backgroundColor: (() => {
+                                                    const bgColor = settings.bar_bg_color || "#1e293b";
+                                                    const bgOpacity = settings.bar_bg_opacity ?? 85;
+                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                    return `${bgColor}${opacityHex}`;
+                                                })()
+                                            }}
+                                        />
+                                    )}
+                                </div>
                                 {/* Service Icons inside dock */}
                                 <div className="flex items-center h-full absolute left-[8px]" style={{ width: `${franjaWidth - 16}px` }}>
                                     {/* Active/Selected Mode: Show */}
@@ -590,11 +957,33 @@ export default function MobileSimulator({
                             </div>
                         </div>
                     </div>
-                )}
+                    );
+                })()}
 
                 {/* ===== VISTA GALERÍA ===== */}
-                {previewView === "gallery" && (
-                    <div className="absolute inset-0 z-30 flex flex-col bg-gray-900" style={brandingStyles}>
+                {previewView === "gallery" && (() => {
+                    const eventCfg = getLogoConfig('event', 'gallery');
+                    const partnerCfg = getLogoConfig('partner', 'gallery');
+                    return (
+                    <div className="absolute inset-0 z-30 flex flex-col bg-gray-900 overflow-hidden" style={brandingStyles}>
+                        {/* Logos en Galería */}
+                        {eventCfg.show && (
+                            <img
+                                src={eventCfg.logoUrl!}
+                                alt="Logo Evento"
+                                style={eventCfg.style}
+                                className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                            />
+                        )}
+                        {partnerCfg.show && (
+                            <img
+                                src={partnerCfg.logoUrl!}
+                                alt="Logo Partner"
+                                style={partnerCfg.style}
+                                className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                            />
+                        )}
+
                         <div className="w-full h-16 relative flex items-start justify-center shrink-0">
                             <div className="absolute inset-x-0 top-0 h-16 pointer-events-none z-20 flex items-start -scale-y-100">
                                 <svg viewBox="0 0 300 60" className="w-full h-full drop-shadow-[0_-5px_15px_rgba(0,0,0,0.3)]" preserveAspectRatio="none">
@@ -620,13 +1009,6 @@ export default function MobileSimulator({
                                     />
                                 </svg>
                             </div>
-                            {eventLogoUrl && (
-                                <img
-                                    src={eventLogoUrl}
-                                    alt="Logo Evento"
-                                    className="h-10 w-auto max-w-[120px] object-contain drop-shadow-md relative z-30 mt-2"
-                                />
-                            )}
                         </div>
 
                         <div className="flex-1 w-full px-2 overflow-hidden flex flex-col relative z-0 pt-2">
@@ -710,7 +1092,8 @@ export default function MobileSimulator({
                             </div>
                         </div>
                     </div>
-                )}
+                    );
+                })()}
             </div>
         </div>
     );

@@ -258,7 +258,7 @@ export default function EventConfig() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6">
       {/* Header con información del Evento a ancho completo de borde a borde con margen reducido arriba */}
       <div
         className="-mx-4 mt-1 md:-mx-6 lg:-mx-8 rounded-none shadow-sm relative flex items-stretch"
