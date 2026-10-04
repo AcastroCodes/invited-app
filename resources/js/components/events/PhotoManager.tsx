@@ -36,6 +36,9 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Hourglass,
+  MapPin,
+  UserPlus,
 } from 'lucide-react';
 import api from '../../lib/api';
 import MobileSimulator from './MobileSimulator';
@@ -87,6 +90,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [previewView, setPreviewView] = useState<string>('welcome');
   const [activeLogoState, setActiveLogoState] = useState<'welcome' | 'camera' | 'gallery'>('welcome');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
+  const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'bienvenida' | 'gps' | 'registro'>('precarga');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
   const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'barra' | 'botones'>('fondo');
   const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
@@ -1919,9 +1923,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                     {displayEventLogo ? (
                                       <div className="relative w-full h-full flex flex-col items-center justify-center">
                                         <img src={displayEventLogo} alt="Logo Evento BD" className="max-h-24 max-w-full object-contain drop-shadow-md" />
-                                        <span className="text-[9px] font-extrabold opacity-60 mt-1 select-none text-center" style={{ color: 'var(--text-muted)' }}>
-                                          Logo BD
-                                        </span>
                                       </div>
                                     ) : (
                                       <div className="flex flex-col items-center justify-center text-center p-2">
@@ -2236,9 +2237,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                     {displayPartnerLogo ? (
                                       <div className="relative w-full h-full flex flex-col items-center justify-center">
                                         <img src={displayPartnerLogo} alt="Logo Partner BD" className="max-h-24 max-w-full object-contain drop-shadow-md" />
-                                        <span className="text-[9px] font-extrabold opacity-60 mt-1 select-none text-center" style={{ color: 'var(--text-muted)' }}>
-                                          Logo Partner BD
-                                        </span>
                                       </div>
                                     ) : (
                                       <div className="flex flex-col items-center justify-center text-center p-2">
@@ -2473,47 +2471,235 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                   </div>
                 )}
 
-                {/* 2. BIENVENIDA TAB */}
+                {/* 2. BIENVENIDA TAB CON SUB-PESTAÑAS (PRECARGA, BIENVENIDA, VERIFICACIÓN GPS, REGISTRO) */}
                 {mobileActiveView === 'welcome' && (
-                  <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                      <Tv size={16} style={{ color: 'var(--primary-accent)' }} /> Contenido de Pantalla de Bienvenida
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Título del Evento</label>
-                        <input
-                          type="text"
-                          value={settings.welcome_title}
-                          onChange={(e) => updateSetting('welcome_title', e.target.value)}
-                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Botón</label>
-                        <input
-                          type="text"
-                          value={settings.welcome_button_text}
-                          onChange={(e) => updateSetting('welcome_button_text', e.target.value)}
-                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Subtítulo / Mensaje de Bienvenida</label>
-                        <input
-                          type="text"
-                          value={settings.welcome_subtitle}
-                          onChange={(e) => updateSetting('welcome_subtitle', e.target.value)}
-                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
+                  <div className="space-y-4">
+                    {/* NAVEGACIÓN DE SUB-PESTAÑAS EN BIENVENIDA */}
+                    <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                      {[
+                        { id: 'precarga', label: 'Precarga', icon: Hourglass },
+                        { id: 'bienvenida', label: 'Bienvenida', icon: Tv },
+                        { id: 'gps', label: 'Verificación GPS', icon: MapPin },
+                        { id: 'registro', label: 'Registro', icon: UserPlus },
+                      ].map((sub) => {
+                        const SubIcon = sub.icon;
+                        const isSubActive = welcomeSubTab === sub.id;
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            onClick={() => setWelcomeSubTab(sub.id as any)}
+                            className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            style={{
+                              backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
+                              color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
+                              border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
+                            }}
+                          >
+                            <SubIcon size={14} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    {/* 2.1 SUB-PESTAÑA PRECARGA */}
+                    {welcomeSubTab === 'precarga' && (
+                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                          <Hourglass size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Pantalla de Precarga (Splash)
+                        </h3>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Activar Pantalla de Precarga</p>
+                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Muestra una pantalla de carga animada inicial antes de ingresar a bienvenida</p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={settings.welcome_precarga_enabled ?? true}
+                              onChange={(e) => updateSetting('welcome_precarga_enabled', e.target.checked)}
+                              className="w-4 h-4 rounded cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto de Carga</label>
+                              <input
+                                type="text"
+                                value={settings.welcome_precarga_text ?? 'Cargando experiencia...'}
+                                onChange={(e) => updateSetting('welcome_precarga_text', e.target.value)}
+                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Duración Estimada (Segundos)</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={settings.welcome_precarga_duration ?? '3'}
+                                onChange={(e) => updateSetting('welcome_precarga_duration', e.target.value)}
+                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2.2 SUB-PESTAÑA BIENVENIDA */}
+                    {welcomeSubTab === 'bienvenida' && (
+                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                          <Tv size={16} style={{ color: 'var(--primary-accent)' }} /> Contenido de Pantalla de Bienvenida
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Título del Evento</label>
+                            <input
+                              type="text"
+                              value={settings.welcome_title}
+                              onChange={(e) => updateSetting('welcome_title', e.target.value)}
+                              className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Botón</label>
+                            <input
+                              type="text"
+                              value={settings.welcome_button_text}
+                              onChange={(e) => updateSetting('welcome_button_text', e.target.value)}
+                              className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Subtítulo / Mensaje de Bienvenida</label>
+                            <input
+                              type="text"
+                              value={settings.welcome_subtitle}
+                              onChange={(e) => updateSetting('welcome_subtitle', e.target.value)}
+                              className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                              style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2.3 SUB-PESTAÑA VERIFICACIÓN GPS */}
+                    {welcomeSubTab === 'gps' && (
+                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                          <MapPin size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Verificación GPS
+                        </h3>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Activar Verificación de Ubicación GPS</p>
+                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Requiere que los invitados estén en la ubicación física del evento para continuar</p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={settings.welcome_gps_enabled ?? false}
+                              onChange={(e) => updateSetting('welcome_gps_enabled', e.target.checked)}
+                              className="w-4 h-4 rounded cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Radio Máximo de Distancia (Metros)</label>
+                              <input
+                                type="number"
+                                value={settings.welcome_gps_radius ?? '500'}
+                                onChange={(e) => updateSetting('welcome_gps_radius', e.target.value)}
+                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Error (Fuera de Rango)</label>
+                              <input
+                                type="text"
+                                value={settings.welcome_gps_error_msg ?? 'Debes estar en el lugar del evento para continuar'}
+                                onChange={(e) => updateSetting('welcome_gps_error_msg', e.target.value)}
+                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2.4 SUB-PESTAÑA REGISTRO */}
+                    {welcomeSubTab === 'registro' && (
+                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                          <UserPlus size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Formulario de Registro
+                        </h3>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            <div>
+                              <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Requerir Registro de Invitados</p>
+                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Solicita datos de identificación al invitado antes de ingresar a la cámara</p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={settings.welcome_registro_enabled ?? false}
+                              onChange={(e) => updateSetting('welcome_registro_enabled', e.target.checked)}
+                              className="w-4 h-4 rounded cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Nombre Obligatorio</span>
+                              <input
+                                type="checkbox"
+                                checked={settings.welcome_registro_require_name ?? true}
+                                onChange={(e) => updateSetting('welcome_registro_require_name', e.target.checked)}
+                                className="w-4 h-4 rounded cursor-pointer"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Correo Obligatorio</span>
+                              <input
+                                type="checkbox"
+                                checked={settings.welcome_registro_require_email ?? false}
+                                onChange={(e) => updateSetting('welcome_registro_require_email', e.target.checked)}
+                                className="w-4 h-4 rounded cursor-pointer"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Teléfono Obligatorio</span>
+                              <input
+                                type="checkbox"
+                                checked={settings.welcome_registro_require_phone ?? false}
+                                onChange={(e) => updateSetting('welcome_registro_require_phone', e.target.checked)}
+                                className="w-4 h-4 rounded cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
