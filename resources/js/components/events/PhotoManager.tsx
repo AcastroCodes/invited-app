@@ -88,11 +88,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   // Mobile app config states
   const [mobileActiveView, setMobileActiveView] = useState<'general' | 'welcome' | 'camera' | 'gallery'>('general');
   const [previewView, setPreviewView] = useState<string>('welcome');
-  const [activeLogoState, setActiveLogoState] = useState<'welcome' | 'camera' | 'gallery'>('welcome');
+  const [activeLogoState, setActiveLogoState] = useState<'precarga' | 'welcome' | 'camera' | 'gallery'>('welcome');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'bienvenida' | 'gps' | 'registro'>('precarga');
+  const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
+  const [precargaTextTarget, setPrecargaTextTarget] = useState<'title' | 'subtitle' | 'powered_by'>('title');
   const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'barra' | 'botones'>('fondo');
+  const [precargaContainerTarget, setPrecargaContainerTarget] = useState<'fondo' | 'mensaje'>('fondo');
   const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
 
   const [settings, setSettings] = useState<any>({
@@ -181,6 +184,9 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
     setMobileActiveView(view);
     if (view === 'general') {
       setPreviewView('welcome');
+    } else if (view === 'welcome') {
+      setPreviewView(welcomeSubTab === 'precarga' ? 'precarga' : 'welcome');
+      setActiveLogoState('welcome');
     } else {
       setPreviewView(view);
       setActiveLogoState(view);
@@ -472,18 +478,18 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
       {subTab === 'app_movil' && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           {/* COLUMNA IZQUIERDA: PREVISUALIZACIÓN DE LA APP MÓVIL (MOBILE SIMULATOR) */}
-          <div className="xl:col-span-3 flex flex-col items-center h-[520px]">
+          <div className="xl:col-span-3 flex flex-col items-center h-[570px]">
             <div className="sticky top-[85px] z-10 w-full flex flex-col items-center justify-between h-full py-0">
               <div className="w-full flex flex-col items-center h-full">
                 {/* FRAME DEL TELÉFONO CON MOBILE SIMULATOR DE DPHOTOS */}
-                <div className="w-full max-w-[260px] h-[520px] rounded-[16px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
+                <div className="w-full max-w-[265px] h-[570px] rounded-[20px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
                   {/* Isla Dinámica / Notch del teléfono */}
                   <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-40 border border-slate-800 flex items-center justify-end px-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-900 border border-slate-700" />
                   </div>
 
-                  {/* ICONOS FLOTANTES FUERA DEL TELÉFONO EN LA PARTE SUPERIOR DERECHA (UNO SOBRE OTRO) AL ESTAR EN PANTALLA GENERAL */}
-                  {mobileActiveView === 'general' && (
+                  {/* ICONOS FLOTANTES FUERA DEL TELÉFONO EN LA PARTE SUPERIOR DERECHA (UNO SOBRE OTRO) */}
+                  {(mobileActiveView === 'general' || mobileActiveView === 'welcome') && (
                     <div className="absolute left-[calc(100%+10px)] top-1 z-50 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 shadow-2xl">
                       {[
                         { id: 'welcome', label: 'Bienvenida', icon: Tv },
@@ -525,7 +531,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
           </div>
 
           {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN */}
-          <div className="xl:col-span-9 space-y-3 pt-3 flex flex-col h-[520px]">
+          <div className="xl:col-span-9 space-y-3 pt-3 flex flex-col h-[570px]">
             {/* BARRA DE PANTALLA Y PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
             <div
               className="px-4 flex items-center justify-between gap-4 text-white shadow-md relative h-8 z-20 overflow-visible rounded-lg shrink-0"
@@ -2488,7 +2494,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           <button
                             key={sub.id}
                             type="button"
-                            onClick={() => setWelcomeSubTab(sub.id as any)}
+                            onClick={() => {
+                              setWelcomeSubTab(sub.id as any);
+                              if (sub.id === 'precarga') {
+                                setPreviewView('precarga');
+                              } else if (sub.id === 'bienvenida') {
+                                setPreviewView('welcome');
+                              }
+                            }}
                             className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             style={{
                               backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
@@ -2505,51 +2518,1058 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                     {/* 2.1 SUB-PESTAÑA PRECARGA */}
                     {welcomeSubTab === 'precarga' && (
-                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                          <Hourglass size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Pantalla de Precarga (Splash)
-                        </h3>
+                      <div className="space-y-4">
+                        {/* SUB-PESTAÑAS DE CONTROLES EN PRECARGA (FUENTE, CONTENEDOR, LOGOS) */}
+                        <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          {[
+                            { id: 'fuentes', label: 'Fuente', icon: Type },
+                            { id: 'fondos', label: 'Contenedor', icon: Palette },
+                            { id: 'logos', label: 'Logos', icon: ImageIcon },
+                          ].map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive = precargaSubTab === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                type="button"
+                                onClick={() => setPrecargaSubTab(sub.id as any)}
+                                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                style={{
+                                  backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
+                                  color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                  border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
+                                }}
+                              >
+                                <SubIcon size={14} />
+                                <span>{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                            <div>
-                              <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Activar Pantalla de Precarga</p>
-                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Muestra una pantalla de carga animada inicial antes de ingresar a bienvenida</p>
+                        {/* 2.1.1 SUB-PESTAÑA FUENTES EN PRECARGA */}
+                        {precargaSubTab === 'fuentes' && (
+                          <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                              <div className="flex items-center gap-2.5">
+                                <Type size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                <div className="flex flex-col leading-tight">
+                                  <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                    Fuentes y Textos de Precarga
+                                  </h3>
+                                  <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                    {precargaTextTarget === 'title' ? 'Título Principal' : precargaTextTarget === 'subtitle' ? 'Contenido' : 'Powered by'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* PESTAÑAS TÍTULO / CONTENIDO / POWERED BY EN EL LADO DERECHO */}
+                              <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                {[
+                                  { id: 'title', label: 'Título' },
+                                  { id: 'subtitle', label: 'Contenido' },
+                                  { id: 'powered_by', label: 'Powered by' },
+                                ].map((targetItem) => {
+                                  const isTargetActive = precargaTextTarget === targetItem.id;
+                                  return (
+                                    <button
+                                      key={targetItem.id}
+                                      type="button"
+                                      onClick={() => setPrecargaTextTarget(targetItem.id as any)}
+                                      className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                        color: isTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      {targetItem.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                            <input
-                              type="checkbox"
-                              checked={settings.welcome_precarga_enabled ?? true}
-                              onChange={(e) => updateSetting('welcome_precarga_enabled', e.target.checked)}
-                              className="w-4 h-4 rounded cursor-pointer"
-                            />
-                          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* CAMPO TEXTO / CONTENIDO */}
                             <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto de Carga</label>
+                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                {precargaTextTarget === 'title' ? 'Texto del Título' : precargaTextTarget === 'subtitle' ? 'Texto del Contenido' : 'Texto de Powered by'}
+                              </label>
                               <input
                                 type="text"
-                                value={settings.welcome_precarga_text ?? 'Cargando experiencia...'}
-                                onChange={(e) => updateSetting('welcome_precarga_text', e.target.value)}
+                                value={
+                                  precargaTextTarget === 'title'
+                                    ? (settings.welcome_precarga_text ?? settings.precarga_title ?? 'Cargando')
+                                    : precargaTextTarget === 'subtitle'
+                                    ? (settings.precarga_subtitle ?? 'Espere por favor')
+                                    : (settings.precarga_powered_by_text ?? 'Powered by')
+                                }
+                                onChange={(e) => {
+                                  if (precargaTextTarget === 'title') {
+                                    updateSetting('welcome_precarga_text', e.target.value);
+                                    updateSetting('precarga_title', e.target.value);
+                                  } else if (precargaTextTarget === 'subtitle') {
+                                    updateSetting('precarga_subtitle', e.target.value);
+                                  } else {
+                                    updateSetting('precarga_powered_by_text', e.target.value);
+                                  }
+                                }}
+                                placeholder={
+                                  precargaTextTarget === 'title'
+                                    ? 'Ej: Cargando'
+                                    : precargaTextTarget === 'subtitle'
+                                    ? 'Ej: Espere por favor'
+                                    : 'Ej: Powered by'
+                                }
                                 className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
                                 style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                               />
                             </div>
 
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Duración Estimada (Segundos)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={settings.welcome_precarga_duration ?? '3'}
-                                onChange={(e) => updateSetting('welcome_precarga_duration', e.target.value)}
-                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                              />
+                            {/* CONTROLES DE TIPOGRAFÍA Y ESTILOS */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                              {/* FUENTE */}
+                              <div className="lg:col-span-2">
+                                <FontPicker
+                                  label="Fuente"
+                                  value={
+                                    settings[`precarga_${precargaTextTarget}_font_family`] ||
+                                    (precargaTextTarget === 'title' ? (settings.global_title_font_family || 'Inter') : (settings.global_text_font_family || 'Inter'))
+                                  }
+                                  onChange={(f) => updateSetting(`precarga_${precargaTextTarget}_font_family`, f)}
+                                />
+                              </div>
+
+                              {/* TAMAÑO */}
+                              <div className="lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Tamaño
+                                </label>
+                                <div
+                                  className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const defaultSize = precargaTextTarget === 'title' ? 13 : precargaTextTarget === 'subtitle' ? 10 : 8.5;
+                                      const curr = parseFloat(settings[`precarga_${precargaTextTarget}_font_size`] || defaultSize.toString());
+                                      const nextVal = Math.max(5, curr - 0.5);
+                                      updateSetting(`precarga_${precargaTextTarget}_font_size`, nextVal.toString());
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Disminuir tamaño"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+
+                                  <div className="flex-1 flex items-center justify-center px-2">
+                                    <input
+                                      type="number"
+                                      min={5}
+                                      max={80}
+                                      step={0.5}
+                                      value={
+                                        settings[`precarga_${precargaTextTarget}_font_size`] ||
+                                        (precargaTextTarget === 'title' ? '13' : precargaTextTarget === 'subtitle' ? '10' : '8.5')
+                                      }
+                                      onChange={(e) => updateSetting(`precarga_${precargaTextTarget}_font_size`, e.target.value)}
+                                      className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      style={{ color: 'var(--text-main)' }}
+                                    />
+                                    <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                      px
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const defaultSize = precargaTextTarget === 'title' ? 13 : precargaTextTarget === 'subtitle' ? 10 : 8.5;
+                                      const curr = parseFloat(settings[`precarga_${precargaTextTarget}_font_size`] || defaultSize.toString());
+                                      const nextVal = Math.min(80, curr + 0.5);
+                                      updateSetting(`precarga_${precargaTextTarget}_font_size`, nextVal.toString());
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Aumentar tamaño"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* FORMATO (NEGRITA, ITÁLICA, SUBRAYADO) */}
+                              <div className="lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Formato
+                                </label>
+                                <div
+                                  className="flex items-center h-9 rounded-xl border p-0.5 gap-1 shadow-2xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSetting(`precarga_${precargaTextTarget}_font_weight`, settings[`precarga_${precargaTextTarget}_font_weight`] === 'bold' ? 'normal' : 'bold')}
+                                    className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: settings[`precarga_${precargaTextTarget}_font_weight`] === 'bold' ? 'var(--primary-accent)' : 'transparent',
+                                      color: settings[`precarga_${precargaTextTarget}_font_weight`] === 'bold' ? '#ffffff' : 'var(--text-muted)',
+                                    }}
+                                    title="Negrita"
+                                  >
+                                    <Bold size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSetting(`precarga_${precargaTextTarget}_font_style`, settings[`precarga_${precargaTextTarget}_font_style`] === 'italic' ? 'normal' : 'italic')}
+                                    className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: settings[`precarga_${precargaTextTarget}_font_style`] === 'italic' ? 'var(--primary-accent)' : 'transparent',
+                                      color: settings[`precarga_${precargaTextTarget}_font_style`] === 'italic' ? '#ffffff' : 'var(--text-muted)',
+                                    }}
+                                    title="Itálica"
+                                  >
+                                    <Italic size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSetting(`precarga_${precargaTextTarget}_text_decoration`, settings[`precarga_${precargaTextTarget}_text_decoration`] === 'underline' ? 'none' : 'underline')}
+                                    className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: settings[`precarga_${precargaTextTarget}_text_decoration`] === 'underline' ? 'var(--primary-accent)' : 'transparent',
+                                      color: settings[`precarga_${precargaTextTarget}_text_decoration`] === 'underline' ? '#ffffff' : 'var(--text-muted)',
+                                    }}
+                                    title="Subrayado"
+                                  >
+                                    <Underline size={14} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* COLOR */}
+                              <div className="lg:col-span-2">
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Color de Texto
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <ColorPickerPopover
+                                    color={
+                                      settings[`precarga_${precargaTextTarget}_font_color`] ||
+                                      (precargaTextTarget === 'title' ? '#ffffff' : precargaTextTarget === 'subtitle' ? '#e2e8f0' : '#ffffff')
+                                    }
+                                    onChange={(c) => updateSetting(`precarga_${precargaTextTarget}_font_color`, c)}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={
+                                      settings[`precarga_${precargaTextTarget}_font_color`] ||
+                                      (precargaTextTarget === 'title' ? '#ffffff' : precargaTextTarget === 'subtitle' ? '#e2e8f0' : '#ffffff')
+                                    }
+                                    onChange={(e) => updateSetting(`precarga_${precargaTextTarget}_font_color`, e.target.value)}
+                                    className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-mono font-bold"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* 2.1.2 SUB-PESTAÑA CONTENEDOR EN PRECARGA */}
+                        {precargaSubTab === 'fondos' && (() => {
+                          const isFondoTarget = precargaContainerTarget === 'fondo';
+                          const prefix = isFondoTarget ? 'precarga_screen' : 'precarga_card';
+                          const bgTypeKey = isFondoTarget ? 'precarga_bg_type' : 'precarga_card_bg_type';
+                          const bgColorKey = isFondoTarget ? 'precarga_bg_color' : 'precarga_card_bg_color';
+                          const gradKey = isFondoTarget ? 'precarga_bg_gradient' : 'precarga_card_gradient_data';
+                          const imageKey = isFondoTarget ? 'precarga_bg_image_url' : 'precarga_card_image_url';
+                          const videoRotateKey = `${prefix}_video_rotate`;
+
+                          const imageUrl = settings[imageKey] || (isFondoTarget ? (settings.precarga_bg_image_url || '') : '');
+                          const bgType = settings[bgTypeKey] || (isFondoTarget ? (settings.precarga_bg_type || 'color') : 'color');
+                          const videoRotate = !!settings[videoRotateKey];
+
+                          return (
+                            <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                              <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2.5">
+                                  <Palette size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                      Contenedores ({isFondoTarget ? 'Fondo' : 'Mensaje'})
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      Estilos y fondos de pantalla de precarga
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* PESTAÑAS FONDO / MENSAJE EN EL LADO DERECHO */}
+                                <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'fondo', label: 'Fondo' },
+                                    { id: 'mensaje', label: 'Mensaje' },
+                                  ].map((cTarget) => {
+                                    const isCTargetActive = precargaContainerTarget === cTarget.id;
+                                    return (
+                                      <button
+                                        key={cTarget.id}
+                                        type="button"
+                                        onClick={() => setPrecargaContainerTarget(cTarget.id as any)}
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                        style={{
+                                          backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                          color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                        }}
+                                      >
+                                        {cTarget.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                {/* SUBIR IMAGEN / VIDEO DEL CONTENEDOR */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                      Imagen / Video ({isFondoTarget ? 'Fondo General' : 'Recuadro Central'})
+                                    </label>
+                                    <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Rotar orientación de video 90° en la pantalla del teléfono">
+                                      <input
+                                        type="checkbox"
+                                        checked={videoRotate}
+                                        onChange={(e) => updateSetting(videoRotateKey, e.target.checked)}
+                                        className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                        style={{ accentColor: 'var(--primary-accent)' }}
+                                      />
+                                      <span>Rotar Video</span>
+                                    </label>
+                                  </div>
+                                  
+                                  <div
+                                    className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[170px] min-h-[170px]"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                  >
+                                    {imageUrl ? (
+                                      <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
+                                        {bgType === 'video' || String(imageUrl).startsWith('data:video') || String(imageUrl).match(/\.(mp4|webm|ogg)$/i) ? (
+                                          <video
+                                            src={imageUrl}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className="w-full h-full object-contain"
+                                          />
+                                        ) : (
+                                          <img
+                                            src={imageUrl}
+                                            alt="Imagen de fondo"
+                                            className="w-full h-full object-contain"
+                                          />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                          <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
+                                            <Upload size={16} />
+                                            <input
+                                              type="file"
+                                              accept="image/*,video/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const isVideo = file.type.startsWith('video/');
+                                                  const reader = new FileReader();
+                                                  reader.onload = (ev) => {
+                                                    updateSetting(imageKey, ev.target?.result);
+                                                    updateSetting(bgTypeKey, isVideo ? 'video' : 'image');
+                                                    if (isFondoTarget) updateSetting('precarga_bg_type', isVideo ? 'video' : 'image');
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              updateSetting(imageKey, '');
+                                              if (isFondoTarget) updateSetting('precarga_bg_image_url', '');
+                                            }}
+                                            className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                            title="Eliminar archivo"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                        <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                          <Upload size={18} />
+                                        </div>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                        <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM</span>
+                                        <input
+                                          type="file"
+                                          accept="image/*,video/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const isVideo = file.type.startsWith('video/');
+                                              const reader = new FileReader();
+                                              reader.onload = (ev) => {
+                                                updateSetting(imageKey, ev.target?.result);
+                                                updateSetting(bgTypeKey, isVideo ? 'video' : 'image');
+                                                if (isFondoTarget) {
+                                                  updateSetting('precarga_bg_image_url', ev.target?.result);
+                                                  updateSetting('precarga_bg_type', isVideo ? 'video' : 'image');
+                                                }
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* CONTROLES: ESTILO, REDONDEZ, GLASS */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-1">
+                                  {/* Estilo */}
+                                  <div>
+                                    <StylePickerPopover
+                                      label="Estilo"
+                                      elementType="box"
+                                      eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                      eventColorImage={eventColorImage}
+                                      styleConfig={{
+                                        backgroundColor: settings[bgTypeKey] === 'gradient' && settings[gradKey]
+                                          ? (typeof settings[gradKey] === 'string' ? settings[gradKey] : settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000'))
+                                          : (settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000')),
+                                        borderWidth: settings[`${prefix}_border_width`] ?? 0,
+                                        borderStyle: settings[`${prefix}_border_style`] || 'solid',
+                                        borderColor: settings[`${prefix}_border_color`] || '#E07A5F',
+                                        borderRadius: settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16),
+                                        shadowColor: settings[`${prefix}_shadow_color`] || '#000000',
+                                        shadowBlur: settings[`${prefix}_shadow_blur`] ?? 0,
+                                        shadowOffsetX: settings[`${prefix}_shadow_offset_x`] ?? 0,
+                                        shadowOffsetY: settings[`${prefix}_shadow_offset_y`] ?? 0,
+                                      }}
+                                      onChange={(updated) => {
+                                        const selectedColor = updated.backgroundColor || updated.fillColor;
+                                        const selectedGradient = updated.fillGradient;
+
+                                        if (updated.fillType === 'gradient' && selectedGradient) {
+                                          updateSetting(bgTypeKey, 'gradient');
+                                          updateSetting(gradKey, selectedGradient);
+                                          if (isFondoTarget) {
+                                            updateSetting('precarga_bg_type', 'gradient');
+                                            updateSetting('precarga_bg_gradient', selectedGradient);
+                                          }
+                                        } else if (selectedColor) {
+                                          if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
+                                            updateSetting(bgTypeKey, 'gradient');
+                                            updateSetting(gradKey, selectedColor);
+                                            if (isFondoTarget) {
+                                              updateSetting('precarga_bg_type', 'gradient');
+                                              updateSetting('precarga_bg_gradient', selectedColor);
+                                            }
+                                          } else {
+                                            updateSetting(bgTypeKey, 'color');
+                                            updateSetting(bgColorKey, selectedColor);
+                                            if (isFondoTarget) {
+                                              updateSetting('precarga_bg_type', 'color');
+                                              updateSetting('precarga_bg_color', selectedColor);
+                                            }
+                                          }
+                                        }
+
+                                        if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                        if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
+                                        if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                        if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                        if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
+                                        if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
+                                        if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
+                                        if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
+                                      }}
+                                    />
+                                  </div>
+
+                                  {/* Redondez */}
+                                  <div>
+                                    <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                      Redondez
+                                    </label>
+                                    <div
+                                      className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                      style={{
+                                        backgroundColor: 'var(--bg-app)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const key = `${prefix}_border_radius`;
+                                          const curr = parseInt(settings[key] ?? (isFondoTarget ? '0' : '16'));
+                                          const nextVal = Math.max(0, curr - 2);
+                                          updateSetting(key, nextVal);
+                                        }}
+                                        className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--primary-accent)',
+                                        }}
+                                        title="Disminuir redondez"
+                                      >
+                                        <Minus size={12} />
+                                      </button>
+
+                                      <div className="flex-1 flex items-center justify-center px-1">
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16)}
+                                          onChange={(e) => {
+                                            const key = `${prefix}_border_radius`;
+                                            updateSetting(key, parseInt(e.target.value) || 0);
+                                          }}
+                                          className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          style={{ color: 'var(--text-main)' }}
+                                        />
+                                        <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                          px
+                                        </span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const key = `${prefix}_border_radius`;
+                                          const curr = parseInt(settings[key] ?? (isFondoTarget ? '0' : '16'));
+                                          const nextVal = Math.min(100, curr + 2);
+                                          updateSetting(key, nextVal);
+                                        }}
+                                        className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                        style={{
+                                          backgroundColor: 'var(--bg-card)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--primary-accent)',
+                                        }}
+                                        title="Aumentar redondez"
+                                      >
+                                        <Plus size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Glass / Cristal */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                        Glass (Blur)
+                                      </label>
+                                      <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            isFondoTarget
+                                              ? (settings.precarga_screen_glass_enabled ?? false)
+                                              : (settings.precarga_card_glass_enabled ?? true)
+                                          }
+                                          onChange={(e) => {
+                                            const key = isFondoTarget ? 'precarga_screen_glass_enabled' : 'precarga_card_glass_enabled';
+                                            updateSetting(key, e.target.checked);
+                                          }}
+                                          className="sr-only peer"
+                                        />
+                                        <div
+                                          className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                          style={{
+                                            borderColor: (isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                            backgroundColor: (isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                          }}
+                                        >
+                                          {(isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) && (
+                                            <Check size={11} className="text-white stroke-[3]" />
+                                          )}
+                                        </div>
+                                      </label>
+                                    </div>
+
+                                    <div
+                                      className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                        !(isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'opacity-40 pointer-events-none' : ''
+                                      }`}
+                                      style={{
+                                        backgroundColor: 'var(--bg-app)',
+                                        borderColor: 'var(--border-color)',
+                                      }}
+                                    >
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value={settings[`${prefix}_bg_opacity`] ?? 100}
+                                        onChange={(e) => updateSetting(`${prefix}_bg_opacity`, parseInt(e.target.value))}
+                                        className="w-full accent-[var(--primary-accent)] cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 2.1.3 SUB-PESTAÑA LOGOS EN PRECARGA */}
+                        {precargaSubTab === 'logos' && (() => {
+                          const displayEventLogo = settings.event_logo_url || eventData?.logo_url || (eventData?.logo ? `/storage/${eventData.logo}` : null);
+                          const displayPartnerLogo = settings.partner_logo_url 
+                            || eventData?.partner_logo_url 
+                            || (eventData?.partner_logo ? `/storage/${eventData.partner_logo}` : null)
+                            || eventData?.partner?.logo_url
+                            || (eventData?.partner?.logo ? `/storage/${eventData.partner.logo}` : null)
+                            || eventData?.branding?.logo
+                            || '/dinvited.png';
+
+                          // Helpers para Precarga
+                          const getPrecargaVal = (type: 'event' | 'partner', field: string, defaultVal: any) => {
+                            const key = `${type}_logo_precarga_${field}`;
+                            if (settings[key] !== undefined) return settings[key];
+                            return defaultVal;
+                          };
+
+                          const updatePrecargaLogo = (type: 'event' | 'partner', field: string, value: any) => {
+                            updateSetting(`${type}_logo_precarga_${field}`, value);
+                          };
+
+                          const eventV = getPrecargaVal('event', 'position_v', 'top');
+                          const eventH = getPrecargaVal('event', 'position_h', 'center');
+                          const eventSize = getPrecargaVal('event', 'size', 60);
+                          const eventUnit = getPrecargaVal('event', 'unit', 'px');
+                          const eventEnabled = settings.event_logo_show_precarga ?? true;
+
+                          const partnerV = getPrecargaVal('partner', 'position_v', 'bottom');
+                          const partnerH = getPrecargaVal('partner', 'position_h', 'center');
+                          const partnerSize = getPrecargaVal('partner', 'size', 40);
+                          const partnerUnit = getPrecargaVal('partner', 'unit', 'px');
+                          const partnerEnabled = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
+
+                          return (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* COLUMNA 1: LOGO DEL EVENTO EN PRECARGA */}
+                              <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <Sparkles size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                          <span>Logo del Evento</span>
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                            Precarga
+                                          </span>
+                                        </h3>
+                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          Configurando pantalla de precarga
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* BOTÓN VISIBILIDAD */}
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('event_logo_show_precarga', !eventEnabled)}
+                                      className="px-2.5 py-1 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                                      style={{
+                                        backgroundColor: eventEnabled ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                                        borderColor: eventEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        color: eventEnabled ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                      }}
+                                      title={eventEnabled ? 'Visible en Precarga' : 'Oculto en Precarga'}
+                                    >
+                                      {eventEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                                      <span>{eventEnabled ? 'Visible' : 'Oculto'}</span>
+                                    </button>
+                                  </div>
+
+                                  {/* GRID INTERNO: VISTA PREVIA Y CONTROLES */}
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                    {/* VISTA PREVIA */}
+                                    <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                      <div
+                                        className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                      >
+                                        {displayEventLogo ? (
+                                          <img src={displayEventLogo} alt="Logo Evento" className="max-h-24 max-w-full object-contain drop-shadow-md" />
+                                        ) : (
+                                          <div className="flex flex-col items-center justify-center text-center p-2">
+                                            <ImageIcon size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
+                                            <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>Sin logo</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* CONTROLES */}
+                                    <div className="md:col-span-8 space-y-2.5">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Vert */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Vertical</label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'top', label: 'Arriba' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'bottom', label: 'Abajo' },
+                                            ].map((pos) => (
+                                              <button
+                                                key={pos.id}
+                                                type="button"
+                                                onClick={() => updatePrecargaLogo('event', 'position_v', pos.id)}
+                                                className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
+                                                style={{
+                                                  backgroundColor: eventV === pos.id ? 'var(--primary-accent)' : 'transparent',
+                                                  color: eventV === pos.id ? '#ffffff' : 'var(--text-muted)',
+                                                }}
+                                              >
+                                                {pos.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Horiz */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Horizontal</label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'left', label: 'Izq' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'right', label: 'Der' },
+                                            ].map((pos) => (
+                                              <button
+                                                key={pos.id}
+                                                type="button"
+                                                onClick={() => updatePrecargaLogo('event', 'position_h', pos.id)}
+                                                className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
+                                                style={{
+                                                  backgroundColor: eventH === pos.id ? 'var(--primary-accent)' : 'transparent',
+                                                  color: eventH === pos.id ? '#ffffff' : 'var(--text-muted)',
+                                                }}
+                                              >
+                                                {pos.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Tamaño */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Tamaño / Ancho Máximo</label>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <input
+                                              type="number"
+                                              min={10}
+                                              max={eventUnit === '%' ? 100 : 300}
+                                              value={eventSize}
+                                              onChange={(e) => updatePrecargaLogo('event', 'size', parseInt(e.target.value) || 30)}
+                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
+                                              style={{ color: 'var(--text-main)' }}
+                                            />
+                                          </div>
+                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {['px', '%'].map((u) => (
+                                              <button
+                                                key={u}
+                                                type="button"
+                                                onClick={() => updatePrecargaLogo('event', 'unit', u)}
+                                                className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all"
+                                                style={{
+                                                  backgroundColor: eventUnit === u ? 'var(--primary-accent)' : 'transparent',
+                                                  color: eventUnit === u ? '#ffffff' : 'var(--text-muted)',
+                                                }}
+                                              >
+                                                {u}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Márgenes */}
+                                      <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Márgenes</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {[
+                                            { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                            { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                            { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                            { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                          ].map((m) => {
+                                            const val = getPrecargaVal('event', m.field, 0);
+                                            const currentUnit = getPrecargaVal('event', m.unitField, 'px');
+                                            return (
+                                              <div key={m.field} className="flex flex-col gap-0.5">
+                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <input
+                                                      type="number"
+                                                      value={val}
+                                                      onChange={(e) => updatePrecargaLogo('event', m.field, parseInt(e.target.value) || 0)}
+                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                      style={{ color: 'var(--text-main)' }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    {['px', '%'].map((u) => (
+                                                      <button
+                                                        key={u}
+                                                        type="button"
+                                                        onClick={() => updatePrecargaLogo('event', m.unitField, u)}
+                                                        className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                        style={{
+                                                          backgroundColor: currentUnit === u ? 'var(--primary-accent)' : 'transparent',
+                                                          color: currentUnit === u ? '#ffffff' : 'var(--text-muted)',
+                                                        }}
+                                                      >
+                                                        {u}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* COLUMNA 2: LOGO DEL PARTNER / PROYECTO (POWERED BY) EN PRECARGA */}
+                              <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <ImageIcon size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                          <span>Logo Powered By (Proyecto)</span>
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                            Precarga
+                                          </span>
+                                        </h3>
+                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          Logo del pie de pantalla de precarga
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* BOTÓN VISIBILIDAD */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        updateSetting('precarga_show_logo', !partnerEnabled);
+                                        updateSetting('partner_logo_show_precarga', !partnerEnabled);
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                                      style={{
+                                        backgroundColor: partnerEnabled ? 'var(--primary-accent-light)' : 'var(--bg-app)',
+                                        borderColor: partnerEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        color: partnerEnabled ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                      }}
+                                      title={partnerEnabled ? 'Visible en Precarga' : 'Oculto en Precarga'}
+                                    >
+                                      {partnerEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                                      <span>{partnerEnabled ? 'Visible' : 'Oculto'}</span>
+                                    </button>
+                                  </div>
+
+                                  {/* GRID INTERNO: VISTA PREVIA Y CONTROLES */}
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                    {/* VISTA PREVIA */}
+                                    <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                      <div
+                                        className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                      >
+                                        <img src={displayPartnerLogo} alt="Logo Proyecto" className="max-h-20 max-w-full object-contain drop-shadow-md" />
+                                      </div>
+                                    </div>
+
+                                    {/* CONTROLES */}
+                                    <div className="md:col-span-8 space-y-2.5">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Vert */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Vertical</label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'top', label: 'Arriba' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'bottom', label: 'Abajo' },
+                                            ].map((pos) => (
+                                              <button
+                                                key={pos.id}
+                                                type="button"
+                                                onClick={() => updatePrecargaLogo('partner', 'position_v', pos.id)}
+                                                className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
+                                                style={{
+                                                  backgroundColor: partnerV === pos.id ? 'var(--primary-accent)' : 'transparent',
+                                                  color: partnerV === pos.id ? '#ffffff' : 'var(--text-muted)',
+                                                }}
+                                              >
+                                                {pos.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Horiz */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Horizontal</label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'left', label: 'Izq' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'right', label: 'Der' },
+                                            ].map((pos) => (
+                                              <button
+                                                key={pos.id}
+                                                type="button"
+                                                onClick={() => updatePrecargaLogo('partner', 'position_h', pos.id)}
+                                                className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
+                                                style={{
+                                                  backgroundColor: partnerH === pos.id ? 'var(--primary-accent)' : 'transparent',
+                                                  color: partnerH === pos.id ? '#ffffff' : 'var(--text-muted)',
+                                                }}
+                                              >
+                                                {pos.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Tamaño */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Tamaño / Ancho Máximo</label>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <input
+                                              type="number"
+                                              min={10}
+                                              max={partnerUnit === '%' ? 100 : 300}
+                                              value={partnerSize}
+                                              onChange={(e) => updatePrecargaLogo('partner', 'size', parseInt(e.target.value) || 30)}
+                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
+                                              style={{ color: 'var(--text-main)' }}
+                                            />
+                                          </div>
+                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {['px', '%'].map((u) => (
+                                              <button
+                                                key={u}
+                                                type="button"
+                                                onClick={() => updatePrecargaLogo('partner', 'unit', u)}
+                                                className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all"
+                                                style={{
+                                                  backgroundColor: partnerUnit === u ? 'var(--primary-accent)' : 'transparent',
+                                                  color: partnerUnit === u ? '#ffffff' : 'var(--text-muted)',
+                                                }}
+                                              >
+                                                {u}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Márgenes */}
+                                      <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Márgenes</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {[
+                                            { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                            { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                            { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                            { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                          ].map((m) => {
+                                            const val = getPrecargaVal('partner', m.field, 0);
+                                            const currentUnit = getPrecargaVal('partner', m.unitField, 'px');
+                                            return (
+                                              <div key={m.field} className="flex flex-col gap-0.5">
+                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <input
+                                                      type="number"
+                                                      value={val}
+                                                      onChange={(e) => updatePrecargaLogo('partner', m.field, parseInt(e.target.value) || 0)}
+                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                      style={{ color: 'var(--text-main)' }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    {['px', '%'].map((u) => (
+                                                      <button
+                                                        key={u}
+                                                        type="button"
+                                                        onClick={() => updatePrecargaLogo('partner', m.unitField, u)}
+                                                        className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                        style={{
+                                                          backgroundColor: currentUnit === u ? 'var(--primary-accent)' : 'transparent',
+                                                          color: currentUnit === u ? '#ffffff' : 'var(--text-muted)',
+                                                        }}
+                                                      >
+                                                        {u}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
 

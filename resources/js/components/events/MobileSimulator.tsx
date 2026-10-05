@@ -19,7 +19,10 @@ import {
     UserCircle,
     Search,
     Video,
-    ZoomIn
+    ZoomIn,
+    Loader2,
+    Hourglass,
+    Tv
 } from "lucide-react";
 
 interface MobileSimulatorProps {
@@ -566,6 +569,167 @@ export default function MobileSimulator({
             <div
                 className={`relative z-20 flex flex-col items-center justify-between w-full h-full transition-all duration-300 ${isLandscape ? "rotate-90" : ""}`}
             >
+                {/* ===== VISTA PRECARGA / SPLASH ===== */}
+                {previewView === "precarga" && (() => {
+                    const eventCfg = getLogoConfig('event', 'precarga');
+                    const partnerCfg = getLogoConfig('partner', 'precarga');
+                    const precargaTitle = settings.welcome_precarga_text || settings.precarga_title || "Cargando";
+                    const precargaSubtitle = settings.precarga_subtitle || "Espere por favor";
+                    const showLogo = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
+                    const precargaBgType = settings.precarga_bg_type || 'color';
+                    const precargaBgStyle: React.CSSProperties = {
+                        backgroundColor: precargaBgType === 'color' ? (settings.precarga_bg_color || '#0f172a') : undefined,
+                        backgroundImage: precargaBgType === 'gradient'
+                            ? (settings.precarga_bg_gradient || 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)')
+                            : precargaBgType === 'image' && settings.precarga_bg_image_url
+                            ? `url(${settings.precarga_bg_image_url})`
+                            : undefined,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    };
+
+                    const precargaTitleFontFamily = settings.precarga_title_font_family || settings.global_title_font_family || 'Inter';
+                    const precargaTitleFontSize = settings.precarga_title_font_size ? `${settings.precarga_title_font_size}px` : '13px';
+                    const precargaTitleColor = settings.precarga_title_font_color || '#ffffff';
+
+                    const precargaSubtitleFontFamily = settings.precarga_subtitle_font_family || settings.global_text_font_family || 'Inter';
+                    const precargaSubtitleFontSize = settings.precarga_subtitle_font_size ? `${settings.precarga_subtitle_font_size}px` : '10px';
+                    const precargaSubtitleColor = settings.precarga_subtitle_font_color || 'rgba(255, 255, 255, 0.8)';
+
+                    const cardBgColor = settings.precarga_card_bg_color || '#000000';
+                    const cardBgType = settings.precarga_card_bg_type || 'color';
+                    const cardGradient = settings.precarga_card_gradient_data;
+                    const isGlass = settings.precarga_card_glass_enabled ?? true;
+                    const cardOpacity = (settings.precarga_card_bg_opacity ?? 100) / 100;
+                    const cardBorderRadius = settings.precarga_card_border_radius !== undefined ? `${settings.precarga_card_border_radius}px` : '16px';
+                    const cardBorderWidth = settings.precarga_card_border_width !== undefined ? `${settings.precarga_card_border_width}px` : '1px';
+                    const cardBorderStyle = settings.precarga_card_border_style || 'solid';
+                    const cardBorderColor = settings.precarga_card_border_color || 'rgba(255, 255, 255, 0.15)';
+                    const cardShadowBlur = settings.precarga_card_shadow_blur || 16;
+                    const cardShadowColor = settings.precarga_card_shadow_color || 'rgba(0,0,0,0.4)';
+
+                    return (
+                        <div
+                            className="absolute inset-0 z-30 flex flex-col items-center justify-between p-5 text-center overflow-hidden"
+                            style={precargaBgStyle}
+                        >
+                            {/* Logo del evento en precarga */}
+                            {eventCfg.show && (
+                                <img
+                                    src={eventCfg.logoUrl!}
+                                    alt="Logo Evento"
+                                    style={eventCfg.style}
+                                    className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                />
+                            )}
+
+                            {/* Espaciador superior */}
+                            <div className="w-full h-6" />
+
+                            {/* RECUADRO CENTRAL DE CARGA */}
+                            <div
+                                className={`p-5 flex flex-col items-center justify-center w-full max-w-[210px] ${
+                                    isGlass ? 'backdrop-blur-md' : ''
+                                }`}
+                                style={{
+                                    backgroundColor: cardBgType === 'gradient' && cardGradient
+                                        ? undefined
+                                        : (isGlass ? `rgba(0, 0, 0, ${0.4 * cardOpacity})` : cardBgColor),
+                                    backgroundImage: cardBgType === 'gradient' && cardGradient ? cardGradient : undefined,
+                                    borderRadius: cardBorderRadius,
+                                    borderWidth: cardBorderWidth,
+                                    borderStyle: cardBorderStyle,
+                                    borderColor: cardBorderColor,
+                                    boxShadow: `0 ${cardShadowBlur / 2}px ${cardShadowBlur}px ${cardShadowColor}`,
+                                }}
+                            >
+                                {/* Icono de Cargando */}
+                                <div className="mb-2.5 relative flex items-center justify-center">
+                                    <Loader2 size={34} className="animate-spin text-white opacity-95 drop-shadow-md" />
+                                </div>
+
+                                {/* Título: "Cargando" */}
+                                <h2
+                                    className="tracking-wider drop-shadow-md"
+                                    style={{
+                                        fontFamily: precargaTitleFontFamily,
+                                        fontSize: precargaTitleFontSize,
+                                        color: precargaTitleColor,
+                                        fontWeight: settings.precarga_title_font_weight === 'normal' ? 'normal' : 'bold',
+                                        fontStyle: settings.precarga_title_font_style === 'italic' ? 'italic' : 'normal',
+                                        textDecoration: settings.precarga_title_text_decoration === 'underline' ? 'underline' : 'none',
+                                    }}
+                                >
+                                    {precargaTitle}
+                                </h2>
+
+                                {/* Subtítulo: "Espere por favor" */}
+                                <p
+                                    className="tracking-wide mt-1 drop-shadow-sm"
+                                    style={{
+                                        fontFamily: precargaSubtitleFontFamily,
+                                        fontSize: precargaSubtitleFontSize,
+                                        color: precargaSubtitleColor,
+                                        fontWeight: settings.precarga_subtitle_font_weight === 'bold' ? 'bold' : 'normal',
+                                        fontStyle: settings.precarga_subtitle_font_style === 'italic' ? 'italic' : 'normal',
+                                        textDecoration: settings.precarga_subtitle_text_decoration === 'underline' ? 'underline' : 'none',
+                                    }}
+                                >
+                                    {precargaSubtitle}
+                                </p>
+
+                                {/* Contenido adicional (si existe) */}
+                                {settings.precarga_content && (
+                                    <p
+                                        className="tracking-tight mt-1 opacity-90 drop-shadow-xs"
+                                        style={{
+                                            fontFamily: settings.precarga_content_font_family || 'Inter',
+                                            fontSize: settings.precarga_content_font_size ? `${settings.precarga_content_font_size}px` : '9px',
+                                            color: settings.precarga_content_font_color || '#cbd5e1',
+                                            fontWeight: settings.precarga_content_font_weight === 'bold' ? 'bold' : 'normal',
+                                            fontStyle: settings.precarga_content_font_style === 'italic' ? 'italic' : 'normal',
+                                            textDecoration: settings.precarga_content_text_decoration === 'underline' ? 'underline' : 'none',
+                                        }}
+                                    >
+                                        {settings.precarga_content}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* SECCIÓN INFERIOR: POWERED BY & LOGO PROYECTO */}
+                            <div className="flex flex-col items-center justify-center gap-1 mb-1">
+                                <span
+                                    className="tracking-widest uppercase select-none drop-shadow-xs"
+                                    style={{
+                                        fontFamily: settings.precarga_powered_by_font_family || 'Inter',
+                                        fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
+                                        color: settings.precarga_powered_by_font_color || 'rgba(255, 255, 255, 0.75)',
+                                        fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
+                                        fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
+                                        textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
+                                    }}
+                                >
+                                    {settings.precarga_powered_by_text || 'Powered by'}
+                                </span>
+                                {partnerCfg.show ? (
+                                    <img
+                                        src={partnerCfg.logoUrl!}
+                                        alt="Logo Partner"
+                                        style={partnerCfg.style}
+                                        className="drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]"
+                                    />
+                                ) : showLogo ? (
+                                    <img
+                                        src="/dinvited.png"
+                                        alt="Logo dInvited"
+                                        className="h-5 max-w-[110px] object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95"
+                                    />
+                                ) : null}
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 {/* ===== VISTA WELCOME / BIENVENIDA ===== */}
                 {previewView === "welcome" && (() => {
                     const eventCfg = getLogoConfig('event', 'welcome');
