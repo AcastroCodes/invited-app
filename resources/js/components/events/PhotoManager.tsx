@@ -476,13 +476,15 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
       {/* APP MÓVIL SUB-TAB (DPHOTOS CUSTOMIZER FULL) */}
       {subTab === 'app_movil' && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 items-stretch h-[calc(100vh-190px)] min-h-[580px]">
           {/* COLUMNA IZQUIERDA: PREVISUALIZACIÓN DE LA APP MÓVIL (MOBILE SIMULATOR) */}
-          <div className="xl:col-span-3 flex flex-col items-center h-[570px]">
-            <div className="sticky top-[85px] z-10 w-full flex flex-col items-center justify-between h-full py-0">
-              <div className="w-full flex flex-col items-center h-full">
-                {/* FRAME DEL TELÉFONO CON MOBILE SIMULATOR DE DPHOTOS */}
-                <div className="w-full max-w-[265px] h-[570px] rounded-[20px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10">
+          <div className="flex flex-col items-center justify-center h-full shrink-0">
+            <div className="flex flex-col items-center justify-center h-full py-0">
+              <div className="flex flex-col items-center justify-center h-full">
+                {/* FRAME DEL TELÉFONO CON ASPECT RATIO DINÁMICO (9 : 19.5 -> ~0.4615) */}
+                <div 
+                  className="h-full max-h-[calc(100vh-210px)] aspect-[9/19.5] rounded-[22px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10 flex flex-col justify-center"
+                >
                   {/* Isla Dinámica / Notch del teléfono */}
                   <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-40 border border-slate-800 flex items-center justify-end px-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-900 border border-slate-700" />
@@ -490,7 +492,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                   {/* ICONOS FLOTANTES FUERA DEL TELÉFONO EN LA PARTE SUPERIOR DERECHA (UNO SOBRE OTRO) */}
                   {(mobileActiveView === 'general' || mobileActiveView === 'welcome') && (
-                    <div className="absolute left-[calc(100%+10px)] top-1 z-50 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 shadow-2xl">
+                    <div className="absolute left-[calc(100%+8px)] top-2 z-50 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 shadow-2xl shrink-0">
                       {[
                         { id: 'welcome', label: 'Bienvenida', icon: Tv },
                         { id: 'camera', label: 'Cámara', icon: Camera },
@@ -530,8 +532,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
             </div>
           </div>
 
-          {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN */}
-          <div className="xl:col-span-9 space-y-3 pt-3 flex flex-col h-[570px]">
+          {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN (TOMA EL ANCHO SOBRANTE DINÁMICAMENTE) */}
+          <div className="flex-1 space-y-3 pt-1 flex flex-col h-full overflow-hidden min-w-0">
             {/* BARRA DE PANTALLA Y PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
             <div
               className="px-4 flex items-center justify-between gap-4 text-white shadow-md relative h-8 z-20 overflow-visible rounded-lg shrink-0"
