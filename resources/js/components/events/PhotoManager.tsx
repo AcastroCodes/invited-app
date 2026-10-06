@@ -476,50 +476,36 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
       {/* APP MÓVIL SUB-TAB (DPHOTOS CUSTOMIZER FULL) */}
       {subTab === 'app_movil' && (
-        <div className="flex flex-col lg:flex-row gap-5 items-stretch h-[calc(100vh-190px)] min-h-[580px]">
-          {/* COLUMNA IZQUIERDA: PREVISUALIZACIÓN DE LA APP MÓVIL (MOBILE SIMULATOR) */}
+        <div className="flex flex-col lg:flex-row gap-5 items-stretch h-[calc(100vh-350px)] max-h-[calc(100vh-350px)]">
+          {/* COLUMNA IZQUIERDA: PREVISUALIZACIÓN DE LA APP MÓVIL (MÓVIL + BOTONES DE ESTADO DE LA DERECHA) */}
           <div className="flex flex-col items-center justify-center h-full shrink-0">
             <div className="flex flex-col items-center justify-center h-full py-0">
-              <div className="flex flex-col items-center justify-center h-full">
-                {/* FRAME DEL TELÉFONO CON ASPECT RATIO DINÁMICO (9 : 19.5 -> ~0.4615) */}
+              {/* ENVOLTORIO CONTENEDOR DEL PREVIEW (INCLUYE EL TELÉFONO Y LOS BOTONES FLOTANTES A SU DERECHA) */}
+              <div className="relative flex items-center justify-center h-full max-h-full pr-14">
+                {/* FRAME DEL TELÉFONO CON ASPECT RATIO DINÁMICO (9 : 18 -> FORMATO ANDROID INTERMEDIO ESTÁNDAR) */}
                 <div 
-                  className="h-full max-h-[calc(100vh-210px)] aspect-[9/19.5] rounded-[22px] p-1.5 border-[4px] border-slate-900 shadow-2xl bg-black relative ring-1 ring-white/10 flex flex-col justify-center"
+                  className="h-full max-h-full aspect-[9/18] rounded-[22px] p-1.5 border-[4px] shadow-2xl relative flex flex-col justify-center shrink-0 overflow-hidden"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderColor: 'var(--border-color)',
+                  }}
                 >
                   {/* Isla Dinámica / Notch del teléfono */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-40 border border-slate-800 flex items-center justify-end px-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-900 border border-slate-700" />
+                  <div 
+                    className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3.5 rounded-full z-40 border flex items-center justify-end px-1"
+                    style={{
+                      backgroundColor: 'var(--bg-app)',
+                      borderColor: 'var(--border-color)',
+                    }}
+                  >
+                    <div 
+                      className="w-1.5 h-1.5 rounded-full border"
+                      style={{
+                        backgroundColor: 'var(--primary-accent)',
+                        borderColor: 'var(--border-color)',
+                      }}
+                    />
                   </div>
-
-                  {/* ICONOS FLOTANTES FUERA DEL TELÉFONO EN LA PARTE SUPERIOR DERECHA (UNO SOBRE OTRO) */}
-                  {(mobileActiveView === 'general' || mobileActiveView === 'welcome') && (
-                    <div className="absolute left-[calc(100%+8px)] top-2 z-50 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/80 shadow-2xl shrink-0">
-                      {[
-                        { id: 'welcome', label: 'Bienvenida', icon: Tv },
-                        { id: 'camera', label: 'Cámara', icon: Camera },
-                        { id: 'gallery', label: 'Galería', icon: ImageIcon },
-                      ].map((viewItem) => {
-                        const Icon = viewItem.icon;
-                        const isActive = previewView === viewItem.id;
-                        return (
-                          <button
-                            key={viewItem.id}
-                            type="button"
-                            title={`Ver vista de ${viewItem.label}`}
-                            onClick={() => setPreviewView(viewItem.id)}
-                            className="p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center"
-                            style={{
-                              backgroundColor: isActive ? 'var(--primary-accent)' : 'rgba(255, 255, 255, 0.1)',
-                              color: '#ffffff',
-                              border: isActive ? '1px solid var(--primary-accent)' : '1px solid rgba(255, 255, 255, 0.1)',
-                              boxShadow: isActive ? '0 0 8px var(--primary-accent)' : 'none',
-                            }}
-                          >
-                            <Icon size={15} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
 
                   <MobileSimulator
                     data={{ settings }}
@@ -528,15 +514,52 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     previewButtonState={containerTarget === 'botones' ? buttonState : undefined}
                   />
                 </div>
+
+                {/* BOTONES FLOTANTES INTEGRADOS CON LOS COLORES DEL PROYECTO */}
+                {(mobileActiveView === 'general' || mobileActiveView === 'welcome') && (
+                  <div 
+                    className="absolute right-2 top-2 z-50 flex flex-col gap-1.5 p-1.5 rounded-xl border shadow-2xl shrink-0 backdrop-blur-md"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                    }}
+                  >
+                    {[
+                      { id: 'welcome', label: 'Bienvenida', icon: Tv },
+                      { id: 'camera', label: 'Cámara', icon: Camera },
+                      { id: 'gallery', label: 'Galería', icon: ImageIcon },
+                    ].map((viewItem) => {
+                      const Icon = viewItem.icon;
+                      const isActive = previewView === viewItem.id;
+                      return (
+                        <button
+                          key={viewItem.id}
+                          type="button"
+                          title={`Ver vista de ${viewItem.label}`}
+                          onClick={() => setPreviewView(viewItem.id)}
+                          className="p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                          style={{
+                            backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
+                            color: isActive ? '#ffffff' : 'var(--text-muted)',
+                            border: `1px solid ${isActive ? 'var(--primary-accent)' : 'var(--border-color)'}`,
+                            boxShadow: isActive ? '0 0 8px var(--primary-accent-light)' : 'none',
+                          }}
+                        >
+                          <Icon size={15} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* COLUMNA DERECHA: PESTAÑAS Y CONTENIDO DE CONFIGURACIÓN (TOMA EL ANCHO SOBRANTE DINÁMICAMENTE) */}
-          <div className="flex-1 space-y-3 pt-1 flex flex-col h-full overflow-hidden min-w-0">
+          <div className="flex-1 space-y-3 pt-3 flex flex-col h-full overflow-hidden min-w-0">
             {/* BARRA DE PANTALLA Y PERSONALIZACIÓN MÓVIL (GENERAL, BIENVENIDA, CÁMARA, GALERÍA) Y BOTÓN DE GUARDAR */}
             <div
-              className="px-4 flex items-center justify-between gap-4 text-white shadow-md relative h-8 z-20 overflow-visible rounded-lg shrink-0"
+              className="px-4 flex items-center justify-between gap-4 text-white shadow-md relative h-9 z-20 overflow-visible rounded-lg shrink-0"
               style={{ backgroundColor: 'var(--primary-accent)' }}
             >
               <div className="flex items-center gap-4 flex-1 overflow-visible">
@@ -561,12 +584,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                         onClick={() => handleTabChange(tab.id as any)}
                         className={`flex items-center gap-2 rounded-lg font-extrabold transition-all cursor-pointer ${
                           isActive
-                            ? 'bg-white text-[var(--primary-accent)] shadow-2xl text-base px-6 py-2.5 -my-3.5 z-30 scale-110 border-[3.5px]'
+                            ? 'bg-white text-[var(--primary-accent)] shadow-2xl text-sm px-5 py-2 -my-2.5 z-30 scale-105 border-[3px]'
                             : 'bg-white/20 text-white hover:bg-white/35 p-1.5'
                         }`}
                         style={isActive ? { borderColor: 'var(--primary-accent)' } : undefined}
                       >
-                        <Icon size={isActive ? 19 : 18} />
+                        <Icon size={isActive ? 18 : 17} />
                         {isActive && <span>{tab.label}</span>}
                       </button>
                     );
