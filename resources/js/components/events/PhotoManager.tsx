@@ -187,7 +187,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [activeLogoState, setActiveLogoState] = useState<'precarga' | 'welcome' | 'camera' | 'gallery'>('welcome');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'qr' | 'bienvenida' | 'gps' | 'registro'>('precarga');
-  const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'fondos' | 'logos'>('fuentes');
+  const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
   const [precargaTextTarget, setPrecargaTextTarget] = useState<'title' | 'subtitle' | 'powered_by'>('title');
   const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'barra' | 'botones'>('fondo');
@@ -2642,10 +2642,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     {/* 2.1 SUB-PESTAÑA PRECARGA */}
                     {welcomeSubTab === 'precarga' && (
                       <div className="space-y-4">
-                        {/* SUB-PESTAÑAS DE CONTROLES EN PRECARGA (FUENTE, CONTENEDOR, LOGOS) */}
+                        {/* SUB-PESTAÑAS DE CONTROLES EN PRECARGA / QR (FUENTE, BOTONES, CONTENEDOR, LOGOS) */}
                         <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                           {[
                             { id: 'fuentes', label: 'Fuente', icon: Type },
+                            { id: 'botones', label: 'Botón', icon: MousePointerClick },
                             { id: 'fondos', label: 'Contenedor', icon: Palette },
                             { id: 'logos', label: 'Logos', icon: ImageIcon },
                           ].map((sub) => {
@@ -2933,7 +2934,174 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           );
                         })()}
 
-                        {/* 2.1.2 SUB-PESTAÑA CONTENEDOR EN PRECARGA */}
+                        {/* 2.1.2 SUB-PESTAÑA BOTÓN EN PRECARGA / QR */}
+                        {precargaSubTab === 'botones' && (
+                          <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                              <div className="flex items-center gap-2.5">
+                                <MousePointerClick size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                <div className="flex flex-col leading-tight">
+                                  <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                    Estilo del Botón ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                  </h3>
+                                  <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                    Personaliza los colores, opacidad, bordes y sombra del botón "Entrar"
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* PESTAÑAS NORMAL / SOBRE */}
+                              <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                {[
+                                  { id: 'normal', label: 'Normal' },
+                                  { id: 'hover', label: 'Sobre' },
+                                ].map((modeItem) => {
+                                  const isModeActive = buttonState === modeItem.id;
+                                  return (
+                                    <button
+                                      key={modeItem.id}
+                                      type="button"
+                                      onClick={() => setButtonState(modeItem.id as any)}
+                                      className="px-2.5 py-1 text-[11px] font-extrabold rounded-md transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                        color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      {modeItem.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                              {/* Color del Botón */}
+                              <div>
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Color ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={buttonState === 'hover' ? (settings.global_button_hover_bg || '#4f46e5') : (settings.global_button_bg || '#6366F1')}
+                                    onChange={(e) => updateSetting(buttonState === 'hover' ? 'global_button_hover_bg' : 'global_button_bg', e.target.value)}
+                                    className="w-9 h-9 rounded-xl border border-gray-300 dark:border-gray-700 cursor-pointer p-0.5 bg-transparent"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={buttonState === 'hover' ? (settings.global_button_hover_bg || '#4f46e5') : (settings.global_button_bg || '#6366F1')}
+                                    onChange={(e) => updateSetting(buttonState === 'hover' ? 'global_button_hover_bg' : 'global_button_bg', e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-mono font-bold uppercase"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Color del Texto */}
+                              <div>
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Color del Texto
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={settings.global_button_text || '#ffffff'}
+                                    onChange={(e) => updateSetting('global_button_text', e.target.value)}
+                                    className="w-9 h-9 rounded-xl border border-gray-300 dark:border-gray-700 cursor-pointer p-0.5 bg-transparent"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={settings.global_button_text || '#ffffff'}
+                                    onChange={(e) => updateSetting('global_button_text', e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-mono font-bold uppercase"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Redondez del Botón */}
+                              <div>
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                  Redondez (Esquinas)
+                                </label>
+                                <div
+                                  className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const curr = parseInt(settings.global_button_radius ?? 16);
+                                      const nextVal = Math.max(0, curr - 2);
+                                      updateSetting('global_button_radius', nextVal);
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Disminuir redondez"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+
+                                  <div className="flex-1 flex items-center justify-center px-1">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={50}
+                                      value={settings.global_button_radius ?? 16}
+                                      onChange={(e) => updateSetting('global_button_radius', parseInt(e.target.value) || 0)}
+                                      className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      style={{ color: 'var(--text-main)' }}
+                                    />
+                                    <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                      px
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const curr = parseInt(settings.global_button_radius ?? 16);
+                                      const nextVal = Math.min(50, curr + 2);
+                                      updateSetting('global_button_radius', nextVal);
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Aumentar redondez"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Sombra del Botón */}
+                              <div>
+                                <div className="flex items-center justify-between p-2 rounded-xl border h-9" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Sombra de Botón</span>
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.global_button_shadow ?? true}
+                                    onChange={(e) => updateSetting('global_button_shadow', e.target.checked)}
+                                    className="w-4 h-4 rounded cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2.1.3 SUB-PESTAÑA CONTENEDOR EN PRECARGA */}
                         {precargaSubTab === 'fondos' && (() => {
                           const isFondoTarget = precargaContainerTarget === 'fondo';
                           const prefix = isFondoTarget ? 'precarga_screen' : 'precarga_card';
