@@ -362,7 +362,7 @@ export default function MobileSimulator({
         : null;
 
     const activeEventLogoUrl = settings.event_logo_url || eventLogoUrl;
-    const activePartnerLogoUrl = settings.partner_logo_url || partnerLogoUrl || settings.event_icon_url;
+    const activePartnerLogoUrl = settings.project_logo_precarga_url || settings.partner_logo_precarga_url || settings.partner_logo_url || partnerLogoUrl || settings.event_icon_url || "/dinvited.png";
 
     const getLogoConfig = (type: 'event' | 'partner', view: string) => {
         const isEvent = type === 'event';
@@ -613,16 +613,6 @@ export default function MobileSimulator({
                             className="absolute inset-0 z-30 flex flex-col items-center justify-between p-5 text-center overflow-hidden"
                             style={precargaBgStyle}
                         >
-                            {/* Logo del evento en precarga */}
-                            {eventCfg.show && (
-                                <img
-                                    src={eventCfg.logoUrl!}
-                                    alt="Logo Evento"
-                                    style={eventCfg.style}
-                                    className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
-                                />
-                            )}
-
                             {/* Espaciador superior */}
                             <div className="w-full h-6" />
 
@@ -697,35 +687,69 @@ export default function MobileSimulator({
                             </div>
 
                             {/* SECCIÓN INFERIOR: POWERED BY & LOGO PROYECTO */}
-                            <div className="flex flex-col items-center justify-center gap-1 mb-1">
-                                <span
-                                    className="tracking-widest uppercase select-none drop-shadow-xs"
-                                    style={{
-                                        fontFamily: settings.precarga_powered_by_font_family || 'Inter',
-                                        fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
-                                        color: settings.precarga_powered_by_font_color || 'rgba(255, 255, 255, 0.75)',
-                                        fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
-                                        fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
-                                        textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
-                                    }}
-                                >
-                                    {settings.precarga_powered_by_text || 'Powered by'}
-                                </span>
-                                {partnerCfg.show ? (
-                                    <img
-                                        src={partnerCfg.logoUrl!}
-                                        alt="Logo Partner"
-                                        style={partnerCfg.style}
-                                        className="drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]"
-                                    />
-                                ) : showLogo ? (
-                                    <img
-                                        src="/dinvited.png"
-                                        alt="Logo dInvited"
-                                        className="h-5 max-w-[110px] object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95"
-                                    />
-                                ) : null}
-                            </div>
+                            {showLogo ? (() => {
+                                const poweredPos = settings.precarga_powered_by_position || settings.partner_logo_precarga_powered_by_position || 'top';
+                                let flexDirClass = 'flex-col';
+                                if (poweredPos === 'bottom') flexDirClass = 'flex-col-reverse';
+                                else if (poweredPos === 'left') flexDirClass = 'flex-row items-center';
+                                else if (poweredPos === 'right') flexDirClass = 'flex-row-reverse items-center';
+
+                                const getVal = (field: string, defaultVal: any) => {
+                                    const key = `partner_logo_precarga_${field}`;
+                                    if (settings[key] !== undefined) return settings[key];
+                                    return defaultVal;
+                                };
+
+                                const size = getVal('size', 40);
+                                const unit = getVal('unit', 'px');
+                                const mTop = getVal('margin_top', 0);
+                                const mBottom = getVal('margin_bottom', 0);
+                                const mLeft = getVal('margin_left', 0);
+                                const mRight = getVal('margin_right', 0);
+                                const mTopUnit = getVal('margin_top_unit', 'px');
+                                const mBottomUnit = getVal('margin_bottom_unit', 'px');
+                                const mLeftUnit = getVal('margin_left_unit', 'px');
+                                const mRightUnit = getVal('margin_right_unit', 'px');
+
+                                const projectLogoStyle: React.CSSProperties = {
+                                    width: unit === '%' ? `${size}%` : `${size}px`,
+                                    maxHeight: '44px',
+                                    marginTop: `${mTop}${mTopUnit}`,
+                                    marginBottom: `${mBottom}${mBottomUnit}`,
+                                    marginLeft: `${mLeft}${mLeftUnit}`,
+                                    marginRight: `${mRight}${mRightUnit}`,
+                                };
+
+                                const displayLogo = settings.project_logo_precarga_url || "/dinvited.png";
+
+                                return (
+                                    <div className={`flex ${flexDirClass} items-center justify-center gap-1.5 mb-2 shrink-0 z-20`}>
+                                        <span
+                                            className="tracking-widest uppercase select-none drop-shadow-xs shrink-0"
+                                            style={{
+                                                fontFamily: settings.precarga_powered_by_font_family || 'Inter',
+                                                fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
+                                                color: settings.precarga_powered_by_font_color || 'rgba(255, 255, 255, 0.75)',
+                                                fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
+                                                fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
+                                                textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
+                                            }}
+                                        >
+                                            {settings.precarga_powered_by_text || 'Powered by'}
+                                        </span>
+                                        {showLogo && (
+                                            <img
+                                                src={displayLogo}
+                                                alt="Logo del Proyecto dInvited"
+                                                style={projectLogoStyle}
+                                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0"
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })() : (
+                                <div className="w-full h-6 shrink-0" />
+                            )}
                         </div>
                     );
                 })()}

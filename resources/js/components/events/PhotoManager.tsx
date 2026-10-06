@@ -62,6 +62,102 @@ interface Photo {
   created_at: string;
 }
 
+interface CtrlPixelPorcentageProps {
+  value: number;
+  unit: string;
+  onChangeValue: (val: number) => void;
+  onChangeUnit: (unit: string) => void;
+  min?: number;
+  max?: number;
+}
+
+const CtrlPixelPorcentage = ({
+  value,
+  unit,
+  onChangeValue,
+  onChangeUnit,
+  min = -100,
+  max = 300,
+}: CtrlPixelPorcentageProps) => (
+  <div className="flex items-center gap-1.5 w-full">
+    {/* Stepper container: [-] [ valor ] [+] */}
+    <div
+      className="flex-1 flex items-center h-8 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] shadow-2xs min-w-0"
+      style={{
+        backgroundColor: 'var(--bg-app)',
+        borderColor: 'var(--border-color)',
+      }}
+    >
+      {/* Botón Disminuir (-) */}
+      <button
+        type="button"
+        onClick={() => onChangeValue(Math.max(min, (parseInt(value as any) || 0) - 1))}
+        className="w-7 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Disminuir"
+      >
+        <Minus size={11} />
+      </button>
+
+      {/* Input de valor numérico */}
+      <div className="flex-1 min-w-0 flex items-center justify-center px-1 h-full">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChangeValue(parseInt(e.target.value) || 0)}
+          className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          style={{ color: 'var(--text-main)' }}
+        />
+      </div>
+
+      {/* Botón Aumentar (+) */}
+      <button
+        type="button"
+        onClick={() => onChangeValue(Math.min(max, (parseInt(value as any) || 0) + 1))}
+        className="w-7 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+          color: 'var(--primary-accent)',
+        }}
+        title="Aumentar"
+      >
+        <Plus size={11} />
+      </button>
+    </div>
+
+    {/* Espacio + Selector de Unidad (% y px) */}
+    <div
+      className="flex items-center h-8 rounded-xl border p-0.5 shrink-0 shadow-2xs gap-0.5"
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        borderColor: 'var(--border-color)',
+      }}
+    >
+      {['px', '%'].map((u) => (
+        <button
+          key={u}
+          type="button"
+          onClick={() => onChangeUnit(u)}
+          className="px-2 h-full text-[9px] font-extrabold rounded-lg transition-all cursor-pointer flex items-center justify-center"
+          style={{
+            backgroundColor: unit === u ? 'var(--primary-accent)' : 'transparent',
+            color: unit === u ? '#ffffff' : 'var(--text-muted)',
+          }}
+        >
+          {u}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: PhotoManagerProps) {
   const [subTab, setSubTabState] = useState<'app_movil' | 'display' | 'totem' | 'moderation' | 'qr'>(activeSubTab || 'app_movil');
 
@@ -90,7 +186,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [previewView, setPreviewView] = useState<string>('welcome');
   const [activeLogoState, setActiveLogoState] = useState<'precarga' | 'welcome' | 'camera' | 'gallery'>('welcome');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
-  const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'bienvenida' | 'gps' | 'registro'>('precarga');
+  const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'qr' | 'bienvenida' | 'gps' | 'registro'>('precarga');
   const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
   const [precargaTextTarget, setPrecargaTextTarget] = useState<'title' | 'subtitle' | 'powered_by'>('title');
@@ -2509,6 +2605,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       {[
                         { id: 'precarga', label: 'Precarga', icon: Hourglass },
+                        { id: 'qr', label: 'Código / Escaneo QR', icon: QrCode },
                         { id: 'bienvenida', label: 'Bienvenida', icon: Tv },
                         { id: 'gps', label: 'Verificación GPS', icon: MapPin },
                         { id: 'registro', label: 'Registro', icon: UserPlus },
@@ -2523,7 +2620,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                               setWelcomeSubTab(sub.id as any);
                               if (sub.id === 'precarga') {
                                 setPreviewView('precarga');
-                              } else if (sub.id === 'bienvenida') {
+                              } else if (sub.id === 'bienvenida' || sub.id === 'qr') {
                                 setPreviewView('welcome');
                               }
                             }}
@@ -2573,7 +2670,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                         </div>
 
                         {/* 2.1.1 SUB-PESTAÑA FUENTES EN PRECARGA */}
-                        {precargaSubTab === 'fuentes' && (
+                        {precargaSubTab === 'fuentes' && (() => {
+                          const partnerEnabled = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
+                          const isPoweredByDisabled = precargaTextTarget === 'powered_by' && !partnerEnabled;
+
+                          return (
                           <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                             <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
                               <div className="flex items-center gap-2.5">
@@ -2596,31 +2697,46 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   { id: 'powered_by', label: 'Powered by' },
                                 ].map((targetItem) => {
                                   const isTargetActive = precargaTextTarget === targetItem.id;
+                                  const isPoweredByItem = targetItem.id === 'powered_by';
+                                  const isItemDisabled = isPoweredByItem && !partnerEnabled;
+
                                   return (
                                     <button
                                       key={targetItem.id}
                                       type="button"
                                       onClick={() => setPrecargaTextTarget(targetItem.id as any)}
-                                      className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                      className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1"
                                       style={{
                                         backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
-                                        color: isTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                        color: isTargetActive ? '#ffffff' : isItemDisabled ? 'var(--text-muted)' : 'var(--text-muted)',
+                                        opacity: isItemDisabled ? 0.6 : 1,
                                       }}
+                                      title={isItemDisabled ? 'Visibilidad desactivada en la pestaña Logos' : undefined}
                                     >
-                                      {targetItem.label}
+                                      <span>{targetItem.label}</span>
+                                      {isItemDisabled && <EyeOff size={11} className="shrink-0" />}
                                     </button>
                                   );
                                 })}
                               </div>
                             </div>
 
+                            {/* ADVERTENCIA DE VISIBILIDAD SI POWERED BY ESTÁ DESACTIVADO */}
+                            {isPoweredByDisabled && (
+                              <div className="p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}>
+                                <EyeOff size={16} className="shrink-0" />
+                                <span>El texto "Powered by" y el Logo están desactivados. Activa el suiche de visibilidad en la pestaña <strong>Logos</strong> para habilitar su edición y visualización.</span>
+                              </div>
+                            )}
+
                             {/* CAMPO TEXTO / CONTENIDO */}
-                            <div>
+                            <div className={isPoweredByDisabled ? 'opacity-50 pointer-events-none' : ''}>
                               <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                 {precargaTextTarget === 'title' ? 'Texto del Título' : precargaTextTarget === 'subtitle' ? 'Texto del Contenido' : 'Texto de Powered by'}
                               </label>
                               <input
                                 type="text"
+                                disabled={isPoweredByDisabled}
                                 value={
                                   precargaTextTarget === 'title'
                                     ? (settings.welcome_precarga_text ?? settings.precarga_title ?? 'Cargando')
@@ -2651,7 +2767,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                             </div>
 
                             {/* CONTROLES DE TIPOGRAFÍA Y ESTILOS */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end ${isPoweredByDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
                               {/* FUENTE */}
                               <div className="lg:col-span-2">
                                 <FontPicker
@@ -2813,7 +2929,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                               </div>
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
 
                         {/* 2.1.2 SUB-PESTAÑA CONTENEDOR EN PRECARGA */}
                         {precargaSubTab === 'fondos' && (() => {
@@ -3171,238 +3288,30 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           );
                         })()}
 
-                        {/* 2.1.3 SUB-PESTAÑA LOGOS EN PRECARGA */}
+                        {/* 2.1.3 SUB-PESTAÑA LOGOS EN PRECARGA (EXCLUSIVAMENTE LOGO DEL PROYECTO) */}
                         {precargaSubTab === 'logos' && (() => {
-                          const displayEventLogo = settings.event_logo_url || eventData?.logo_url || (eventData?.logo ? `/storage/${eventData.logo}` : null);
-                          const displayPartnerLogo = settings.partner_logo_url 
-                            || eventData?.partner_logo_url 
-                            || (eventData?.partner_logo ? `/storage/${eventData.partner_logo}` : null)
-                            || eventData?.partner?.logo_url
-                            || (eventData?.partner?.logo ? `/storage/${eventData.partner.logo}` : null)
-                            || eventData?.branding?.logo
-                            || '/dinvited.png';
+                          const displayProjectLogo = settings.project_logo_precarga_url || '/dinvited.png';
 
-                          // Helpers para Precarga
-                          const getPrecargaVal = (type: 'event' | 'partner', field: string, defaultVal: any) => {
-                            const key = `${type}_logo_precarga_${field}`;
+                          // Helper para Partner en Precarga
+                          const getPrecargaPartnerVal = (field: string, defaultVal: any) => {
+                            const key = `partner_logo_precarga_${field}`;
                             if (settings[key] !== undefined) return settings[key];
                             return defaultVal;
                           };
 
-                          const updatePrecargaLogo = (type: 'event' | 'partner', field: string, value: any) => {
-                            updateSetting(`${type}_logo_precarga_${field}`, value);
+                          const updatePrecargaPartnerLogo = (field: string, value: any) => {
+                            updateSetting(`partner_logo_precarga_${field}`, value);
                           };
 
-                          const eventV = getPrecargaVal('event', 'position_v', 'top');
-                          const eventH = getPrecargaVal('event', 'position_h', 'center');
-                          const eventSize = getPrecargaVal('event', 'size', 60);
-                          const eventUnit = getPrecargaVal('event', 'unit', 'px');
-                          const eventEnabled = settings.event_logo_show_precarga ?? true;
-
-                          const partnerV = getPrecargaVal('partner', 'position_v', 'bottom');
-                          const partnerH = getPrecargaVal('partner', 'position_h', 'center');
-                          const partnerSize = getPrecargaVal('partner', 'size', 40);
-                          const partnerUnit = getPrecargaVal('partner', 'unit', 'px');
+                          const partnerV = getPrecargaPartnerVal('position_v', 'bottom');
+                          const partnerH = getPrecargaPartnerVal('position_h', 'center');
+                          const partnerSize = getPrecargaPartnerVal('size', 40);
+                          const partnerUnit = getPrecargaPartnerVal('unit', 'px');
                           const partnerEnabled = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
 
                           return (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                              {/* COLUMNA 1: LOGO DEL EVENTO EN PRECARGA */}
-                              <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                                <div>
-                                  <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
-                                    <div className="flex items-center gap-2">
-                                      <Sparkles size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
-                                      <div className="flex flex-col leading-tight">
-                                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
-                                          <span>Logo del Evento</span>
-                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
-                                            Precarga
-                                          </span>
-                                        </h3>
-                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                                          Configurando pantalla de precarga
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* BOTÓN VISIBILIDAD */}
-                                    <button
-                                      type="button"
-                                      onClick={() => updateSetting('event_logo_show_precarga', !eventEnabled)}
-                                      className="px-2.5 py-1 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                                      style={{
-                                        backgroundColor: eventEnabled ? 'var(--primary-accent-light)' : 'var(--bg-app)',
-                                        borderColor: eventEnabled ? 'var(--primary-accent)' : 'var(--border-color)',
-                                        color: eventEnabled ? 'var(--primary-accent)' : 'var(--text-muted)',
-                                      }}
-                                      title={eventEnabled ? 'Visible en Precarga' : 'Oculto en Precarga'}
-                                    >
-                                      {eventEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
-                                      <span>{eventEnabled ? 'Visible' : 'Oculto'}</span>
-                                    </button>
-                                  </div>
-
-                                  {/* GRID INTERNO: VISTA PREVIA Y CONTROLES */}
-                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
-                                    {/* VISTA PREVIA */}
-                                    <div className="md:col-span-4 flex flex-col items-center justify-center">
-                                      <div
-                                        className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
-                                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                                      >
-                                        {displayEventLogo ? (
-                                          <img src={displayEventLogo} alt="Logo Evento" className="max-h-24 max-w-full object-contain drop-shadow-md" />
-                                        ) : (
-                                          <div className="flex flex-col items-center justify-center text-center p-2">
-                                            <ImageIcon size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
-                                            <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>Sin logo</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* CONTROLES */}
-                                    <div className="md:col-span-8 space-y-2.5">
-                                      <div className="grid grid-cols-2 gap-2">
-                                        {/* Vert */}
-                                        <div>
-                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Vertical</label>
-                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            {[
-                                              { id: 'top', label: 'Arriba' },
-                                              { id: 'center', label: 'Centro' },
-                                              { id: 'bottom', label: 'Abajo' },
-                                            ].map((pos) => (
-                                              <button
-                                                key={pos.id}
-                                                type="button"
-                                                onClick={() => updatePrecargaLogo('event', 'position_v', pos.id)}
-                                                className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
-                                                style={{
-                                                  backgroundColor: eventV === pos.id ? 'var(--primary-accent)' : 'transparent',
-                                                  color: eventV === pos.id ? '#ffffff' : 'var(--text-muted)',
-                                                }}
-                                              >
-                                                {pos.label}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </div>
-
-                                        {/* Horiz */}
-                                        <div>
-                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Horizontal</label>
-                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            {[
-                                              { id: 'left', label: 'Izq' },
-                                              { id: 'center', label: 'Centro' },
-                                              { id: 'right', label: 'Der' },
-                                            ].map((pos) => (
-                                              <button
-                                                key={pos.id}
-                                                type="button"
-                                                onClick={() => updatePrecargaLogo('event', 'position_h', pos.id)}
-                                                className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
-                                                style={{
-                                                  backgroundColor: eventH === pos.id ? 'var(--primary-accent)' : 'transparent',
-                                                  color: eventH === pos.id ? '#ffffff' : 'var(--text-muted)',
-                                                }}
-                                              >
-                                                {pos.label}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* Tamaño */}
-                                      <div>
-                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Tamaño / Ancho Máximo</label>
-                                        <div className="flex items-center gap-1.5">
-                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            <input
-                                              type="number"
-                                              min={10}
-                                              max={eventUnit === '%' ? 100 : 300}
-                                              value={eventSize}
-                                              onChange={(e) => updatePrecargaLogo('event', 'size', parseInt(e.target.value) || 30)}
-                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
-                                              style={{ color: 'var(--text-main)' }}
-                                            />
-                                          </div>
-                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            {['px', '%'].map((u) => (
-                                              <button
-                                                key={u}
-                                                type="button"
-                                                onClick={() => updatePrecargaLogo('event', 'unit', u)}
-                                                className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all"
-                                                style={{
-                                                  backgroundColor: eventUnit === u ? 'var(--primary-accent)' : 'transparent',
-                                                  color: eventUnit === u ? '#ffffff' : 'var(--text-muted)',
-                                                }}
-                                              >
-                                                {u}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* Márgenes */}
-                                      <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
-                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Márgenes</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                          {[
-                                            { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
-                                            { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
-                                            { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
-                                            { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
-                                          ].map((m) => {
-                                            const val = getPrecargaVal('event', m.field, 0);
-                                            const currentUnit = getPrecargaVal('event', m.unitField, 'px');
-                                            return (
-                                              <div key={m.field} className="flex flex-col gap-0.5">
-                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
-                                                <div className="flex items-center gap-1">
-                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    <input
-                                                      type="number"
-                                                      value={val}
-                                                      onChange={(e) => updatePrecargaLogo('event', m.field, parseInt(e.target.value) || 0)}
-                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
-                                                      style={{ color: 'var(--text-main)' }}
-                                                    />
-                                                  </div>
-                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    {['px', '%'].map((u) => (
-                                                      <button
-                                                        key={u}
-                                                        type="button"
-                                                        onClick={() => updatePrecargaLogo('event', m.unitField, u)}
-                                                        className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
-                                                        style={{
-                                                          backgroundColor: currentUnit === u ? 'var(--primary-accent)' : 'transparent',
-                                                          color: currentUnit === u ? '#ffffff' : 'var(--text-muted)',
-                                                        }}
-                                                      >
-                                                        {u}
-                                                      </button>
-                                                    ))}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* COLUMNA 2: LOGO DEL PARTNER / PROYECTO (POWERED BY) EN PRECARGA */}
+                            <div className="w-full">
+                              {/* BLOQUE: LOGO DEL PROYECTO (POWERED BY) EN PRECARGA */}
                               <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                 <div>
                                   <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
@@ -3410,13 +3319,13 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                       <ImageIcon size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
                                       <div className="flex flex-col leading-tight">
                                         <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
-                                          <span>Logo Powered By (Proyecto)</span>
+                                          <span>Logo del Proyecto</span>
                                           <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
                                             Precarga
                                           </span>
                                         </h3>
                                         <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                                          Logo del pie de pantalla de precarga
+                                          Logo dInvited del pie de pantalla de precarga
                                         </span>
                                       </div>
                                     </div>
@@ -3449,7 +3358,37 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
                                         style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                                       >
-                                        <img src={displayPartnerLogo} alt="Logo Proyecto" className="max-h-20 max-w-full object-contain drop-shadow-md" />
+                                        {(() => {
+                                           const poweredPos = settings.precarga_powered_by_position || settings.partner_logo_precarga_powered_by_position || 'top';
+                                           let flexDirClass = 'flex-col';
+                                           if (poweredPos === 'bottom') flexDirClass = 'flex-col-reverse';
+                                           else if (poweredPos === 'left') flexDirClass = 'flex-row items-center';
+                                           else if (poweredPos === 'right') flexDirClass = 'flex-row-reverse items-center';
+
+                                           const poweredText = settings.precarga_powered_by_text || 'Powered by';
+
+                                           return (
+                                             <div className={`flex ${flexDirClass} items-center justify-center gap-1.5`}>
+                                               <span
+                                                 className="tracking-widest uppercase select-none text-[9px] font-extrabold opacity-80 shrink-0"
+                                                 style={{
+                                                   fontFamily: settings.precarga_powered_by_font_family || 'Inter',
+                                                   color: settings.precarga_powered_by_font_color || 'var(--text-main)',
+                                                 }}
+                                               >
+                                                 {poweredText}
+                                               </span>
+                                               {displayProjectLogo ? (
+                                                 <img src={displayProjectLogo} alt="Logo del Proyecto" className="max-h-16 max-w-full object-contain drop-shadow-md shrink-0" />
+                                               ) : (
+                                                 <div className="flex flex-col items-center justify-center text-center p-2 shrink-0">
+                                                   <ImageIcon size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
+                                                   <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>Sin logo</span>
+                                                 </div>
+                                               )}
+                                             </div>
+                                           );
+                                         })()}
                                       </div>
                                     </div>
 
@@ -3468,7 +3407,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                               <button
                                                 key={pos.id}
                                                 type="button"
-                                                onClick={() => updatePrecargaLogo('partner', 'position_v', pos.id)}
+                                                onClick={() => updatePrecargaPartnerLogo('position_v', pos.id)}
                                                 className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
                                                 style={{
                                                   backgroundColor: partnerV === pos.id ? 'var(--primary-accent)' : 'transparent',
@@ -3493,7 +3432,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                               <button
                                                 key={pos.id}
                                                 type="button"
-                                                onClick={() => updatePrecargaLogo('partner', 'position_h', pos.id)}
+                                                onClick={() => updatePrecargaPartnerLogo('position_h', pos.id)}
                                                 className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center cursor-pointer"
                                                 style={{
                                                   backgroundColor: partnerH === pos.id ? 'var(--primary-accent)' : 'transparent',
@@ -3507,98 +3446,138 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         </div>
                                       </div>
 
-                                      {/* Tamaño */}
-                                      <div>
-                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Tamaño / Ancho Máximo</label>
-                                        <div className="flex items-center gap-1.5">
-                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            <input
-                                              type="number"
-                                              min={10}
-                                              max={partnerUnit === '%' ? 100 : 300}
-                                              value={partnerSize}
-                                              onChange={(e) => updatePrecargaLogo('partner', 'size', parseInt(e.target.value) || 30)}
-                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
-                                              style={{ color: 'var(--text-main)' }}
-                                            />
-                                          </div>
-                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            {['px', '%'].map((u) => (
-                                              <button
-                                                key={u}
-                                                type="button"
-                                                onClick={() => updatePrecargaLogo('partner', 'unit', u)}
-                                                className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all"
-                                                style={{
-                                                  backgroundColor: partnerUnit === u ? 'var(--primary-accent)' : 'transparent',
-                                                  color: partnerUnit === u ? '#ffffff' : 'var(--text-muted)',
-                                                }}
-                                              >
-                                                {u}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      </div>
+                                                                            {/* Tamaño y Ubicación Texto Powered By */}
+                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                         <div>
+                                           <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Tamaño / Ancho Máximo</label>
+                                           <CtrlPixelPorcentage
+                                             value={partnerSize}
+                                             unit={partnerUnit}
+                                             onChangeValue={(v) => updatePrecargaPartnerLogo('size', v)}
+                                             onChangeUnit={(u) => updatePrecargaPartnerLogo('unit', u)}
+                                             min={10}
+                                             max={partnerUnit === '%' ? 100 : 300}
+                                           />
+                                         </div>
+
+                                         <div>
+                                           <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Ubicación Texto</label>
+                                           <div className="flex p-0.5 rounded-xl border h-8 gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                             {[
+                                               { id: 'top', label: 'Arriba' },
+                                               { id: 'bottom', label: 'Abajo' },
+                                               { id: 'left', label: 'Izq' },
+                                               { id: 'right', label: 'Der' },
+                                             ].map((posItem) => {
+                                               const currentPos = settings.precarga_powered_by_position || settings.partner_logo_precarga_powered_by_position || 'top';
+                                               const isPosActive = currentPos === posItem.id;
+                                               return (
+                                                 <button
+                                                   key={posItem.id}
+                                                   type="button"
+                                                   onClick={() => {
+                                                     updateSetting('precarga_powered_by_position', posItem.id);
+                                                     updateSetting('partner_logo_precarga_powered_by_position', posItem.id);
+                                                   }}
+                                                   className="flex-1 py-1 text-[9px] font-bold rounded-lg transition-all text-center cursor-pointer flex items-center justify-center"
+                                                   style={{
+                                                     backgroundColor: isPosActive ? 'var(--primary-accent)' : 'transparent',
+                                                     color: isPosActive ? '#ffffff' : 'var(--text-muted)',
+                                                   }}
+                                                 >
+                                                   {posItem.label}
+                                                 </button>
+                                               );
+                                             })}
+                                           </div>
+                                         </div>
+                                       </div>
 
                                       {/* Márgenes */}
                                       <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
                                         <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Márgenes</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                          {[
-                                            { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
-                                            { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
-                                            { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
-                                            { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
-                                          ].map((m) => {
-                                            const val = getPrecargaVal('partner', m.field, 0);
-                                            const currentUnit = getPrecargaVal('partner', m.unitField, 'px');
-                                            return (
-                                              <div key={m.field} className="flex flex-col gap-0.5">
-                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
-                                                <div className="flex items-center gap-1">
-                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    <input
-                                                      type="number"
-                                                      value={val}
-                                                      onChange={(e) => updatePrecargaLogo('partner', m.field, parseInt(e.target.value) || 0)}
-                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
-                                                      style={{ color: 'var(--text-main)' }}
-                                                    />
-                                                  </div>
-                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    {['px', '%'].map((u) => (
-                                                      <button
-                                                        key={u}
-                                                        type="button"
-                                                        onClick={() => updatePrecargaLogo('partner', m.unitField, u)}
-                                                        className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
-                                                        style={{
-                                                          backgroundColor: currentUnit === u ? 'var(--primary-accent)' : 'transparent',
-                                                          color: currentUnit === u ? '#ffffff' : 'var(--text-muted)',
-                                                        }}
-                                                      >
-                                                        {u}
-                                                      </button>
-                                                    ))}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
+                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                           {[
+                                             { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                             { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                             { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                             { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                           ].map((m) => {
+                                             const val = getPrecargaPartnerVal(m.field, 0);
+                                             const currentUnit = getPrecargaPartnerVal(m.unitField, 'px');
+                                             return (
+                                               <div key={m.field} className="flex flex-col gap-0.5">
+                                                 <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                 <CtrlPixelPorcentage
+                                                   value={val}
+                                                   unit={currentUnit}
+                                                   onChangeValue={(v) => updatePrecargaPartnerLogo(m.field, v)}
+                                                   onChangeUnit={(u) => updatePrecargaPartnerLogo(m.unitField, u)}
+                                                 />
+                                               </div>
+                                             );
+                                           })}
+                                         </div>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 </div>
+                               </div>
+                             </div>
+                         );
+                       })()}
+                     </div>
+                   )}
 
-                    {/* 2.2 SUB-PESTAÑA BIENVENIDA */}
+                   {/* 2.2 SUB-PESTAÑA CÓDIGO / ESCANEO QR */}
+                   {welcomeSubTab === 'qr' && (
+                     <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                       <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                         <QrCode size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Escaneo QR / Código de Acceso
+                       </h3>
+
+                       <div className="space-y-4">
+                         <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                           <div>
+                             <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Requerir Escaneo QR o Código de Evento</p>
+                             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Exige ingresar o escanear el código del evento para desbloquear el acceso</p>
+                           </div>
+                           <input
+                             type="checkbox"
+                             checked={settings.welcome_qr_enabled ?? false}
+                             onChange={(e) => updateSetting('welcome_qr_enabled', e.target.checked)}
+                             className="w-4 h-4 rounded cursor-pointer"
+                           />
+                         </div>
+
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                             <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Título / Instrucción de Entrada</label>
+                             <input
+                               type="text"
+                               value={settings.welcome_qr_title ?? 'Ingresa el código o escanea el QR'}
+                               onChange={(e) => updateSetting('welcome_qr_title', e.target.value)}
+                               className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                               style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                             />
+                           </div>
+
+                           <div>
+                             <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Placeholder del Campo de Código</label>
+                             <input
+                               type="text"
+                               value={settings.welcome_qr_placeholder ?? 'Ej: BODA-2026'}
+                               onChange={(e) => updateSetting('welcome_qr_placeholder', e.target.value)}
+                               className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                               style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                             />
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* 2.3 SUB-PESTAÑA BIENVENIDA */}
                     {welcomeSubTab === 'bienvenida' && (
                       <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                         <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
