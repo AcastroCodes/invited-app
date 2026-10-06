@@ -884,6 +884,150 @@ export default function MobileSimulator({
                     );
                 })()}
 
+                {/* ===== VISTA ESCÁNER QR ===== */}
+                {previewView === "qr" && (() => {
+                    const showLogo = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
+                    const poweredPos = settings.precarga_powered_by_position || settings.partner_logo_precarga_powered_by_position || 'top';
+                    let flexDirClass = 'flex-col';
+                    if (poweredPos === 'bottom') flexDirClass = 'flex-col-reverse';
+                    else if (poweredPos === 'left') flexDirClass = 'flex-row items-center';
+                    else if (poweredPos === 'right') flexDirClass = 'flex-row-reverse items-center';
+
+                    const getVal = (field: string, defaultVal: any) => {
+                        const key = `partner_logo_precarga_${field}`;
+                        if (settings[key] !== undefined) return settings[key];
+                        return defaultVal;
+                    };
+
+                    const size = getVal('size', 40);
+                    const unit = getVal('unit', 'px');
+                    const mTop = getVal('margin_top', 0);
+                    const mBottom = getVal('margin_bottom', 0);
+                    const mLeft = getVal('margin_left', 0);
+                    const mRight = getVal('margin_right', 0);
+                    const mTopUnit = getVal('margin_top_unit', 'px');
+                    const mBottomUnit = getVal('margin_bottom_unit', 'px');
+                    const mLeftUnit = getVal('margin_left_unit', 'px');
+                    const mRightUnit = getVal('margin_right_unit', 'px');
+
+                    const projectLogoStyle: React.CSSProperties = {
+                        width: unit === '%' ? `${size}%` : `${size}px`,
+                        maxHeight: '44px',
+                        marginTop: `${mTop}${mTopUnit}`,
+                        marginBottom: `${mBottom}${mBottomUnit}`,
+                        marginLeft: `${mLeft}${mLeftUnit}`,
+                        marginRight: `${mRight}${mRightUnit}`,
+                    };
+
+                    const displayLogo = settings.project_logo_precarga_url || "/dinvited.png";
+
+                    return (
+                        <div className="absolute inset-0 flex flex-col justify-between overflow-hidden bg-slate-950">
+                            {/* FONDO DE CÁMARA (IMAGEN DE PERSONAS EN FIESTA LEVEMENTE BORROSA) */}
+                            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                                <img
+                                    src="/party_camera_blur.jpg"
+                                    alt="Vista previa de cámara en vivo"
+                                    className="w-full h-full object-cover blur-[1.5px] scale-105 opacity-90"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+                            </div>
+
+                            {/* ZONA SUPERIOR: ESCÁNER CÁMARA (3/5 del alto) */}
+                            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
+                                {/* Marco / Visor de la Cámara con esquinas animadas */}
+                                <div className="relative w-48 h-48 rounded-2xl border-2 border-white/30 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.7)] bg-black/30 backdrop-blur-xs overflow-hidden">
+                                    {/* Esquinas destacadas del visor QR */}
+                                    <div className="absolute top-2 left-2 w-5 h-5 border-t-2 border-l-2 border-[var(--primary-accent)]" />
+                                    <div className="absolute top-2 right-2 w-5 h-5 border-t-2 border-r-2 border-[var(--primary-accent)]" />
+                                    <div className="absolute bottom-2 left-2 w-5 h-5 border-b-2 border-l-2 border-[var(--primary-accent)]" />
+                                    <div className="absolute bottom-2 right-2 w-5 h-5 border-b-2 border-r-2 border-[var(--primary-accent)]" />
+
+                                    {/* Línea de escaneo animada */}
+                                    <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-[var(--primary-accent)] to-transparent shadow-[0_0_8px_var(--primary-accent)] animate-pulse" />
+
+                                    <div className="flex flex-col items-center gap-1.5 opacity-90 mt-2">
+                                        <Camera className="w-8 h-8 text-white drop-shadow-md" />
+                                        <span className="text-[10px] text-white font-medium tracking-wide drop-shadow-md">Apunta al código QR</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ZONA INFERIOR: CONTENEDOR CON LÍNEA SUPERIOR EN MEDIALUNA CÓNCAVA HACIA ABAJO (DE EXTREMO A EXTREMO) (2/5 del alto) */}
+                            <div className="relative w-full h-[42%] bg-slate-900/95 backdrop-blur-xl px-4 pt-6 pb-2.5 flex flex-col items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+                                {/* SVG Medialuna Cóncava hacia abajo de extremo a extremo */}
+                                <svg
+                                    className="absolute -top-[23px] left-0 w-full h-[24px] text-slate-900/95 pointer-events-none drop-shadow-[0_-2px_4px_rgba(0,0,0,0.4)]"
+                                    viewBox="0 0 100 24"
+                                    preserveAspectRatio="none"
+                                >
+                                    <path
+                                        d="M 0 0 Q 50 24 100 0 L 100 24 L 0 24 Z"
+                                        fill="currentColor"
+                                    />
+                                    <path
+                                        d="M 0 0 Q 50 24 100 0"
+                                        fill="none"
+                                        stroke="rgba(255, 255, 255, 0.15)"
+                                        strokeWidth="0.8"
+                                    />
+                                </svg>
+
+                                {/* ZONA SUPERIOR DEL CONTENEDOR: CONTROLES DEL CÓDIGO (SOLO TEXTBOX Y BOTÓN, ELEVADOS HACIA ARRIBA) */}
+                                <div className="w-full flex flex-col items-center justify-start gap-2.5 flex-1 mt-1 mb-auto">
+                                    {/* Cuadro de Texto de Entrada */}
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        placeholder={settings.welcome_qr_placeholder || "CÓDIGO"}
+                                        className="w-full max-w-[210px] py-1.5 px-3 rounded-lg bg-black/60 border border-white/20 text-center text-[11px] font-bold text-white placeholder:text-white/60 tracking-wider outline-none focus:border-[var(--primary-accent)] shadow-inner"
+                                    />
+
+                                    {/* Botón Entrar */}
+                                    <button
+                                        type="button"
+                                        className="w-full max-w-[210px] py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                                        style={{ backgroundColor: 'var(--primary-accent)' }}
+                                    >
+                                        Entrar
+                                    </button>
+                                </div>
+
+                                {/* PIE DE PÁGINA: LOGO DEL PROYECTO + POWERED BY (ALINEADO Y AJUSTADO EN EL FONDO) */}
+                                {showLogo ? (() => {
+                                    return (
+                                        <div className={`flex ${flexDirClass} items-center justify-center gap-1.5 shrink-0 z-20 pb-0.5`}>
+                                            <span
+                                                className="tracking-widest uppercase select-none drop-shadow-xs shrink-0"
+                                                style={{
+                                                    fontFamily: settings.precarga_powered_by_font_family || 'Inter',
+                                                    fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
+                                                    color: settings.precarga_powered_by_font_color || 'rgba(255, 255, 255, 0.75)',
+                                                    fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
+                                                    fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
+                                                    textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
+                                                }}
+                                            >
+                                                {settings.precarga_powered_by_text || 'Powered by'}
+                                            </span>
+                                            {showLogo && (
+                                                <img
+                                                    src={displayLogo}
+                                                    alt="Logo del Proyecto dInvited"
+                                                    style={projectLogoStyle}
+                                                    className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })() : (
+                                    <div className="w-full h-4 shrink-0" />
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 {/* ===== VISTA CÁMARA ===== */}
                 {previewView === "camera" && (() => {
                     const eventCfg = getLogoConfig('event', 'camera');

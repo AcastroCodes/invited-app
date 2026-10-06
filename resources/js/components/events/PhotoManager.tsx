@@ -621,6 +621,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     }}
                   >
                     {[
+                      { id: 'precarga', label: 'Precarga', icon: Hourglass },
+                      { id: 'qr', label: 'Escáner QR', icon: QrCode },
                       { id: 'welcome', label: 'Bienvenida', icon: Tv },
                       { id: 'camera', label: 'Cámara', icon: Camera },
                       { id: 'gallery', label: 'Galería', icon: ImageIcon },
@@ -2604,8 +2606,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     {/* NAVEGACIÓN DE SUB-PESTAÑAS EN BIENVENIDA */}
                     <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                       {[
-                        { id: 'precarga', label: 'Precarga', icon: Hourglass },
-                        { id: 'qr', label: 'Código / Escaneo QR', icon: QrCode },
+                        { id: 'precarga', label: 'Precarga / QR', icon: Hourglass },
                         { id: 'bienvenida', label: 'Bienvenida', icon: Tv },
                         { id: 'gps', label: 'Verificación GPS', icon: MapPin },
                         { id: 'registro', label: 'Registro', icon: UserPlus },
@@ -2620,7 +2621,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                               setWelcomeSubTab(sub.id as any);
                               if (sub.id === 'precarga') {
                                 setPreviewView('precarga');
-                              } else if (sub.id === 'bienvenida' || sub.id === 'qr') {
+                              } else if (sub.id === 'bienvenida') {
                                 setPreviewView('welcome');
                               }
                             }}
@@ -3529,53 +3530,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                      </div>
                    )}
 
-                   {/* 2.2 SUB-PESTAÑA CÓDIGO / ESCANEO QR */}
-                   {welcomeSubTab === 'qr' && (
-                     <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                       <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                         <QrCode size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Escaneo QR / Código de Acceso
-                       </h3>
 
-                       <div className="space-y-4">
-                         <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                           <div>
-                             <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Requerir Escaneo QR o Código de Evento</p>
-                             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Exige ingresar o escanear el código del evento para desbloquear el acceso</p>
-                           </div>
-                           <input
-                             type="checkbox"
-                             checked={settings.welcome_qr_enabled ?? false}
-                             onChange={(e) => updateSetting('welcome_qr_enabled', e.target.checked)}
-                             className="w-4 h-4 rounded cursor-pointer"
-                           />
-                         </div>
-
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div>
-                             <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Título / Instrucción de Entrada</label>
-                             <input
-                               type="text"
-                               value={settings.welcome_qr_title ?? 'Ingresa el código o escanea el QR'}
-                               onChange={(e) => updateSetting('welcome_qr_title', e.target.value)}
-                               className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                               style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                             />
-                           </div>
-
-                           <div>
-                             <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Placeholder del Campo de Código</label>
-                             <input
-                               type="text"
-                               value={settings.welcome_qr_placeholder ?? 'Ej: BODA-2026'}
-                               onChange={(e) => updateSetting('welcome_qr_placeholder', e.target.value)}
-                               className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                               style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                             />
-                           </div>
-                         </div>
-                       </div>
-                     </div>
-                   )}
 
                    {/* 2.3 SUB-PESTAÑA BIENVENIDA */}
                     {welcomeSubTab === 'bienvenida' && (
