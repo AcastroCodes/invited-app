@@ -954,21 +954,62 @@ export default function MobileSimulator({
                             </div>
 
                             {/* ZONA INFERIOR: CONTENEDOR CON LÍNEA SUPERIOR EN MEDIALUNA CÓNCAVA HACIA ABAJO (DE EXTREMO A EXTREMO) (2/5 del alto) */}
-                            <div className="relative w-full h-[42%] bg-slate-900/95 backdrop-blur-xl px-4 pt-6 pb-2.5 flex flex-col items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+                            <div
+                                className={`relative w-full h-[42%] px-4 pt-6 pb-2.5 flex flex-col items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.6)] ${
+                                    (settings.precarga_card_glass_enabled ?? true) ? 'backdrop-blur-xl' : ''
+                                }`}
+                                style={{
+                                    backgroundColor: (settings.precarga_card_bg_type || 'color') === 'gradient'
+                                        ? undefined
+                                        : (() => {
+                                            const cardBgColor = settings.precarga_card_bg_color || '#0f172a';
+                                            const opacityVal = (settings.precarga_card_bg_opacity ?? 95) / 100;
+                                            if (cardBgColor.startsWith('#')) {
+                                                const r = parseInt(cardBgColor.slice(1, 3) || '0f', 16);
+                                                const g = parseInt(cardBgColor.slice(3, 5) || '17', 16);
+                                                const b = parseInt(cardBgColor.slice(5, 7) || '2a', 16);
+                                                return `rgba(${r}, ${g}, ${b}, ${opacityVal})`;
+                                            }
+                                            if (cardBgColor.startsWith('rgb(')) {
+                                                return cardBgColor.replace('rgb(', 'rgba(').replace(')', `, ${opacityVal})`);
+                                            }
+                                            return cardBgColor;
+                                        })(),
+                                    backgroundImage: (settings.precarga_card_bg_type || 'color') === 'gradient' ? settings.precarga_card_gradient_data : undefined,
+                                }}
+                            >
                                 {/* SVG Medialuna Cóncava hacia abajo de extremo a extremo */}
                                 <svg
-                                    className="absolute -top-[23px] left-0 w-full h-[24px] text-slate-900/95 pointer-events-none drop-shadow-[0_-2px_4px_rgba(0,0,0,0.4)]"
-                                    viewBox="0 0 100 24"
+                                    className="absolute -top-[23.5px] left-0 w-full h-[25px] pointer-events-none drop-shadow-[0_-2px_4px_rgba(0,0,0,0.4)] z-0"
+                                    viewBox="0 0 100 25"
                                     preserveAspectRatio="none"
+                                    style={{
+                                        color: (settings.precarga_card_bg_type || 'color') === 'gradient'
+                                            ? '#0f172a'
+                                            : (() => {
+                                                const cardBgColor = settings.precarga_card_bg_color || '#0f172a';
+                                                const opacityVal = (settings.precarga_card_bg_opacity ?? 95) / 100;
+                                                if (cardBgColor.startsWith('#')) {
+                                                    const r = parseInt(cardBgColor.slice(1, 3) || '0f', 16);
+                                                    const g = parseInt(cardBgColor.slice(3, 5) || '17', 16);
+                                                    const b = parseInt(cardBgColor.slice(5, 7) || '2a', 16);
+                                                    return `rgba(${r}, ${g}, ${b}, ${opacityVal})`;
+                                                }
+                                                if (cardBgColor.startsWith('rgb(')) {
+                                                    return cardBgColor.replace('rgb(', 'rgba(').replace(')', `, ${opacityVal})`);
+                                                }
+                                                return cardBgColor;
+                                            })()
+                                    }}
                                 >
                                     <path
-                                        d="M 0 0 Q 50 24 100 0 L 100 24 L 0 24 Z"
+                                        d="M 0 0 Q 50 24 100 0 L 100 25 L 0 25 Z"
                                         fill="currentColor"
                                     />
                                     <path
                                         d="M 0 0 Q 50 24 100 0"
                                         fill="none"
-                                        stroke="rgba(255, 255, 255, 0.15)"
+                                        stroke={settings.precarga_card_border_color || 'rgba(255, 255, 255, 0.15)'}
                                         strokeWidth="0.8"
                                     />
                                 </svg>
@@ -986,8 +1027,15 @@ export default function MobileSimulator({
                                     {/* Botón Entrar */}
                                     <button
                                         type="button"
-                                        className="w-full max-w-[210px] py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                                        style={{ backgroundColor: 'var(--primary-accent)' }}
+                                        className="w-full max-w-[210px] py-1.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                                        style={{
+                                            backgroundColor: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? undefined : (settings.button_bg_color || 'var(--primary-accent)'),
+                                            backgroundImage: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? settings.button_gradient_data : undefined,
+                                            borderRadius: settings.button_border_radius !== undefined ? `${settings.button_border_radius}px` : '8px',
+                                            borderWidth: settings.button_border_width !== undefined ? `${settings.button_border_width}px` : '0px',
+                                            borderStyle: settings.button_border_style || 'solid',
+                                            borderColor: settings.button_border_color || 'var(--primary-accent)',
+                                        }}
                                     >
                                         Entrar
                                     </button>

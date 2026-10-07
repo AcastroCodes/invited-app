@@ -258,7 +258,7 @@ export default function EventConfig() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex-1 flex flex-col min-h-0">
       {/* Header con información del Evento a ancho completo de borde a borde con margen reducido arriba */}
       <div
         className="-mx-4 mt-1 md:-mx-6 lg:-mx-8 rounded-none shadow-sm relative flex items-stretch"
@@ -612,7 +612,7 @@ export default function EventConfig() {
       </div>
 
       {/* Contenido del Servicio Seleccionado */}
-      <div className="pt-4">
+      <div className="pt-4 flex-1 flex flex-col min-h-0">
         {activeTab === 'INVITADOS' ? (
           <GuestManager eventId={event.id} />
         ) : activeTab === 'INVITACION' ? (

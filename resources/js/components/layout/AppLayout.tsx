@@ -37,7 +37,7 @@ export default function AppLayout() {
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         {!isDesignerRoute && <Header onMenuClick={() => setSidebarOpen(true)} />}
-        <main className={`flex-1 flex flex-col ${isDesignerRoute ? 'p-0 overflow-hidden' : 'p-4 md:p-6 lg:p-8 overflow-y-auto'}`}>
+        <main className={`flex-1 flex flex-col min-h-0 ${isDesignerRoute ? 'p-0 overflow-hidden' : 'p-4 md:p-6 lg:p-8 overflow-y-auto'}`}>
           <Outlet />
         </main>
       </div>

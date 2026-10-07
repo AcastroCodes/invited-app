@@ -23,18 +23,13 @@ En esta sesión se desarrolló y perfeccionó la interfaz de **Configuración de
 
 ---
 
-### 1.2 Módulo de Fuentes y Textos de Precarga
-- **Tarjeta Unificada:** Se consolidaron todos los controles en una única tarjeta contenedora alineada al sistema de diseño de *General -> Fuentes*.
-- **Pestañas de Selección en la Cabecera (Lado Derecho):**
-  - **Título:** Configura el texto principal (ej. *"Cargando"*).
-  - **Contenido:** Configura el texto secundario (ej. *"Espere por favor"*).
-  - **Powered by:** Configura el texto de marca del pie de página (ej. *"Powered by"*).
-- **Controles Disponibles por Ítem:**
-  - Campo de texto personalizado.
-  - Selección de fuente (*FontPicker* con catálogo de Google Fonts).
-  - Tamaño en píxeles (`px`) con botones de incremento/decremento `+` y `-`.
-  - Formato (*Negrita*, *Itálica*, *Subrayado*).
-  - Selector de color con Popover e input hexadecimal.
+### 1.2 Módulo de Fuentes y Textos de Bienvenida (`bienvenidaSubTab === 'fuentes'`)
+- **Tarjeta Superior (Fuentes y Textos de Bienvenida):**
+  - **Pestañas de Selección:** Alterna entre **Título** (`welcome_title`) y **Contenido** (`welcome_subtitle`).
+  - **Controles Disponibles:** Texto personalizado, `FontPicker` con catálogo Google Fonts, tamaño `px` stepper (`+`/`-`), formato (*Bold*, *Italic*, *Underline*), y selector de estilos (`StylePickerPopover`) con color de relleno, borde (*stroke*) y sombra (*shadow*).
+- **Tarjeta Inferior (Fuente y Estilo de Botón):**
+  - **Pestañas de Estado:** Alterna entre estado **Normal** y **Sobre** (`hover`).
+  - **Controles Disponibles:** Campo de texto del botón (`welcome_button_text`), `FontPicker`, tamaño `px`, formato (*Bold*, *Italic*, *Underline*), alineación (*Izq*, *Centro*, *Der*, *Justificado*) y selector de estilos completo (`StylePickerPopover`) idéntico a *General -> Botones*.
 
 ---
 
@@ -78,6 +73,25 @@ En esta sesión se desarrolló y perfeccionó la interfaz de **Configuración de
 
 ---
 
+### 1.6 Módulo de Logos en Bienvenida (`bienvenidaSubTab === 'logos'`)
+- **Estructura de 2 Tarjetas / Columnas Completa:**
+  - **Logo del Evento (Bienvenida):**
+    - Botón de visibilidad (*Visible / Oculto en Bienvenida*).
+    - Vista previa del logo.
+    - Alineación Vertical (*Arriba*, *Centro*, *Abajo*) con prevención de colisiones.
+    - Alineación Horizontal (*Izq*, *Centro*, *Der*) con prevención de colisiones.
+    - Tamaño / Ancho Máximo con selección de unidades (`px` / `%`).
+    - Márgenes independientes (*Arriba*, *Abajo*, *Izquierda*, *Derecha*) con unidades (`px` / `%`).
+  - **Logo del Partner / Marca (Bienvenida):**
+    - Botón de visibilidad (*Visible / Oculto en Bienvenida*).
+    - Vista previa del logo del partner/proyecto.
+    - Alineación Vertical (*Arriba*, *Centro*, *Abajo*).
+    - Alineación Horizontal (*Izq*, *Centro*, *Der*).
+    - Tamaño / Ancho Máximo con unidades (`px` / `%`).
+    - Márgenes independientes (*Arriba*, *Abajo*, *Izquierda*, *Derecha*) con unidades (`px` / `%`).
+
+---
+
 ## 2. Archivos Modificados / Creados
 1. `resources/js/components/events/PhotoManager.tsx`
 2. `resources/js/components/events/MobileSimulator.tsx`
@@ -92,9 +106,8 @@ En esta sesión se desarrolló y perfeccionó la interfaz de **Configuración de
 
 ---
 
-## 4. Próximos Pasos (Pendiente para Mañana)
-1. **Revisar sub-pestañas adicionales de Bienvenida:**
-   - Confirmar si la pestaña **Bienvenida** requiere controles adicionales para imágenes o botones.
-   - Revisar la pestaña **Verificación GPS** y **Registro** para asegurar que todos los campos requeridos estén mapeados.
+## 4. Próximos Pasos
+1. **Revisar Verificación GPS y Registro:**
+   - Confirmar si la pestaña **Verificación GPS** o **Registro** requiere ajustes visuales o de integración adicionales.
 2. **Pruebas de Persistencia:**
    - Probar el guardado de `settings` en la base de datos al guardar la configuración del evento en `InvitationDesigner.tsx`.
