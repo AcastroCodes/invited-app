@@ -189,6 +189,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'qr' | 'bienvenida' | 'gps' | 'registro'>('precarga');
   const [bienvenidaSubTab, setBienvenidaSubTab] = useState<'fuentes' | 'fondos' | 'logos'>('fuentes');
+  const [gpsSubTab, setGpsSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'activar_gps'>('fuentes');
   const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
   const [precargaTextTarget, setPrecargaTextTarget] = useState<'title' | 'subtitle' | 'powered_by' | 'button'>('title');
@@ -197,8 +198,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
 
   const [settings, setSettings] = useState<any>({
-    welcome_title: 'Boda Laura & David',
-    welcome_subtitle: '¡Bienvenido al evento!',
+    welcome_title: '¡Bienvenido al evento!',
+    welcome_subtitle: 'Prepárate para capturar los mejores momentos',
     welcome_button_text: 'Continuar',
 
     global_title_font_family: 'Inter',
@@ -2610,7 +2611,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                       {[
                         { id: 'precarga', label: 'Precarga / QR', icon: Hourglass },
                         { id: 'bienvenida', label: 'Bienvenida', icon: Tv },
-                        { id: 'gps', label: 'Verificación GPS', icon: MapPin },
+                        { id: 'gps', label: 'GPS', icon: MapPin },
                         { id: 'registro', label: 'Registro', icon: UserPlus },
                       ].map((sub) => {
                         const SubIcon = sub.icon;
@@ -2623,7 +2624,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                               setWelcomeSubTab(sub.id as any);
                               if (sub.id === 'precarga') {
                                 setPreviewView('precarga');
-                              } else if (sub.id === 'bienvenida') {
+                              } else if (sub.id === 'bienvenida' || sub.id === 'gps') {
                                 setPreviewView('welcome');
                               }
                             }}
@@ -3987,7 +3988,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           return (
                             <div className="w-full">
                               {/* BLOQUE: LOGO DEL PROYECTO (POWERED BY) EN PRECARGA / QR */}
-                              <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                              <div className="rounded-2xl p-3 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                                 <div>
                                   <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
                                     <div className="flex items-center gap-2">
@@ -4062,11 +4063,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   </div>
 
                                   {/* GRID INTERNO: VISTA PREVIA Y CONTROLES */}
-                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2">
                                     {/* VISTA PREVIA */}
                                     <div className="md:col-span-4 flex flex-col items-center justify-center">
                                       <div
-                                        className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                        className="relative w-full h-full min-h-[85px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-2 shrink-0"
                                         style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                                       >
                                         {(() => {
@@ -4091,7 +4092,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                                  {poweredText}
                                                </span>
                                                {displayProjectLogo ? (
-                                                 <img src={displayProjectLogo} alt="Logo del Proyecto" className="max-h-16 max-w-full object-contain drop-shadow-md shrink-0" />
+                                                 <img src={displayProjectLogo} alt="Logo del Proyecto" className="max-h-10 max-w-full object-contain drop-shadow-md shrink-0" />
                                                ) : (
                                                  <div className="flex flex-col items-center justify-center text-center p-2 shrink-0">
                                                    <ImageIcon size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
@@ -4277,7 +4278,13 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                         {/* 2.2.1 SUB-PESTAÑA FUENTES EN BIENVENIDA (ESTRUCTURA Y CAMPOS DE PRECARGA/QR) */}
                         {bienvenidaSubTab === 'fuentes' && (() => {
-                          const activeTarget = precargaTextTarget === 'button' ? 'title' : precargaTextTarget;
+                          const activeTarget = precargaTextTarget === 'button' || precargaTextTarget === 'powered_by' ? 'title' : precargaTextTarget;
+
+                          const getTargetSubtitle = () => {
+                            if (activeTarget === 'title') return 'Título Principal';
+                            if (activeTarget === 'event') return 'Nombre del Evento';
+                            return 'Contenido';
+                          };
 
                           return (
                           <div className="space-y-4">
@@ -4291,15 +4298,16 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                       Fuentes y Textos de Bienvenida
                                     </h3>
                                     <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                                      {activeTarget === 'title' ? 'Título Principal' : 'Contenido'}
+                                      {getTargetSubtitle()}
                                     </span>
                                   </div>
                                 </div>
 
-                                {/* PESTAÑAS TÍTULO / CONTENIDO EN EL LADO DERECHO */}
+                                {/* PESTAÑAS TÍTULO / EVENTO / CONTENIDO EN EL LADO DERECHO */}
                                 <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                   {[
                                     { id: 'title', label: 'Título' },
+                                    { id: 'event', label: 'Evento' },
                                     { id: 'subtitle', label: 'Contenido' },
                                   ].map((targetItem) => {
                                     const isTargetActive = activeTarget === targetItem.id;
@@ -4326,24 +4334,28 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                 {/* CAMPO TEXTO / CONTENIDO */}
                                 <div className="w-full md:w-52 shrink-0">
                                   <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                                    {activeTarget === 'title' ? 'Texto del Título' : 'Texto del Contenido'}
+                                    {activeTarget === 'title' ? 'Texto del Título' : activeTarget === 'event' ? 'Texto del Evento' : 'Texto del Contenido'}
                                   </label>
                                   <input
                                     type="text"
+                                    readOnly={activeTarget === 'event'}
+                                    disabled={activeTarget === 'event'}
                                     value={
                                       activeTarget === 'title'
-                                        ? (settings.welcome_title ?? 'Boda Laura & David')
-                                        : (settings.welcome_subtitle ?? '¡Bienvenido al evento!')
+                                        ? (settings.welcome_title ?? '¡Bienvenido al evento!')
+                                        : activeTarget === 'event'
+                                        ? (eventData?.event_name || eventData?.name || eventData?.title || settings.welcome_event || settings.event_name || 'Evento')
+                                        : (settings.welcome_subtitle ?? 'Prepárate para capturar los mejores momentos')
                                     }
                                     onChange={(e) => {
                                       if (activeTarget === 'title') {
                                         updateSetting('welcome_title', e.target.value);
-                                      } else {
+                                      } else if (activeTarget === 'subtitle') {
                                         updateSetting('welcome_subtitle', e.target.value);
                                       }
                                     }}
-                                    placeholder={activeTarget === 'title' ? 'Ej: Título del Evento' : 'Ej: Mensaje de Bienvenida'}
-                                    className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
+                                    placeholder={activeTarget === 'title' ? 'Ej: Título del Evento' : activeTarget === 'event' ? 'Nombre del Evento' : 'Ej: Mensaje de Bienvenida'}
+                                    className={`w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium ${activeTarget === 'event' ? 'opacity-70 cursor-not-allowed select-none' : ''}`}
                                     style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                                   />
                                 </div>
@@ -4354,7 +4366,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                     label="Fuente"
                                     value={
                                       settings[`welcome_${activeTarget}_font_family`] ||
-                                      (activeTarget === 'title' ? (settings.global_title_font_family || 'Inter') : (settings.global_text_font_family || 'Inter'))
+                                      (activeTarget === 'title' || activeTarget === 'event' ? (settings.global_title_font_family || 'Inter') : (settings.global_text_font_family || 'Inter'))
                                     }
                                     onChange={(f) => updateSetting(`welcome_${activeTarget}_font_family`, f)}
                                   />
@@ -5906,52 +5918,1721 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                     {/* 2.3 SUB-PESTAÑA VERIFICACIÓN GPS */}
                     {welcomeSubTab === 'gps' && (
-                      <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                          <MapPin size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Verificación GPS
-                        </h3>
-
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                            <div>
-                              <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Activar Verificación de Ubicación GPS</p>
-                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Requiere que los invitados estén en la ubicación física del evento para continuar</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={settings.welcome_gps_enabled ?? false}
-                              onChange={(e) => updateSetting('welcome_gps_enabled', e.target.checked)}
-                              className="w-4 h-4 rounded cursor-pointer"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Radio Máximo de Distancia (Metros)</label>
-                              <input
-                                type="number"
-                                value={settings.welcome_gps_radius ?? '500'}
-                                onChange={(e) => updateSetting('welcome_gps_radius', e.target.value)}
-                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Error (Fuera de Rango)</label>
-                              <input
-                                type="text"
-                                value={settings.welcome_gps_error_msg ?? 'Debes estar en el lugar del evento para continuar'}
-                                onChange={(e) => updateSetting('welcome_gps_error_msg', e.target.value)}
-                                className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                              />
-                            </div>
-                          </div>
+                      <div className="space-y-4">
+                        {/* SUB-PESTAÑAS DE CONTROLES EN VERIFICADOR GPS (FUENTE, CONTENEDOR, LOGOS, ACTIVAR GPS) */}
+                        <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                          {[
+                            { id: 'fuentes', label: 'Fuente', icon: Type },
+                            { id: 'fondos', label: 'Contenedor', icon: Palette },
+                            { id: 'logos', label: 'Logos', icon: ImageIcon },
+                            { id: 'activar_gps', label: 'Activar GPS', icon: MapPin },
+                          ].map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive = gpsSubTab === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                type="button"
+                                onClick={() => setGpsSubTab(sub.id as any)}
+                                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                style={{
+                                  backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
+                                  color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                  border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
+                                }}
+                              >
+                                <SubIcon size={14} />
+                                <span>{sub.label}</span>
+                              </button>
+                            );
+                          })}
                         </div>
+                        {/* 2.2.1 SUB-PESTAÑA FUENTES EN BIENVENIDA (ESTRUCTURA Y CAMPOS DE PRECARGA/QR) */}
+                        {gpsSubTab === 'fuentes' && (() => {
+                          const activeTarget = precargaTextTarget === 'button' || precargaTextTarget === 'powered_by' ? 'title' : precargaTextTarget;
+
+                          const getTargetSubtitle = () => {
+                            if (activeTarget === 'title') return 'Título Principal';
+                            if (activeTarget === 'event') return 'Nombre del Evento';
+                            return 'Contenido';
+                          };
+
+                          return (
+                          <div className="space-y-4">
+                            {/* 1. TARJETA SUPERIOR: FUENTES Y TEXTOS DE BIENVENIDA */}
+                            <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                              <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2.5">
+                                  <Type size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                      Fuentes y Textos de Bienvenida
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      {getTargetSubtitle()}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* PESTAÑAS TÍTULO / EVENTO / CONTENIDO EN EL LADO DERECHO */}
+                                <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'title', label: 'Título' },
+                                    { id: 'event', label: 'Evento' },
+                                    { id: 'subtitle', label: 'Contenido' },
+                                  ].map((targetItem) => {
+                                    const isTargetActive = activeTarget === targetItem.id;
+                                    return (
+                                      <button
+                                        key={targetItem.id}
+                                        type="button"
+                                        onClick={() => setPrecargaTextTarget(targetItem.id as any)}
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer flex items-center gap-1"
+                                        style={{
+                                          backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                          color: isTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                        }}
+                                      >
+                                        <span>{targetItem.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* CONTROLES DE TEXTO, TIPOGRAFÍA Y ESTILOS */}
+                              <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3">
+                                {/* CAMPO TEXTO / CONTENIDO */}
+                                <div className="w-full md:w-52 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                    {activeTarget === 'title' ? 'Texto del Título' : activeTarget === 'event' ? 'Texto del Evento' : 'Texto del Contenido'}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    readOnly={activeTarget === 'event'}
+                                    disabled={activeTarget === 'event'}
+                                    value={
+                                      activeTarget === 'title'
+                                        ? (settings.gps_title ?? '¡Bienvenido al evento!')
+                                        : activeTarget === 'event'
+                                        ? (eventData?.event_name || eventData?.name || eventData?.title || settings.gps_event || settings.event_name || 'Evento')
+                                        : (settings.gps_subtitle ?? 'Prepárate para capturar los mejores momentos')
+                                    }
+                                    onChange={(e) => {
+                                      if (activeTarget === 'title') {
+                                        updateSetting('gps_title', e.target.value);
+                                      } else if (activeTarget === 'subtitle') {
+                                        updateSetting('gps_subtitle', e.target.value);
+                                      }
+                                    }}
+                                    placeholder={activeTarget === 'title' ? 'Ej: Título del Evento' : activeTarget === 'event' ? 'Nombre del Evento' : 'Ej: Mensaje de Bienvenida'}
+                                    className={`w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium ${activeTarget === 'event' ? 'opacity-70 cursor-not-allowed select-none' : ''}`}
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+
+                                {/* FUENTE */}
+                                <div className="flex-1 min-w-[180px]">
+                                  <FontPicker
+                                    label="Fuente"
+                                    value={
+                                      settings[`welcome_${activeTarget}_font_family`] ||
+                                      (activeTarget === 'title' || activeTarget === 'event' ? (settings.global_title_font_family || 'Inter') : (settings.global_text_font_family || 'Inter'))
+                                    }
+                                    onChange={(f) => updateSetting(`welcome_${activeTarget}_font_family`, f)}
+                                  />
+                                </div>
+
+                                {/* TAMAÑO */}
+                                <div className="w-full md:w-36 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                    Tamaño
+                                  </label>
+                                  <div
+                                    className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const defaultSize = activeTarget === 'title' ? 18 : 12;
+                                        const curr = parseFloat(settings[`welcome_${activeTarget}_font_size`] || defaultSize.toString());
+                                        updateSetting(`welcome_${activeTarget}_font_size`, Math.max(5, curr - 0.5).toString());
+                                      }}
+                                      className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+
+                                    <div className="flex-1 flex items-center justify-center px-1">
+                                      <input
+                                        type="number"
+                                        min={5}
+                                        max={80}
+                                        step={0.5}
+                                        value={
+                                          settings[`welcome_${activeTarget}_font_size`] ||
+                                          (activeTarget === 'title' ? '18' : '12')
+                                        }
+                                        onChange={(e) => updateSetting(`welcome_${activeTarget}_font_size`, e.target.value)}
+                                        className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        style={{ color: 'var(--text-main)' }}
+                                      />
+                                      <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>px</span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const defaultSize = activeTarget === 'title' ? 18 : 12;
+                                        const curr = parseFloat(settings[`welcome_${activeTarget}_font_size`] || defaultSize.toString());
+                                        updateSetting(`welcome_${activeTarget}_font_size`, Math.min(80, curr + 0.5).toString());
+                                      }}
+                                      className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                 {/* FORMATO */}
+                                <div className="w-full md:w-28 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Formato</label>
+                                  <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting(`welcome_${activeTarget}_font_weight`, settings[`welcome_${activeTarget}_font_weight`] === 'bold' ? 'normal' : 'bold')}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: settings[`welcome_${activeTarget}_font_weight`] === 'bold' ? 'var(--primary-accent)' : 'transparent',
+                                        color: settings[`welcome_${activeTarget}_font_weight`] === 'bold' ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                      title="Negrita"
+                                    >
+                                      <Bold size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting(`welcome_${activeTarget}_font_style`, settings[`welcome_${activeTarget}_font_style`] === 'italic' ? 'normal' : 'italic')}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: settings[`welcome_${activeTarget}_font_style`] === 'italic' ? 'var(--primary-accent)' : 'transparent',
+                                        color: settings[`welcome_${activeTarget}_font_style`] === 'italic' ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                      title="Itálica"
+                                    >
+                                      <Italic size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting(`welcome_${activeTarget}_text_decoration`, settings[`welcome_${activeTarget}_text_decoration`] === 'underline' ? 'none' : 'underline')}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                      style={{
+                                        backgroundColor: settings[`welcome_${activeTarget}_text_decoration`] === 'underline' ? 'var(--primary-accent)' : 'transparent',
+                                        color: settings[`welcome_${activeTarget}_text_decoration`] === 'underline' ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                      title="Subrayado"
+                                    >
+                                      <Underline size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* ALINEACIÓN */}
+                                <div className="w-full md:w-32 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Alineación</label>
+                                  <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    {[
+                                      { id: 'left', icon: AlignLeft, title: 'Izquierda' },
+                                      { id: 'center', icon: AlignCenter, title: 'Centro' },
+                                      { id: 'right', icon: AlignRight, title: 'Derecha' },
+                                      { id: 'justify', icon: AlignJustify, title: 'Justificado' },
+                                    ].map((align) => {
+                                      const AlignIcon = align.icon;
+                                      const isAlignActive = (settings[`welcome_${activeTarget}_text_align`] || 'center') === align.id;
+                                      return (
+                                        <button
+                                          key={align.id}
+                                          type="button"
+                                          onClick={() => updateSetting(`welcome_${activeTarget}_text_align`, align.id)}
+                                          className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                          style={{
+                                            backgroundColor: isAlignActive ? 'var(--primary-accent)' : 'transparent',
+                                            color: isAlignActive ? '#ffffff' : 'var(--text-muted)',
+                                          }}
+                                          title={align.title}
+                                        >
+                                          <AlignIcon size={13} />
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* ESTILO DEL TEXTO (StylePickerPopover) */}
+                                <div className="w-full md:w-32 shrink-0">
+                                  <StylePickerPopover
+                                    label="Estilo"
+                                    elementType="text"
+                                    eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                    eventColorImage={eventColorImage}
+                                    styleConfig={{
+                                      fillType: 'color',
+                                      fillColor: settings[`welcome_${activeTarget}_font_color`] || '#ffffff',
+                                      strokeActive: settings[`welcome_${activeTarget}_stroke_active`] || false,
+                                      strokeColor: settings[`welcome_${activeTarget}_stroke_color`] || '#000000',
+                                      strokeWidth: parseInt(settings[`welcome_${activeTarget}_stroke_width`] || '2'),
+                                      strokeType: settings[`welcome_${activeTarget}_stroke_type`] || 'OUT',
+                                      shadowActive: settings[`welcome_${activeTarget}_shadow_active`] || false,
+                                      shadowColor: settings[`welcome_${activeTarget}_shadow_color`] || '#000000',
+                                      shadowBlur: parseInt(settings[`welcome_${activeTarget}_shadow_blur`] || '8'),
+                                    }}
+                                    onChange={(updated) => {
+                                      if (updated.fillColor) updateSetting(`welcome_${activeTarget}_font_color`, updated.fillColor);
+                                      if (updated.strokeActive !== undefined) updateSetting(`welcome_${activeTarget}_stroke_active`, updated.strokeActive);
+                                      if (updated.strokeColor) updateSetting(`welcome_${activeTarget}_stroke_color`, updated.strokeColor);
+                                      if (updated.strokeWidth !== undefined) updateSetting(`welcome_${activeTarget}_stroke_width`, updated.strokeWidth.toString());
+                                      if (updated.strokeType) updateSetting(`welcome_${activeTarget}_stroke_type`, updated.strokeType);
+                                      if (updated.shadowActive !== undefined) updateSetting(`welcome_${activeTarget}_shadow_active`, updated.shadowActive);
+                                      if (updated.shadowColor) updateSetting(`welcome_${activeTarget}_shadow_color`, updated.shadowColor);
+                                      if (updated.shadowBlur !== undefined) updateSetting(`welcome_${activeTarget}_shadow_blur`, updated.shadowBlur.toString());
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 2. TARJETA INFERIOR: FUENTE Y ESTILOS DE BOTÓN (NORMAL / SOBRE) */}
+                            <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                              <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                <div className="flex items-center gap-2.5">
+                                  <MousePointer2 size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                  <div className="flex flex-col leading-tight">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                      Fuente y Estilo de Botón ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                    </h3>
+                                    <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                      Tipografía, alineación, formato y estilo de texto del botón
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  {[
+                                    { id: 'normal', label: 'Normal' },
+                                    { id: 'hover', label: 'Sobre' },
+                                  ].map((modeItem) => {
+                                    const isModeActive = buttonState === modeItem.id;
+                                    return (
+                                      <button
+                                        key={modeItem.id}
+                                        type="button"
+                                        onClick={() => setButtonState(modeItem.id as any)}
+                                        className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer"
+                                        style={{
+                                          backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                          color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                        }}
+                                      >
+                                        {modeItem.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3">
+                                {/* TEXTO DEL BOTÓN */}
+                                <div className="w-full md:w-52 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                    Texto del Botón
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={settings.welcome_button_text ?? 'Continuar'}
+                                    onChange={(e) => updateSetting('welcome_button_text', e.target.value)}
+                                    placeholder="Ej: Continuar"
+                                    className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+
+                                {/* FUENTE */}
+                                <div className="flex-1 min-w-[180px]">
+                                  <FontPicker
+                                    label="Fuente"
+                                    value={settings.welcome_button_font_family || settings.global_button_font_family || 'Inter'}
+                                    onChange={(f) => updateSetting('welcome_button_font_family', f)}
+                                  />
+                                </div>
+
+                                {/* TAMAÑO */}
+                                <div className="w-full md:w-36 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Tamaño</label>
+                                  <div className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const curr = parseFloat(settings.welcome_button_font_size || '14');
+                                        updateSetting('welcome_button_font_size', Math.max(5, curr - 0.5).toString());
+                                      }}
+                                      className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 cursor-pointer shrink-0"
+                                      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                    <div className="flex-1 flex items-center justify-center px-1">
+                                      <input
+                                        type="number"
+                                        min={5}
+                                        max={80}
+                                        step={0.5}
+                                        value={settings.welcome_button_font_size || '14'}
+                                        onChange={(e) => updateSetting('welcome_button_font_size', e.target.value)}
+                                        className="w-full h-full text-center bg-transparent outline-none font-bold text-xs"
+                                        style={{ color: 'var(--text-main)' }}
+                                      />
+                                      <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>px</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const curr = parseFloat(settings.welcome_button_font_size || '14');
+                                        updateSetting('welcome_button_font_size', Math.min(80, curr + 0.5).toString());
+                                      }}
+                                      className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 cursor-pointer shrink-0"
+                                      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* FORMATO */}
+                                <div className="w-full md:w-28 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Formato</label>
+                                  <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('welcome_button_font_weight', settings.welcome_button_font_weight === 'bold' ? 'normal' : 'bold')}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center cursor-pointer"
+                                      style={{ backgroundColor: settings.welcome_button_font_weight === 'bold' ? 'var(--primary-accent)' : 'transparent', color: settings.welcome_button_font_weight === 'bold' ? '#ffffff' : 'var(--text-muted)' }}
+                                    >
+                                      <Bold size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('welcome_button_font_style', settings.welcome_button_font_style === 'italic' ? 'normal' : 'italic')}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center cursor-pointer"
+                                      style={{ backgroundColor: settings.welcome_button_font_style === 'italic' ? 'var(--primary-accent)' : 'transparent', color: settings.welcome_button_font_style === 'italic' ? '#ffffff' : 'var(--text-muted)' }}
+                                    >
+                                      <Italic size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting('welcome_button_text_decoration', settings.welcome_button_text_decoration === 'underline' ? 'none' : 'underline')}
+                                      className="flex-1 h-full rounded-lg flex items-center justify-center cursor-pointer"
+                                      style={{ backgroundColor: settings.welcome_button_text_decoration === 'underline' ? 'var(--primary-accent)' : 'transparent', color: settings.welcome_button_text_decoration === 'underline' ? '#ffffff' : 'var(--text-muted)' }}
+                                    >
+                                      <Underline size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* ALINEACIÓN */}
+                                <div className="w-full md:w-32 shrink-0">
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Alineación</label>
+                                  <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                    {[
+                                      { id: 'left', icon: AlignLeft, title: 'Izquierda' },
+                                      { id: 'center', icon: AlignCenter, title: 'Centro' },
+                                      { id: 'right', icon: AlignRight, title: 'Derecha' },
+                                      { id: 'justify', icon: AlignJustify, title: 'Justificado' },
+                                    ].map((align) => {
+                                      const AlignIcon = align.icon;
+                                      const isAlignActive = (settings.welcome_button_text_align || settings.global_button_text_align || 'center') === align.id;
+                                      return (
+                                        <button
+                                          key={align.id}
+                                          type="button"
+                                          onClick={() => updateSetting('welcome_button_text_align', align.id)}
+                                          className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                          style={{
+                                            backgroundColor: isAlignActive ? 'var(--primary-accent)' : 'transparent',
+                                            color: isAlignActive ? '#ffffff' : 'var(--text-muted)',
+                                          }}
+                                          title={align.title}
+                                        >
+                                          <AlignIcon size={13} />
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* ESTILO DEL TEXTO (Normal / Sobre) */}
+                                <div className="w-full md:w-32 shrink-0">
+                                  {(() => {
+                                    const isH = buttonState === 'hover';
+                                    const colorKey = isH ? 'welcome_button_hover_font_color' : 'welcome_button_font_color';
+                                    const strokeActiveKey = isH ? 'welcome_button_hover_stroke_active' : 'welcome_button_stroke_active';
+                                    const strokeColorKey = isH ? 'welcome_button_hover_stroke_color' : 'welcome_button_stroke_color';
+                                    const strokeWidthKey = isH ? 'welcome_button_hover_stroke_width' : 'welcome_button_stroke_width';
+                                    const strokeTypeKey = isH ? 'welcome_button_hover_stroke_type' : 'welcome_button_stroke_type';
+                                    const shadowActiveKey = isH ? 'welcome_button_hover_shadow_active' : 'welcome_button_shadow_active';
+                                    const shadowColorKey = isH ? 'welcome_button_hover_shadow_color' : 'welcome_button_shadow_color';
+                                    const shadowBlurKey = isH ? 'welcome_button_hover_shadow_blur' : 'welcome_button_shadow_blur';
+
+                                    return (
+                                      <StylePickerPopover
+                                        label={`Estilo (${isH ? 'Sobre' : 'Normal'})`}
+                                        elementType="text"
+                                        eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                        eventColorImage={eventColorImage}
+                                        styleConfig={{
+                                          fillType: 'color',
+                                          fillColor: settings[colorKey] || '#ffffff',
+                                          strokeActive: settings[strokeActiveKey] || false,
+                                          strokeColor: settings[strokeColorKey] || '#000000',
+                                          strokeWidth: parseInt(settings[strokeWidthKey] || '2'),
+                                          strokeType: settings[strokeTypeKey] || 'OUT',
+                                          shadowActive: settings[shadowActiveKey] || false,
+                                          shadowColor: settings[shadowColorKey] || '#000000',
+                                          shadowBlur: parseInt(settings[shadowBlurKey] || '8'),
+                                        }}
+                                        onChange={(updated) => {
+                                          if (updated.fillColor) updateSetting(colorKey, updated.fillColor);
+                                          if (updated.strokeActive !== undefined) updateSetting(strokeActiveKey, updated.strokeActive);
+                                          if (updated.strokeColor) updateSetting(strokeColorKey, updated.strokeColor);
+                                          if (updated.strokeWidth !== undefined) updateSetting(strokeWidthKey, updated.strokeWidth.toString());
+                                          if (updated.strokeType) updateSetting(strokeTypeKey, updated.strokeType);
+                                          if (updated.shadowActive !== undefined) updateSetting(shadowActiveKey, updated.shadowActive);
+                                          if (updated.shadowColor) updateSetting(shadowColorKey, updated.shadowColor);
+                                          if (updated.shadowBlur !== undefined) updateSetting(shadowBlurKey, updated.shadowBlur.toString());
+                                        }}
+                                      />
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          );
+                        })()}
+
+                        {/* 2.2.2 SUB-PESTAÑA CONTENEDOR EN BIENVENIDA (ESTRUCTURA EXACTA A PRECARGA/QR) */}
+                        {gpsSubTab === 'fondos' && (() => {
+                          const activeLeftTarget = precargaContainerTarget === 'boton' ? 'fondo' : precargaContainerTarget;
+                          const isFondoTarget = activeLeftTarget === 'fondo';
+                          const prefix = isFondoTarget ? 'welcome_screen' : 'welcome_card';
+                          const bgTypeKey = `${prefix}_bg_type`;
+                          const bgColorKey = `${prefix}_bg_color`;
+                          const gradKey = `${prefix}_gradient_data`;
+                          const imageKey = `${prefix}_image_url`;
+                          const videoRotateKey = `${prefix}_video_rotate`;
+
+                          const imageUrl = settings[imageKey] || '';
+                          const bgType = settings[bgTypeKey] || 'color';
+                          const videoRotate = !!settings[videoRotateKey];
+
+                          const buttonPrefix = buttonState === 'hover' ? 'button_hover' : 'button';
+                          const buttonImageKey = `${buttonPrefix}_image_url`;
+                          const buttonBgTypeKey = `${buttonPrefix}_bg_type`;
+                          const buttonVideoRotateKey = `${buttonPrefix}_video_rotate`;
+                          const buttonImageUrl = settings[buttonImageKey] || '';
+                          const buttonBgType = settings[buttonBgTypeKey] || 'color';
+                          const buttonVideoRotate = !!settings[buttonVideoRotateKey];
+
+                          return (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* COLUMNA IZQUIERDA: CONTENEDORES (FONDO / MENSAJE) */}
+                              <div className="rounded-2xl p-3 border space-y-3 shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <Palette size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                          Contenedores ({activeLeftTarget === 'fondo' ? 'Fondo' : 'Mensaje'})
+                                        </h3>
+                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          Estilos y fondos de pantalla de bienvenida
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* PESTAÑAS FONDO / MENSAJE */}
+                                    <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      {[
+                                        { id: 'fondo', label: 'Fondo' },
+                                        { id: 'mensaje', label: 'Mensaje' },
+                                      ].map((cTarget) => {
+                                        const isCTargetActive = activeLeftTarget === cTarget.id;
+                                        return (
+                                          <button
+                                            key={cTarget.id}
+                                            type="button"
+                                            onClick={() => setPrecargaContainerTarget(cTarget.id as any)}
+                                            className="px-2.5 py-0.5 text-[11px] font-bold rounded-md transition-all cursor-pointer"
+                                            style={{
+                                              backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                              color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                            }}
+                                          >
+                                            {cTarget.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3 pt-2">
+                                    {/* SUBIR IMAGEN / VIDEO DEL CONTENEDOR */}
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center justify-between">
+                                        <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                          Imagen / Video ({isFondoTarget ? 'Fondo General' : 'Recuadro Central'})
+                                        </label>
+                                        <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={videoRotate}
+                                            onChange={(e) => updateSetting(videoRotateKey, e.target.checked)}
+                                            className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                            style={{ accentColor: 'var(--primary-accent)' }}
+                                          />
+                                          <span>Rotar Video</span>
+                                        </label>
+                                      </div>
+                                      
+                                      <div className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[120px] min-h-[120px]" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                        {imageUrl ? (
+                                          <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
+                                            <img src={imageUrl} alt="Imagen de fondo" className="w-full h-full object-contain" />
+                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                              <button type="button" onClick={() => updateSetting(imageKey, '')} className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors">
+                                                <Trash2 size={16} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                            <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                              <Upload size={18} />
+                                            </div>
+                                            <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                            <input
+                                              type="file"
+                                              accept="image/*,video/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const isVideo = file.type.startsWith('video/');
+                                                  const reader = new FileReader();
+                                                  reader.onload = (ev) => {
+                                                    updateSetting(imageKey, ev.target?.result);
+                                                    updateSetting(bgTypeKey, isVideo ? 'video' : 'image');
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* CONTROLES IZQUIERDA: ESTILO, REDONDEZ, GLASS */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
+                                      <div>
+                                        <StylePickerPopover
+                                          label="Estilo"
+                                          elementType="box"
+                                          eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                          eventColorImage={eventColorImage}
+                                          styleConfig={{
+                                            backgroundColor: settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000'),
+                                            borderWidth: settings[`${prefix}_border_width`] ?? 0,
+                                            borderStyle: settings[`${prefix}_border_style`] || 'solid',
+                                            borderColor: settings[`${prefix}_border_color`] || '#E07A5F',
+                                            borderRadius: settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16),
+                                          }}
+                                          onChange={(updated) => {
+                                            const selectedColor = updated.backgroundColor || updated.fillColor;
+                                            if (selectedColor) updateSetting(bgColorKey, selectedColor);
+                                            if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                            if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                            if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                          }}
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Redondez</label>
+                                        <div className="flex items-center h-9 rounded-xl border overflow-hidden w-full" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const curr = parseInt(settings[`${prefix}_border_radius`] ?? (isFondoTarget ? '0' : '16'));
+                                              updateSetting(`${prefix}_border_radius`, Math.max(0, curr - 2));
+                                            }}
+                                            className="w-8 h-full flex items-center justify-center border-r shrink-0 cursor-pointer"
+                                            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                          >
+                                            <Minus size={12} />
+                                          </button>
+                                          <div className="flex-1 flex items-center justify-center px-1">
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              max={50}
+                                              value={settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16)}
+                                              onChange={(e) => updateSetting(`${prefix}_border_radius`, parseInt(e.target.value) || 0)}
+                                              className="w-full h-full text-center bg-transparent outline-none font-bold text-xs"
+                                              style={{ color: 'var(--text-main)' }}
+                                            />
+                                            <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>px</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const curr = parseInt(settings[`${prefix}_border_radius`] ?? (isFondoTarget ? '0' : '16'));
+                                              updateSetting(`${prefix}_border_radius`, Math.min(50, curr + 2));
+                                            }}
+                                            className="w-8 h-full flex items-center justify-center border-l shrink-0 cursor-pointer"
+                                            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
+                                          >
+                                            <Plus size={12} />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Glass / Cristal */}
+                                      <div>
+                                        <div className="flex items-center justify-between mb-1">
+                                          <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                            Glass (Blur)
+                                          </label>
+                                          <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                            <input
+                                              type="checkbox"
+                                              checked={
+                                                isFondoTarget
+                                                  ? (settings.welcome_screen_glass_enabled ?? false)
+                                                  : (settings.welcome_card_glass_enabled ?? true)
+                                              }
+                                              onChange={(e) => {
+                                                const key = isFondoTarget ? 'welcome_screen_glass_enabled' : 'welcome_card_glass_enabled';
+                                                updateSetting(key, e.target.checked);
+                                              }}
+                                              className="sr-only peer"
+                                            />
+                                            <div
+                                              className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                              style={{
+                                                borderColor: (isFondoTarget ? (settings.welcome_screen_glass_enabled ?? false) : (settings.welcome_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                backgroundColor: (isFondoTarget ? (settings.welcome_screen_glass_enabled ?? false) : (settings.welcome_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                              }}
+                                            >
+                                              {(isFondoTarget ? (settings.welcome_screen_glass_enabled ?? false) : (settings.welcome_card_glass_enabled ?? true)) && (
+                                                <Check size={11} className="text-white stroke-[3]" />
+                                              )}
+                                            </div>
+                                          </label>
+                                        </div>
+
+                                        <div
+                                          className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                            !(isFondoTarget ? (settings.welcome_screen_glass_enabled ?? false) : (settings.welcome_card_glass_enabled ?? true)) ? 'opacity-40 pointer-events-none' : ''
+                                          }`}
+                                          style={{
+                                            backgroundColor: 'var(--bg-app)',
+                                            borderColor: 'var(--border-color)',
+                                          }}
+                                        >
+                                          <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="1"
+                                            value={settings[`${prefix}_bg_opacity`] ?? 100}
+                                            onChange={(e) => updateSetting(`${prefix}_bg_opacity`, parseInt(e.target.value))}
+                                            className="w-full accent-[var(--primary-accent)] cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* COLUMNA DERECHA: BOTONES (NORMAL / SOBRE) */}
+                              <div className="rounded-2xl p-3 border space-y-3 shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <MousePointerClick size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                                          Botones ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                        </h3>
+                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          Estilos y efectos de botón
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* PESTAÑAS NORMAL / SOBRE */}
+                                    <div className="flex items-center gap-1 p-0.5 rounded-lg border shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      {[
+                                        { id: 'normal', label: 'Normal' },
+                                        { id: 'hover', label: 'Sobre' },
+                                      ].map((modeItem) => {
+                                        const isModeActive = buttonState === modeItem.id;
+                                        return (
+                                          <button
+                                            key={modeItem.id}
+                                            type="button"
+                                            onClick={() => setButtonState(modeItem.id as any)}
+                                            className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer"
+                                            style={{
+                                              backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                              color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                            }}
+                                          >
+                                            {modeItem.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-3 pt-2">
+                                    {/* SUBIR IMAGEN / VIDEO DEL BOTÓN */}
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center justify-between">
+                                        <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                          Imagen / Video ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
+                                        </label>
+                                        <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Rotar orientación de video 90° en el botón">
+                                          <input
+                                            type="checkbox"
+                                            checked={buttonVideoRotate}
+                                            onChange={(e) => updateSetting(buttonVideoRotateKey, e.target.checked)}
+                                            className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                            style={{ accentColor: 'var(--primary-accent)' }}
+                                          />
+                                          <span>Rotar Video</span>
+                                        </label>
+                                      </div>
+                                      
+                                      <div
+                                        className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[120px] min-h-[120px]"
+                                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                      >
+                                        {buttonImageUrl ? (
+                                          <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
+                                            {buttonBgType === 'video' || String(buttonImageUrl).startsWith('data:video') || String(buttonImageUrl).match(/\.(mp4|webm|ogg)$/i) ? (
+                                              <video
+                                                src={buttonImageUrl}
+                                                autoPlay
+                                                loop
+                                                muted
+                                                playsInline
+                                                className="w-full h-full object-contain"
+                                              />
+                                            ) : (
+                                              <img
+                                                src={buttonImageUrl}
+                                                alt="Imagen del botón"
+                                                className="w-full h-full object-contain"
+                                              />
+                                            )}
+                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                              <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
+                                                <Upload size={16} />
+                                                <input
+                                                  type="file"
+                                                  accept="image/*,video/*"
+                                                  className="hidden"
+                                                  onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                      const isVideo = file.type.startsWith('video/');
+                                                      const reader = new FileReader();
+                                                      reader.onload = (ev) => {
+                                                        updateSetting(buttonImageKey, ev.target?.result);
+                                                        updateSetting(buttonBgTypeKey, isVideo ? 'video' : 'image');
+                                                      };
+                                                      reader.readAsDataURL(file);
+                                                    }
+                                                  }}
+                                                />
+                                              </label>
+                                              <button
+                                                type="button"
+                                                onClick={() => updateSetting(buttonImageKey, '')}
+                                                className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                                title="Eliminar archivo"
+                                              >
+                                                <Trash2 size={16} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                            <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                              <Upload size={18} />
+                                            </div>
+                                            <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                            <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM</span>
+                                            <input
+                                              type="file"
+                                              accept="image/*,video/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const isVideo = file.type.startsWith('video/');
+                                                  const reader = new FileReader();
+                                                  reader.onload = (ev) => {
+                                                    updateSetting(buttonImageKey, ev.target?.result);
+                                                    updateSetting(buttonBgTypeKey, isVideo ? 'video' : 'image');
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* CONTROLES DERECHA: ESTILO, REDONDEZ, GLASS */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
+                                      {/* Estilo */}
+                                      <div>
+                                        <StylePickerPopover
+                                          label={`Estilo (${buttonState === 'hover' ? 'Sobre' : 'Normal'})`}
+                                          elementType="box"
+                                          eventColors={eventColors.length > 0 ? eventColors : ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B']}
+                                          eventColorImage={eventColorImage}
+                                          styleConfig={{
+                                            backgroundColor: settings[`${buttonPrefix}_bg_type`] === 'gradient' && settings[`${buttonPrefix}_gradient_data`]
+                                              ? (typeof settings[`${buttonPrefix}_gradient_data`] === 'string' ? settings[`${buttonPrefix}_gradient_data`] : settings[`${buttonPrefix}_bg_color`] || '#E07A5F')
+                                              : (settings[`${buttonPrefix}_bg_color`] || '#E07A5F'),
+                                            borderWidth: settings[`${buttonPrefix}_border_width`] ?? 0,
+                                            borderStyle: settings[`${buttonPrefix}_border_style`] || 'solid',
+                                            borderColor: settings[`${buttonPrefix}_border_color`] || '#E07A5F',
+                                            borderRadius: settings[`${buttonPrefix}_border_radius`] ?? 12,
+                                            shadowColor: settings[`${buttonPrefix}_shadow_color`] || '#000000',
+                                            shadowBlur: settings[`${buttonPrefix}_shadow_blur`] ?? 0,
+                                            shadowOffsetX: settings[`${buttonPrefix}_shadow_offset_x`] ?? 0,
+                                            shadowOffsetY: settings[`${buttonPrefix}_shadow_offset_y`] ?? 0,
+                                          }}
+                                          onChange={(updated) => {
+                                            const prefix = buttonPrefix;
+                                            const bgPrefix = `${prefix}_bg`;
+                                            const gradKey = `${prefix}_gradient_data`;
+
+                                            const selectedColor = updated.backgroundColor || updated.fillColor;
+                                            const selectedGradient = updated.fillGradient;
+
+                                            if (updated.fillType === 'gradient' && selectedGradient) {
+                                              updateSetting(`${bgPrefix}_type`, 'gradient');
+                                              updateSetting(gradKey, selectedGradient);
+                                            } else if (selectedColor) {
+                                              if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
+                                                updateSetting(`${bgPrefix}_type`, 'gradient');
+                                                updateSetting(gradKey, selectedColor);
+                                              } else {
+                                                updateSetting(`${bgPrefix}_type`, 'color');
+                                                updateSetting(`${bgPrefix}_color`, selectedColor);
+                                              }
+                                            }
+
+                                            if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                            if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
+                                            if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                            if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                            if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
+                                            if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
+                                            if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
+                                            if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
+                                          }}
+                                        />
+                                      </div>
+
+                                      {/* Redondez */}
+                                      <div>
+                                        <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                          Redondez
+                                        </label>
+                                        <div
+                                          className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                          style={{
+                                            backgroundColor: 'var(--bg-app)',
+                                            borderColor: 'var(--border-color)',
+                                          }}
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const key = `${buttonPrefix}_border_radius`;
+                                              const curr = parseInt(settings[key] ?? '12');
+                                              const nextVal = Math.max(0, curr - 2);
+                                              updateSetting(key, nextVal);
+                                            }}
+                                            className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                            style={{
+                                              backgroundColor: 'var(--bg-card)',
+                                              borderColor: 'var(--border-color)',
+                                              color: 'var(--primary-accent)',
+                                            }}
+                                            title="Disminuir redondez"
+                                          >
+                                            <Minus size={12} />
+                                          </button>
+
+                                          <div className="flex-1 flex items-center justify-center px-1">
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              max={100}
+                                              value={settings[`${buttonPrefix}_border_radius`] ?? 12}
+                                              onChange={(e) => {
+                                                const key = `${buttonPrefix}_border_radius`;
+                                                updateSetting(key, parseInt(e.target.value) || 0);
+                                              }}
+                                              className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                              style={{ color: 'var(--text-main)' }}
+                                            />
+                                            <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                              px
+                                            </span>
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const key = `${buttonPrefix}_border_radius`;
+                                              const curr = parseInt(settings[key] ?? '12');
+                                              const nextVal = Math.min(100, curr + 2);
+                                              updateSetting(key, nextVal);
+                                            }}
+                                            className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                            style={{
+                                              backgroundColor: 'var(--bg-card)',
+                                              borderColor: 'var(--border-color)',
+                                              color: 'var(--primary-accent)',
+                                            }}
+                                            title="Aumentar redondez"
+                                          >
+                                            <Plus size={12} />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Glass */}
+                                      <div>
+                                        <div className="flex items-center justify-between mb-1">
+                                          <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                            Glass ({settings[`${buttonPrefix}_bg_opacity`] ?? 100}%)
+                                          </label>
+                                          <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                            <input
+                                              type="checkbox"
+                                              checked={settings[`${buttonPrefix}_glass_enabled`] ?? true}
+                                              onChange={(e) => {
+                                                const key = `${buttonPrefix}_glass_enabled`;
+                                                updateSetting(key, e.target.checked);
+                                              }}
+                                              className="sr-only peer"
+                                            />
+                                            <div
+                                              className="w-4 h-4 rounded-md border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                              style={{
+                                                borderColor: (settings[`${buttonPrefix}_glass_enabled`] ?? true) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                backgroundColor: (settings[`${buttonPrefix}_glass_enabled`] ?? true) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                              }}
+                                            >
+                                              {(settings[`${buttonPrefix}_glass_enabled`] ?? true) && (
+                                                <Check size={11} className="text-white stroke-[3]" />
+                                              )}
+                                            </div>
+                                          </label>
+                                        </div>
+
+                                        <div
+                                          className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                            !(settings[`${buttonPrefix}_glass_enabled`] ?? true) ? 'opacity-40 pointer-events-none' : ''
+                                          }`}
+                                          style={{
+                                            backgroundColor: 'var(--bg-app)',
+                                            borderColor: 'var(--border-color)',
+                                          }}
+                                        >
+                                          <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="1"
+                                            value={settings[`${buttonPrefix}_bg_opacity`] ?? 100}
+                                            onChange={(e) => {
+                                              const key = `${buttonPrefix}_bg_opacity`;
+                                              updateSetting(key, parseInt(e.target.value));
+                                            }}
+                                            className="w-full h-1.5 rounded-lg cursor-pointer"
+                                            style={{
+                                              accentColor: 'var(--primary-accent)',
+                                            }}
+                                            title="Opacidad del vidrio"
+                                            disabled={!(settings[`${buttonPrefix}_glass_enabled`] ?? true)}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* LOGOS EN BIENVENIDA (CONFIGURACIÓN DE LOGO DEL EVENTO Y LOGO DEL PARTNER) */}
+                        {gpsSubTab === 'logos' && (() => {
+                          const displayEventLogo = settings.event_logo_url || eventData?.logo_url || (eventData?.logo ? `/storage/${eventData.logo}` : null);
+                          const displayPartnerLogo = settings.project_logo_precarga_url || settings.partner_logo_precarga_url || settings.partner_logo_url || eventData?.partner_logo_url || eventData?.partner?.logo_url || "/dinvited.png";
+                          const activeState = 'welcome';
+                          const stateLabels: Record<string, string> = { welcome: 'Bienvenida', camera: 'Cámara', gallery: 'Galería' };
+
+                          const getSettingVal = (type: 'event' | 'partner', field: string, defaultVal: any) => {
+                            const key = `${type}_logo_${activeState}_${field}`;
+                            if (settings[key] !== undefined) return settings[key];
+                            return defaultVal;
+                          };
+                          const updateLogoSetting = (type: 'event' | 'partner', field: string, value: any) => {
+                            updateSetting(`${type}_logo_${activeState}_${field}`, value);
+                          };
+
+                          const eventV = getSettingVal('event', 'position_v', 'top');
+                          const eventH = getSettingVal('event', 'position_h', 'center');
+                          const eventSize = getSettingVal('event', 'size', 60);
+                          const eventUnit = getSettingVal('event', 'unit', 'px');
+
+                          const partnerV = getSettingVal('partner', 'position_v', 'bottom');
+                          const partnerH = getSettingVal('partner', 'position_h', 'center');
+                          const partnerSize = getSettingVal('partner', 'size', 40);
+                          const partnerUnit = getSettingVal('partner', 'unit', 'px');
+
+                          const eventShowKey = `event_logo_show_welcome`;
+                          const partnerShowKey = `partner_logo_show_welcome`;
+
+                          const eventShow = settings[eventShowKey] ?? true;
+                          const partnerShow = settings[partnerShowKey] ?? true;
+
+                          return (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* COLUMNA 1: LOGO DEL EVENTO */}
+                              <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <ImageIcon size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                          <span>Logo del Evento</span>
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                            {stateLabels[activeState]}
+                                          </span>
+                                        </h3>
+                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          Configurando la pantalla de {stateLabels[activeState]}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* VISIBILIDAD DE LOGO EVENTO EN BIENVENIDA */}
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting(eventShowKey, !eventShow)}
+                                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border cursor-pointer"
+                                      style={{
+                                        backgroundColor: eventShow ? 'var(--primary-accent)' : 'var(--bg-app)',
+                                        borderColor: eventShow ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        color: eventShow ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      {eventShow ? <Eye size={13} /> : <EyeOff size={13} />}
+                                      <span>{eventShow ? 'Visible en Bienvenida' : 'Oculto en Bienvenida'}</span>
+                                    </button>
+                                  </div>
+
+                                  {/* GRID INTERNO: IZQ = VISTA PREVIA, DER = CONTROLES */}
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                    {/* VISTA PREVIA LOGO EVENTO */}
+                                    <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                      <div
+                                        className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                      >
+                                        {displayEventLogo ? (
+                                          <div className="relative w-full h-full flex flex-col items-center justify-center">
+                                            <img src={displayEventLogo} alt="Logo Evento" className="max-h-24 max-w-full object-contain drop-shadow-md" />
+                                          </div>
+                                        ) : (
+                                          <div className="flex flex-col items-center justify-center text-center p-2">
+                                            <ImageIcon size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
+                                            <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>
+                                              Sin logo registrado
+                                            </span>
+                                            <span className="text-[10px] opacity-60 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                              El evento en BD no tiene un logo cargado
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* CONTROLES LOGO EVENTO */}
+                                    <div className="md:col-span-8 space-y-2.5">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Alineación Vertical */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                            Alineación Vertical
+                                          </label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'top', label: 'Arriba' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'bottom', label: 'Abajo' },
+                                            ].map((pos) => {
+                                              const isActive = eventV === pos.id;
+                                              const isDisabled = partnerShow && partnerV === pos.id && partnerH === eventH;
+                                              return (
+                                                <button
+                                                  key={pos.id}
+                                                  type="button"
+                                                  disabled={isDisabled}
+                                                  onClick={() => updateLogoSetting('event', 'position_v', pos.id)}
+                                                  className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                  }}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Partner' : undefined}
+                                                >
+                                                  {pos.label}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {/* Alineación Horizontal */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                            Alineación Horizontal
+                                          </label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'left', label: 'Izq' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'right', label: 'Der' },
+                                            ].map((pos) => {
+                                              const isActive = eventH === pos.id;
+                                              const isDisabled = partnerShow && partnerH === pos.id && partnerV === eventV;
+                                              return (
+                                                <button
+                                                  key={pos.id}
+                                                  type="button"
+                                                  disabled={isDisabled}
+                                                  onClick={() => updateLogoSetting('event', 'position_h', pos.id)}
+                                                  className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                  }}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Partner' : undefined}
+                                                >
+                                                  {pos.label}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Tamaño / Ancho Máximo */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                          Tamaño / Ancho Máximo
+                                        </label>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <input
+                                              type="number"
+                                              min={10}
+                                              max={eventUnit === '%' ? 100 : 300}
+                                              value={eventSize}
+                                              onChange={(e) => updateLogoSetting('event', 'size', parseInt(e.target.value) || 30)}
+                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
+                                              style={{ color: 'var(--text-main)' }}
+                                            />
+                                          </div>
+                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {['px', '%'].map((u) => {
+                                              const isActive = eventUnit === u;
+                                              return (
+                                                <button
+                                                  key={u}
+                                                  type="button"
+                                                  onClick={() => updateLogoSetting('event', 'unit', u)}
+                                                  className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                  }}
+                                                >
+                                                  {u}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Márgenes independientes */}
+                                      <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                          Márgenes
+                                        </label>
+
+                                        {/* Fila 1: Arriba / Abajo */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {[
+                                            { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                            { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                          ].map((m) => {
+                                            const val = getSettingVal('event', m.field, 0);
+                                            const currentUnit = getSettingVal('event', m.unitField, getSettingVal('event', 'margin_unit', 'px'));
+                                            return (
+                                              <div key={m.field} className="flex flex-col gap-0.5">
+                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <input
+                                                      type="number"
+                                                      value={val}
+                                                      onChange={(e) => updateLogoSetting('event', m.field, parseInt(e.target.value) || 0)}
+                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                      style={{ color: 'var(--text-main)' }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    {['px', '%'].map((u) => {
+                                                      const isActive = currentUnit === u;
+                                                      return (
+                                                        <button
+                                                          key={u}
+                                                          type="button"
+                                                          onClick={() => updateLogoSetting('event', m.unitField, u)}
+                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                          style={{
+                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                          }}
+                                                        >
+                                                          {u}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Fila 2: Izquierda / Derecha */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {[
+                                            { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                            { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                          ].map((m) => {
+                                            const val = getSettingVal('event', m.field, 0);
+                                            const currentUnit = getSettingVal('event', m.unitField, getSettingVal('event', 'margin_unit', 'px'));
+                                            return (
+                                              <div key={m.field} className="flex flex-col gap-0.5">
+                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <input
+                                                      type="number"
+                                                      value={val}
+                                                      onChange={(e) => updateLogoSetting('event', m.field, parseInt(e.target.value) || 0)}
+                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                      style={{ color: 'var(--text-main)' }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    {['px', '%'].map((u) => {
+                                                      const isActive = currentUnit === u;
+                                                      return (
+                                                        <button
+                                                          key={u}
+                                                          type="button"
+                                                          onClick={() => updateLogoSetting('event', m.unitField, u)}
+                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                          style={{
+                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                          }}
+                                                        >
+                                                          {u}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* COLUMNA 2: LOGO DEL PARTNER / MARCA */}
+                              <div className="rounded-2xl p-4 border shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                <div>
+                                  <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <Smartphone size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                          <span>Logo del Partner</span>
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                            {stateLabels[activeState]}
+                                          </span>
+                                        </h3>
+                                        <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                          Configurando la pantalla de {stateLabels[activeState]}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* VISIBILIDAD DE LOGO PARTNER EN BIENVENIDA */}
+                                    <button
+                                      type="button"
+                                      onClick={() => updateSetting(partnerShowKey, !partnerShow)}
+                                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border cursor-pointer"
+                                      style={{
+                                        backgroundColor: partnerShow ? 'var(--primary-accent)' : 'var(--bg-app)',
+                                        borderColor: partnerShow ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        color: partnerShow ? '#ffffff' : 'var(--text-muted)',
+                                      }}
+                                    >
+                                      {partnerShow ? <Eye size={13} /> : <EyeOff size={13} />}
+                                      <span>{partnerShow ? 'Visible en Bienvenida' : 'Oculto en Bienvenida'}</span>
+                                    </button>
+                                  </div>
+
+                                  {/* GRID INTERNO: IZQ = VISTA PREVIA PARTNER, DER = CONTROLES PARTNER */}
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3">
+                                    {/* VISTA PREVIA LOGO PARTNER */}
+                                    <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                      <div
+                                        className="relative w-full h-full min-h-[140px] rounded-xl border overflow-hidden flex flex-col items-center justify-center p-3"
+                                        style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                                      >
+                                        {displayPartnerLogo ? (
+                                          <div className="relative w-full h-full flex flex-col items-center justify-center">
+                                            <img src={displayPartnerLogo} alt="Logo Partner" className="max-h-24 max-w-full object-contain drop-shadow-md" />
+                                          </div>
+                                        ) : (
+                                          <div className="flex flex-col items-center justify-center text-center p-2">
+                                            <Smartphone size={20} className="opacity-40 mb-1" style={{ color: 'var(--text-muted)' }} />
+                                            <span className="text-xs font-bold opacity-75" style={{ color: 'var(--text-main)' }}>
+                                              Sin logo partner registrado
+                                            </span>
+                                            <span className="text-[10px] opacity-60 mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                              El evento en BD no tiene un partner asignado
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* CONTROLES LOGO PARTNER */}
+                                    <div className="md:col-span-8 space-y-2.5">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Alineación Vertical Partner */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                            Alineación Vertical
+                                          </label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'top', label: 'Arriba' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'bottom', label: 'Abajo' },
+                                            ].map((pos) => {
+                                              const isActive = partnerV === pos.id;
+                                              const isDisabled = eventShow && eventV === pos.id && eventH === partnerH;
+                                              return (
+                                                <button
+                                                  key={pos.id}
+                                                  type="button"
+                                                  disabled={isDisabled}
+                                                  onClick={() => updateLogoSetting('partner', 'position_v', pos.id)}
+                                                  className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                  }}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Evento' : undefined}
+                                                >
+                                                  {pos.label}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {/* Alineación Horizontal Partner */}
+                                        <div>
+                                          <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                            Alineación Horizontal
+                                          </label>
+                                          <div className="flex p-0.5 rounded-lg border gap-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'left', label: 'Izq' },
+                                              { id: 'center', label: 'Centro' },
+                                              { id: 'right', label: 'Der' },
+                                            ].map((pos) => {
+                                              const isActive = partnerH === pos.id;
+                                              const isDisabled = eventShow && eventH === pos.id && eventV === partnerV;
+                                              return (
+                                                <button
+                                                  key={pos.id}
+                                                  type="button"
+                                                  disabled={isDisabled}
+                                                  onClick={() => updateLogoSetting('partner', 'position_h', pos.id)}
+                                                  className="flex-1 py-1 text-[9px] font-bold rounded-md transition-all text-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                  }}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Evento' : undefined}
+                                                >
+                                                  {pos.label}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Tamaño / Ancho Máximo Partner */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                          Tamaño / Ancho Máximo
+                                        </label>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            <input
+                                              type="number"
+                                              min={10}
+                                              max={partnerUnit === '%' ? 100 : 300}
+                                              value={partnerSize}
+                                              onChange={(e) => updateLogoSetting('partner', 'size', parseInt(e.target.value) || 30)}
+                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
+                                              style={{ color: 'var(--text-main)' }}
+                                            />
+                                          </div>
+                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                            {['px', '%'].map((u) => {
+                                              const isActive = partnerUnit === u;
+                                              return (
+                                                <button
+                                                  key={u}
+                                                  type="button"
+                                                  onClick={() => updateLogoSetting('partner', 'unit', u)}
+                                                  className="px-2 py-0.5 text-[9px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                  }}
+                                                >
+                                                  {u}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Márgenes independientes Partner */}
+                                      <div className="pt-2 border-t space-y-1.5" style={{ borderColor: 'var(--border-color)' }}>
+                                        <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                          Márgenes
+                                        </label>
+
+                                        {/* Fila 1: Arriba / Abajo */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {[
+                                            { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
+                                            { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
+                                          ].map((m) => {
+                                            const val = getSettingVal('partner', m.field, 0);
+                                            const currentUnit = getSettingVal('partner', m.unitField, getSettingVal('partner', 'margin_unit', 'px'));
+                                            return (
+                                              <div key={m.field} className="flex flex-col gap-0.5">
+                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <input
+                                                      type="number"
+                                                      value={val}
+                                                      onChange={(e) => updateLogoSetting('partner', m.field, parseInt(e.target.value) || 0)}
+                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                      style={{ color: 'var(--text-main)' }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    {['px', '%'].map((u) => {
+                                                      const isActive = currentUnit === u;
+                                                      return (
+                                                        <button
+                                                          key={u}
+                                                          type="button"
+                                                          onClick={() => updateLogoSetting('partner', m.unitField, u)}
+                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                          style={{
+                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                          }}
+                                                        >
+                                                          {u}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Fila 2: Izquierda / Derecha */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {[
+                                            { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
+                                            { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
+                                          ].map((m) => {
+                                            const val = getSettingVal('partner', m.field, 0);
+                                            const currentUnit = getSettingVal('partner', m.unitField, getSettingVal('partner', 'margin_unit', 'px'));
+                                            return (
+                                              <div key={m.field} className="flex flex-col gap-0.5">
+                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <input
+                                                      type="number"
+                                                      value={val}
+                                                      onChange={(e) => updateLogoSetting('partner', m.field, parseInt(e.target.value) || 0)}
+                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
+                                                      style={{ color: 'var(--text-main)' }}
+                                                    />
+                                                  </div>
+                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    {['px', '%'].map((u) => {
+                                                      const isActive = currentUnit === u;
+                                                      return (
+                                                        <button
+                                                          key={u}
+                                                          type="button"
+                                                          onClick={() => updateLogoSetting('partner', m.unitField, u)}
+                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded-md transition-all cursor-pointer"
+                                                          style={{
+                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
+                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                          }}
+                                                        >
+                                                          {u}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 2.3.4 SUB-PESTAÑA ACTIVAR GPS */}
+                        {gpsSubTab === 'activar_gps' && (
+                          <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                  <MapPin size={20} />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Activar Verificación de Ubicación GPS</p>
+                                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Requiere que los invitados estén en la ubicación física del evento para continuar</p>
+                                </div>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={settings.welcome_gps_enabled ?? false}
+                                onChange={(e) => updateSetting('welcome_gps_enabled', e.target.checked)}
+                                className="w-4 h-4 rounded cursor-pointer"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Radio Máximo de Distancia (Metros)</label>
+                                <input
+                                  type="number"
+                                  value={settings.welcome_gps_radius ?? '500'}
+                                  onChange={(e) => updateSetting('welcome_gps_radius', e.target.value)}
+                                  className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
+                                  style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Error (Fuera de Rango)</label>
+                                <input
+                                  type="text"
+                                  value={settings.welcome_gps_error_msg ?? 'Debes estar en el lugar del evento para continuar'}
+                                  onChange={(e) => updateSetting('welcome_gps_error_msg', e.target.value)}
+                                  className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
+                                  style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-
                     {/* 2.4 SUB-PESTAÑA REGISTRO */}
                     {welcomeSubTab === 'registro' && (
                       <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>

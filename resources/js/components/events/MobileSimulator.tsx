@@ -823,50 +823,52 @@ export default function MobileSimulator({
                                     )}
 
                                     <div className="relative z-10 w-full flex flex-col items-center justify-center">
-                                    {/* Subtítulo bienvenida */}
-                                    <h3
-                                        className="text-[9px] uppercase tracking-widest mb-2 mt-1"
-                                        style={{
-                                            color: settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
-                                            fontFamily: settings.global_text_font_family || "Inter",
-                                            fontSize: settings.global_text_font_size ? `${Math.min(13, parseInt(settings.global_text_font_size) * 0.5)}px` : undefined,
-                                            fontWeight: (settings.global_text_font_weight as any) || "bold",
-                                            fontStyle: (settings.global_text_font_style as any) || "normal",
-                                            textDecoration: (settings.global_text_text_decoration as any) || "none",
-                                            textAlign: (settings.global_text_text_align as any) || "center",
-                                        }}
-                                    >
-                                        {settings.welcome_subtitle || "¡Bienvenido al evento!"}
-                                    </h3>
-
-                                    {/* Nombre del invitado o Evento */}
+                                    {/* 1. TÍTULO PRINCIPAL */}
                                     <h1
-                                        className="text-2xl drop-shadow-md leading-none uppercase mt-1 mb-2"
+                                        className="text-xl drop-shadow-md leading-none uppercase mt-1 mb-1.5"
                                         style={{
-                                            color: settings.global_title_font_color || settings.title_font_color || "#ffffff",
-                                            fontFamily: settings.global_title_font_family || settings.title_font_family || "Inter",
-                                            fontSize: settings.global_title_font_size ? `${Math.min(26, parseInt(settings.global_title_font_size) * 0.7)}px` : undefined,
-                                            fontWeight: (settings.global_title_font_weight as any) || "bold",
-                                            fontStyle: (settings.global_title_font_style as any) || "normal",
-                                            textDecoration: (settings.global_title_text_decoration as any) || "none",
-                                            textAlign: (settings.global_title_text_align as any) || "center",
+                                            color: settings.welcome_title_font_color || settings.global_title_font_color || settings.title_font_color || "#ffffff",
+                                            fontFamily: settings.welcome_title_font_family || settings.global_title_font_family || settings.title_font_family || "Inter",
+                                            fontSize: (settings.welcome_title_font_size || settings.global_title_font_size) ? `${Math.min(26, parseFloat(settings.welcome_title_font_size || settings.global_title_font_size) * 0.7)}px` : undefined,
+                                            fontWeight: (settings.welcome_title_font_weight || settings.global_title_font_weight) as any || "bold",
+                                            fontStyle: (settings.welcome_title_font_style || settings.global_title_font_style) as any || "normal",
+                                            textDecoration: (settings.welcome_title_text_decoration || settings.global_title_text_decoration) as any || "none",
+                                            textAlign: (settings.welcome_title_text_align || settings.global_title_text_align) as any || "center",
                                         }}
                                     >
-                                        {(event?.event_name || event?.name || event?.title || "Nombre Invitado")}
+                                        {settings.welcome_title || "¡Bienvenido al evento!"}
                                     </h1>
 
-                                    <p
-                                        className="text-[11px] leading-tight mt-3 mb-6 opacity-90"
+                                    {/* 2. NOMBRE DEL EVENTO */}
+                                    <h2
+                                        className="text-sm font-bold drop-shadow-sm uppercase mb-2 opacity-95"
                                         style={{
-                                            color: settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
-                                            fontFamily: settings.global_text_font_family || "Inter",
-                                            fontWeight: (settings.global_text_font_weight as any) || "normal",
-                                            fontStyle: (settings.global_text_font_style as any) || "normal",
-                                            textDecoration: (settings.global_text_text_decoration as any) || "none",
-                                            textAlign: (settings.global_text_text_align as any) || "center",
+                                            color: settings.welcome_event_font_color || settings.global_title_font_color || "#ffffff",
+                                            fontFamily: settings.welcome_event_font_family || settings.global_title_font_family || "Inter",
+                                            fontSize: (settings.welcome_event_font_size) ? `${Math.min(20, parseFloat(settings.welcome_event_font_size) * 0.7)}px` : undefined,
+                                            fontWeight: (settings.welcome_event_font_weight) as any || "bold",
+                                            fontStyle: (settings.welcome_event_font_style) as any || "normal",
+                                            textDecoration: (settings.welcome_event_text_decoration) as any || "none",
+                                            textAlign: (settings.welcome_event_text_align) as any || "center",
                                         }}
                                     >
-                                        Prepárate para capturar los mejores momentos
+                                        {settings.welcome_event || event?.event_name || event?.name || event?.title || "Boda Laura & David"}
+                                    </h2>
+
+                                    {/* 3. TEXTO DE CONTENIDO */}
+                                    <p
+                                        className="text-[11px] leading-tight mt-1 mb-5 opacity-90"
+                                        style={{
+                                            color: settings.welcome_subtitle_font_color || settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
+                                            fontFamily: settings.welcome_subtitle_font_family || settings.global_text_font_family || "Inter",
+                                            fontSize: (settings.welcome_subtitle_font_size || settings.global_text_font_size) ? `${Math.min(14, parseFloat(settings.welcome_subtitle_font_size || settings.global_text_font_size) * 0.75)}px` : undefined,
+                                            fontWeight: (settings.welcome_subtitle_font_weight || settings.global_text_font_weight) as any || "normal",
+                                            fontStyle: (settings.welcome_subtitle_font_style || settings.global_text_font_style) as any || "normal",
+                                            textDecoration: (settings.welcome_subtitle_text_decoration || settings.global_text_text_decoration) as any || "none",
+                                            textAlign: (settings.welcome_subtitle_text_align || settings.global_text_text_align) as any || "center",
+                                        }}
+                                    >
+                                        {settings.welcome_subtitle || "Prepárate para capturar los mejores momentos"}
                                     </p>
 
                                     {/* Botón Continuar */}
