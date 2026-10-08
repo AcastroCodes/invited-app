@@ -2639,9 +2639,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
                                   border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
                                 }}
+                                title={sub.label}
                               >
                                 <SubIcon size={13} />
-                                <span>{sub.label}</span>
+                                {isSubActive && <span>{sub.label}</span>}
                               </button>
                             );
                           })}
@@ -2677,9 +2678,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
                                   border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
                                 }}
+                                title={sub.label}
                               >
                                 <SubIcon size={13} />
-                                <span>{sub.label}</span>
+                                {isSubActive && <span>{sub.label}</span>}
                               </button>
                             );
                           })}
