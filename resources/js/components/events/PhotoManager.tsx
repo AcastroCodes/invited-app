@@ -6030,7 +6030,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           </div>
                         )}
                       </div>
-                    )}
                     {/* 2.3 SUB-PESTAÑA VERIFICACIÓN GPS */}
                     {welcomeSubTab === 'gps' && (
                       <div className="space-y-4">
