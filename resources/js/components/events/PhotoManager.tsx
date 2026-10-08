@@ -183,7 +183,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [showGradientModal, setShowGradientModal] = useState(false);
 
   // Mobile app config states
-  const [mobileActiveView, setMobileActiveView] = useState<'general' | 'welcome' | 'camera' | 'gallery'>('general');
+  const [mobileActiveView, setMobileActiveView] = useState<'programa' | 'general' | 'welcome' | 'camera' | 'gallery'>('programa');
   const [previewView, setPreviewView] = useState<string>('welcome');
   const [activeLogoState, setActiveLogoState] = useState<'precarga' | 'qr' | 'welcome' | 'camera' | 'gallery'>('welcome');
   const [precargaLogoState, setPrecargaLogoState] = useState<'precarga' | 'qr'>('precarga');
@@ -282,12 +282,17 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
     setSettings((prev: any) => ({ ...prev, [key]: val }));
   };
 
-  const handleTabChange = (view: 'general' | 'welcome' | 'camera' | 'gallery') => {
+  const handleTabChange = (view: 'programa' | 'general' | 'welcome' | 'camera' | 'gallery') => {
     setMobileActiveView(view);
-    if (view === 'general') {
+    if (view === 'programa') {
+      setWelcomeSubTab('precarga');
+      setPreviewView('precarga');
+      setActiveLogoState('precarga');
+    } else if (view === 'general') {
       setPreviewView('welcome');
     } else if (view === 'welcome') {
-      setPreviewView(welcomeSubTab === 'precarga' ? 'precarga' : 'welcome');
+      setWelcomeSubTab('evento');
+      setPreviewView('welcome');
       setActiveLogoState('welcome');
     } else {
       setPreviewView(view);
@@ -673,6 +678,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                 <div className="flex items-center gap-5 overflow-visible flex-1">
                   {[
+                    { id: 'programa', label: 'Programa', icon: Sliders },
                     { id: 'general', label: 'General', icon: Sparkles },
                     { id: 'welcome', label: 'Pantallas', icon: Tv },
                     { id: 'camera', label: 'Cámara', icon: Camera },
@@ -2606,13 +2612,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                   </div>
                 )}
 
-                {/* 2. BIENVENIDA TAB CON SUB-PESTAÑAS (PRECARGA, BIENVENIDA, VERIFICACIÓN GPS, REGISTRO) */}
-                {mobileActiveView === 'welcome' && (
+                {/* 0. PROGRAMA TAB (FUENTE, CONTENEDOR, LOGOS) */}
+                {mobileActiveView === 'programa' && (
                   <div className="space-y-4">
-                    {/* NAVEGACIÓN DE SUB-PESTAÑAS EN BIENVENIDA (ESTRUCTURA DUAL: PROGRAMA E EVENTO) */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-1.5 rounded-xl border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                      {/* LADO IZQUIERDO: PROGRAMA (FUENTE, CONTENEDOR, LOGOS PRECARGA/QR) */}
-                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                    {/* BARRA DE NAVEGACIÓN DE SUB-PESTAÑAS PARA PROGRAMA */}
+                    <div className="flex items-center justify-between gap-3 p-1.5 rounded-xl border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                      <div className="flex items-center gap-1.5">
                         <span className="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border shadow-2xs" style={{ color: 'var(--text-main)', borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
                           PROGRAMA
                         </span>
@@ -2623,13 +2628,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                             { id: 'logos', label: 'Logos', icon: ImageIcon },
                           ].map((sub) => {
                             const SubIcon = sub.icon;
-                            const isSubActive = welcomeSubTab === 'precarga' && precargaSubTab === sub.id;
+                            const isSubActive = precargaSubTab === sub.id;
                             return (
                               <button
                                 key={sub.id}
                                 type="button"
                                 onClick={() => {
-                                  setWelcomeSubTab('precarga' as any);
                                   setPrecargaSubTab(sub.id as any);
                                   setPreviewView('precarga');
                                 }}
@@ -2648,49 +2652,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           })}
                         </div>
                       </div>
-
-                      {/* LADO DERECHO: EVENTO */}
-                      <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
-                        <span className="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border shadow-2xs" style={{ color: 'var(--text-main)', borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
-                          EVENTO
-                        </span>
-                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                          {[
-                            { id: 'fuentes', label: 'Fuente', icon: Type },
-                            { id: 'fondos', label: 'Contenedor', icon: Palette },
-                            { id: 'logos', label: 'Logos', icon: ImageIcon },
-                            { id: 'info', label: 'Información', icon: Info },
-                          ].map((sub) => {
-                            const SubIcon = sub.icon;
-                            const isSubActive = welcomeSubTab === 'evento' && bienvenidaSubTab === sub.id;
-                            return (
-                              <button
-                                key={sub.id}
-                                type="button"
-                                onClick={() => {
-                                  setWelcomeSubTab('evento' as any);
-                                  setBienvenidaSubTab(sub.id as any);
-                                  setPreviewView('welcome');
-                                }}
-                                className="botab-item"
-                                style={{
-                                  backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
-                                  color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
-                                  border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
-                                }}
-                                title={sub.label}
-                              >
-                                <SubIcon size={13} />
-                                {isSubActive && <span>{sub.label}</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
                     </div>
 
+                    {/* CONTENIDO INTERNO DE PROGRAMA */}
                     {/* 2.1 SUB-PESTAÑA PRECARGA */}
-                    {welcomeSubTab === 'precarga' && (
+                    
                       <div className="space-y-4">
 
                         {/* 2.1.1 SUB-PESTAÑA FUENTES EN PRECARGA */}
@@ -4256,8 +4222,55 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
 
 
-                   {/* 2.2 SUB-PESTAÑA EVENTO (UNIFICADA) */}
-                    {welcomeSubTab === 'evento' && (
+                   
+                  </div>
+                )}
+
+                {/* 2. BIENVENIDA TAB CON SUB-PESTAÑAS (PRECARGA, BIENVENIDA, VERIFICACIÓN GPS, REGISTRO) */}
+                {mobileActiveView === 'welcome' && (
+                  <div className="space-y-4">
+                    {/* NAVEGACIÓN DE SUB-PESTAÑAS EN BIENVENIDA (ESTRUCTURA DUAL: PROGRAMA E EVENTO) */}
+                    <div className="flex items-center justify-between gap-3 p-1.5 rounded-xl border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border shadow-2xs" style={{ color: 'var(--text-main)', borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+                          EVENTO
+                        </span>
+                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                          {[
+                            { id: 'fuentes', label: 'Fuente', icon: Type },
+                            { id: 'fondos', label: 'Contenedor', icon: Palette },
+                            { id: 'logos', label: 'Logos', icon: ImageIcon },
+                            { id: 'info', label: 'Información', icon: Info },
+                          ].map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive = bienvenidaSubTab === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                type="button"
+                                onClick={() => {
+                                  setBienvenidaSubTab(sub.id as any);
+                                  setPreviewView('welcome');
+                                }}
+                                className="botab-item"
+                                style={{
+                                  backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
+                                  color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
+                                  border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
+                                }}
+                                title={sub.label}
+                              >
+                                <SubIcon size={13} />
+                                {isSubActive && <span>{sub.label}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2.2 SUB-PESTAÑA EVENTO (UNIFICADA) */}
+                    
                       <div className="space-y-4">
                         {/* 2.2.1 SUB-PESTAÑA FUENTES EN BIENVENIDA (ESTRUCTURA Y CAMPOS DE PRECARGA/QR) */}
                         {bienvenidaSubTab === 'fuentes' && (() => {
@@ -9676,6 +9689,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     )}
                   </div>
                 )}
+                
                 {/* 3. CÁMARA TAB */}
                 {mobileActiveView === 'camera' && (
                   <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
