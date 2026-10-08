@@ -412,5 +412,33 @@ select option {
   filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%) sepia(25%) saturate(120%);
 }
 
+/* ==========================================================================
+   BoTab Component Standardized Styling
+   ========================================================================== */
+.botab-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  padding: 0.125rem !important;
+  border-radius: 0.25rem !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: var(--border-color) !important;
+  background-color: var(--bg-app) !important;
+  flex-shrink: 0 !important;
+}
 
-
+.botab-item {
+  height: 1.75rem !important; /* 28px */
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  border-radius: 0.25rem !important; /* 4px */
+  transition: all 0.15s ease-in-out !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.25rem !important;
+}
