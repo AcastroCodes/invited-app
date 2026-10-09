@@ -4218,7 +4218,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                          );
                        })()}
                      </div>
-                   )}
 
 
 
