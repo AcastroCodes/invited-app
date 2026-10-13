@@ -29,6 +29,9 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
   Upload,
   Square,
   Check,
@@ -48,6 +51,65 @@ import FontPickerModal from './FontPickerModal';
 import FontPicker from './FontPicker';
 import { StylePickerPopover } from '../StylePickerPopover';
 import { ColorPickerPopover } from '../ColorPickerPopover';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet';
+
+const customGpsPinSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
+  <defs>
+    <linearGradient id="gpsPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E07A5F" />
+      <stop offset="100%" stop-color="#F2CC8F" />
+    </linearGradient>
+    <filter id="gpsShadow" x="-30%" y="-20%" width="160%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 36 12 36 C12 36 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill="url(#gpsPinGrad)" stroke="#FFFFFF" stroke-width="1.5" filter="url(#gpsShadow)"/>
+  <circle cx="12" cy="11" r="4" fill="#3D405B"/>
+</svg>`;
+
+const createGpsCustomIcon = () => {
+  return new L.DivIcon({
+    className: 'custom-leaflet-marker-pin',
+    html: `<div style="width: 24px; height: 36px; display: flex; align-items: flex-end; justify-content: center;">${customGpsPinSvg}</div>`,
+    iconSize: [24, 36],
+    iconAnchor: [12, 36],
+    popupAnchor: [0, -36],
+  });
+};
+
+function GpsMapController({ coords }: { coords: [number, number] | null }) {
+  const map = useMap();
+  const [lastCoords, setLastCoords] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (coords && coords[0] !== null && coords[1] !== null && !isNaN(coords[0]) && !isNaN(coords[1])) {
+      if (!lastCoords || lastCoords[0] !== coords[0] || lastCoords[1] !== coords[1]) {
+        map.setView(coords, map.getZoom() || 15);
+        setLastCoords(coords);
+      }
+    }
+  }, [coords?.[0], coords?.[1], map]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  return null;
+}
+
+function GpsMapEvents({ setCoordinates }: { setCoordinates: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      setCoordinates(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 interface PhotoManagerProps {
   eventId: number;
@@ -1969,10 +2031,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                           </label>
                                           <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                             {[
-                                              { id: 'top', label: 'Arriba' },
-                                              { id: 'center', label: 'Centro' },
-                                              { id: 'bottom', label: 'Abajo' },
+                                              { id: 'top', label: 'Arriba', icon: AlignVerticalJustifyStart },
+                                              { id: 'center', label: 'Centro', icon: AlignVerticalJustifyCenter },
+                                              { id: 'bottom', label: 'Abajo', icon: AlignVerticalJustifyEnd },
                                             ].map((pos) => {
+                                              const Icon = pos.icon;
                                               const isActive = eventV === pos.id;
                                               const isDisabled = partnerShow && partnerV === pos.id && partnerH === eventH;
                                               return (
@@ -1981,14 +2044,16 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                                   type="button"
                                                   disabled={isDisabled}
                                                   onClick={() => updateLogoSetting('event', 'position_v', pos.id)}
-                                                  className="botab-item"
+                                                  className="botab-item flex-1"
                                                   style={{
                                                     backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
                                                     color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                    opacity: isDisabled ? 0.35 : 1,
+                                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                   }}
-                                                  title={isDisabled ? 'Ocupado por el Logo del Partner' : undefined}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Partner' : pos.label}
                                                 >
-                                                  {pos.label}
+                                                  <Icon size={14} />
                                                 </button>
                                               );
                                             })}
@@ -2002,10 +2067,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                           </label>
                                           <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                             {[
-                                              { id: 'left', label: 'Izq' },
-                                              { id: 'center', label: 'Centro' },
-                                              { id: 'right', label: 'Der' },
+                                              { id: 'left', label: 'Izquierda', icon: AlignLeft },
+                                              { id: 'center', label: 'Centro', icon: AlignCenter },
+                                              { id: 'right', label: 'Derecha', icon: AlignRight },
                                             ].map((pos) => {
+                                              const Icon = pos.icon;
                                               const isActive = eventH === pos.id;
                                               const isDisabled = partnerShow && partnerH === pos.id && partnerV === eventV;
                                               return (
@@ -2014,14 +2080,16 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                                   type="button"
                                                   disabled={isDisabled}
                                                   onClick={() => updateLogoSetting('event', 'position_h', pos.id)}
-                                                  className="botab-item"
+                                                  className="botab-item flex-1"
                                                   style={{
                                                     backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
                                                     color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                    opacity: isDisabled ? 0.35 : 1,
+                                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                   }}
-                                                  title={isDisabled ? 'Ocupado por el Logo del Partner' : undefined}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Partner' : pos.label}
                                                 >
-                                                  {pos.label}
+                                                  <Icon size={14} />
                                                 </button>
                                               );
                                             })}
@@ -2034,38 +2102,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
                                           Tamaño / Ancho Máximo
                                         </label>
-                                        <div className="flex items-center gap-1.5">
-                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            <input
-                                              type="number"
-                                              min={10}
-                                              max={eventUnit === '%' ? 100 : 300}
-                                              value={eventSize}
-                                              onChange={(e) => updateLogoSetting('event', 'size', parseInt(e.target.value) || 30)}
-                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
-                                              style={{ color: 'var(--text-main)' }}
-                                            />
-                                          </div>
-                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            {['px', '%'].map((u) => {
-                                              const isActive = eventUnit === u;
-                                              return (
-                                                <button
-                                                  key={u}
-                                                  type="button"
-                                                  onClick={() => updateLogoSetting('event', 'unit', u)}
-                                                  className="px-2 py-0.5 text-[9px] font-extrabold rounded transition-all cursor-pointer"
-                                                  style={{
-                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
-                                                  }}
-                                                >
-                                                  {u}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
+                                        <CtrlPixelPorcentage
+                                          value={eventSize}
+                                          unit={eventUnit}
+                                          onChangeValue={(v) => updateLogoSetting('event', 'size', v)}
+                                          onChangeUnit={(u) => updateLogoSetting('event', 'unit', u)}
+                                          min={10}
+                                          max={eventUnit === '%' ? 100 : 300}
+                                        />
                                       </div>
 
                                       {/* Márgenes independientes */}
@@ -2073,56 +2117,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
                                           Márgenes
                                         </label>
-
-                                        {/* Fila 1: Arriba / Abajo */}
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                           {[
                                             { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
                                             { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
-                                          ].map((m) => {
-                                            const val = getSettingVal('event', m.field, 0);
-                                            const currentUnit = getSettingVal('event', m.unitField, getSettingVal('event', 'margin_unit', 'px'));
-                                            return (
-                                              <div key={m.field} className="flex flex-col gap-0.5">
-                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
-                                                <div className="flex items-center gap-1">
-                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    <input
-                                                      type="number"
-                                                      value={val}
-                                                      onChange={(e) => updateLogoSetting('event', m.field, parseInt(e.target.value) || 0)}
-                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
-                                                      style={{ color: 'var(--text-main)' }}
-                                                    />
-                                                  </div>
-                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    {['px', '%'].map((u) => {
-                                                      const isActive = currentUnit === u;
-                                                      return (
-                                                        <button
-                                                          key={u}
-                                                          type="button"
-                                                          onClick={() => updateLogoSetting('event', m.unitField, u)}
-                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded transition-all cursor-pointer"
-                                                          style={{
-                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
-                                                          }}
-                                                        >
-                                                          {u}
-                                                        </button>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-
-                                        {/* Fila 2: Izquierda / Derecha */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                          {[
                                             { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
                                             { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
                                           ].map((m) => {
@@ -2131,36 +2129,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                             return (
                                               <div key={m.field} className="flex flex-col gap-0.5">
                                                 <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
-                                                <div className="flex items-center gap-1">
-                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    <input
-                                                      type="number"
-                                                      value={val}
-                                                      onChange={(e) => updateLogoSetting('event', m.field, parseInt(e.target.value) || 0)}
-                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
-                                                      style={{ color: 'var(--text-main)' }}
-                                                    />
-                                                  </div>
-                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    {['px', '%'].map((u) => {
-                                                      const isActive = currentUnit === u;
-                                                      return (
-                                                        <button
-                                                          key={u}
-                                                          type="button"
-                                                          onClick={() => updateLogoSetting('event', m.unitField, u)}
-                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded transition-all cursor-pointer"
-                                                          style={{
-                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
-                                                          }}
-                                                        >
-                                                          {u}
-                                                        </button>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
+                                                <CtrlPixelPorcentage
+                                                  value={val}
+                                                  unit={currentUnit}
+                                                  onChangeValue={(v) => updateLogoSetting('event', m.field, v)}
+                                                  onChangeUnit={(u) => updateLogoSetting('event', m.unitField, u)}
+                                                  min={-100}
+                                                  max={currentUnit === '%' ? 100 : 200}
+                                                />
                                               </div>
                                             );
                                           })}
@@ -2269,10 +2245,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                           </label>
                                           <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                             {[
-                                              { id: 'top', label: 'Arriba' },
-                                              { id: 'center', label: 'Centro' },
-                                              { id: 'bottom', label: 'Abajo' },
+                                              { id: 'top', label: 'Arriba', icon: AlignVerticalJustifyStart },
+                                              { id: 'center', label: 'Centro', icon: AlignVerticalJustifyCenter },
+                                              { id: 'bottom', label: 'Abajo', icon: AlignVerticalJustifyEnd },
                                             ].map((pos) => {
+                                              const Icon = pos.icon;
                                               const isActive = partnerV === pos.id;
                                               const isDisabled = eventShow && eventV === pos.id && eventH === partnerH;
                                               return (
@@ -2281,14 +2258,16 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                                   type="button"
                                                   disabled={isDisabled}
                                                   onClick={() => updateLogoSetting('partner', 'position_v', pos.id)}
-                                                  className="botab-item"
+                                                  className="botab-item flex-1"
                                                   style={{
                                                     backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
                                                     color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                    opacity: isDisabled ? 0.35 : 1,
+                                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                   }}
-                                                  title={isDisabled ? 'Ocupado por el Logo del Evento' : undefined}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Evento' : pos.label}
                                                 >
-                                                  {pos.label}
+                                                  <Icon size={14} />
                                                 </button>
                                               );
                                             })}
@@ -2302,10 +2281,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                           </label>
                                           <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                             {[
-                                              { id: 'left', label: 'Izq' },
-                                              { id: 'center', label: 'Centro' },
-                                              { id: 'right', label: 'Der' },
+                                              { id: 'left', label: 'Izquierda', icon: AlignLeft },
+                                              { id: 'center', label: 'Centro', icon: AlignCenter },
+                                              { id: 'right', label: 'Derecha', icon: AlignRight },
                                             ].map((pos) => {
+                                              const Icon = pos.icon;
                                               const isActive = partnerH === pos.id;
                                               const isDisabled = eventShow && eventH === pos.id && eventV === partnerV;
                                               return (
@@ -2314,14 +2294,16 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                                   type="button"
                                                   disabled={isDisabled}
                                                   onClick={() => updateLogoSetting('partner', 'position_h', pos.id)}
-                                                  className="botab-item"
+                                                  className="botab-item flex-1"
                                                   style={{
                                                     backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
                                                     color: isActive ? '#ffffff' : 'var(--text-muted)',
+                                                    opacity: isDisabled ? 0.35 : 1,
+                                                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                   }}
-                                                  title={isDisabled ? 'Ocupado por el Logo del Evento' : undefined}
+                                                  title={isDisabled ? 'Ocupado por el Logo del Evento' : pos.label}
                                                 >
-                                                  {pos.label}
+                                                  <Icon size={14} />
                                                 </button>
                                               );
                                             })}
@@ -2334,38 +2316,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
                                           Tamaño / Ancho Máximo
                                         </label>
-                                        <div className="flex items-center gap-1.5">
-                                          <div className="flex-1 flex items-center h-7 rounded-lg border px-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            <input
-                                              type="number"
-                                              min={10}
-                                              max={partnerUnit === '%' ? 100 : 300}
-                                              value={partnerSize}
-                                              onChange={(e) => updateLogoSetting('partner', 'size', parseInt(e.target.value) || 30)}
-                                              className="w-full bg-transparent outline-none font-bold text-xs text-center"
-                                              style={{ color: 'var(--text-main)' }}
-                                            />
-                                          </div>
-                                          <div className="flex rounded-lg border p-0.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                            {['px', '%'].map((u) => {
-                                              const isActive = partnerUnit === u;
-                                              return (
-                                                <button
-                                                  key={u}
-                                                  type="button"
-                                                  onClick={() => updateLogoSetting('partner', 'unit', u)}
-                                                  className="px-2 py-0.5 text-[9px] font-extrabold rounded transition-all cursor-pointer"
-                                                  style={{
-                                                    backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                                    color: isActive ? '#ffffff' : 'var(--text-muted)',
-                                                  }}
-                                                >
-                                                  {u}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
+                                        <CtrlPixelPorcentage
+                                          value={partnerSize}
+                                          unit={partnerUnit}
+                                          onChangeValue={(v) => updateLogoSetting('partner', 'size', v)}
+                                          onChangeUnit={(u) => updateLogoSetting('partner', 'unit', u)}
+                                          min={10}
+                                          max={partnerUnit === '%' ? 100 : 300}
+                                        />
                                       </div>
 
                                       {/* Márgenes independientes Partner */}
@@ -2373,56 +2331,10 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
                                           Márgenes
                                         </label>
-
-                                        {/* Fila 1: Arriba / Abajo */}
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                           {[
                                             { field: 'margin_top', unitField: 'margin_top_unit', label: 'Arriba' },
                                             { field: 'margin_bottom', unitField: 'margin_bottom_unit', label: 'Abajo' },
-                                          ].map((m) => {
-                                            const val = getSettingVal('partner', m.field, 0);
-                                            const currentUnit = getSettingVal('partner', m.unitField, getSettingVal('partner', 'margin_unit', 'px'));
-                                            return (
-                                              <div key={m.field} className="flex flex-col gap-0.5">
-                                                <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
-                                                <div className="flex items-center gap-1">
-                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    <input
-                                                      type="number"
-                                                      value={val}
-                                                      onChange={(e) => updateLogoSetting('partner', m.field, parseInt(e.target.value) || 0)}
-                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
-                                                      style={{ color: 'var(--text-main)' }}
-                                                    />
-                                                  </div>
-                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    {['px', '%'].map((u) => {
-                                                      const isActive = currentUnit === u;
-                                                      return (
-                                                        <button
-                                                          key={u}
-                                                          type="button"
-                                                          onClick={() => updateLogoSetting('partner', m.unitField, u)}
-                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded transition-all cursor-pointer"
-                                                          style={{
-                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
-                                                          }}
-                                                        >
-                                                          {u}
-                                                        </button>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-
-                                        {/* Fila 2: Izquierda / Derecha */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                          {[
                                             { field: 'margin_left', unitField: 'margin_left_unit', label: 'Izquierda' },
                                             { field: 'margin_right', unitField: 'margin_right_unit', label: 'Derecha' },
                                           ].map((m) => {
@@ -2431,36 +2343,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                             return (
                                               <div key={m.field} className="flex flex-col gap-0.5">
                                                 <span className="text-[9px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.label}</span>
-                                                <div className="flex items-center gap-1">
-                                                  <div className="flex-1 flex items-center h-7 rounded-lg border px-1.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    <input
-                                                      type="number"
-                                                      value={val}
-                                                      onChange={(e) => updateLogoSetting('partner', m.field, parseInt(e.target.value) || 0)}
-                                                      className="w-full bg-transparent outline-none font-bold text-[10px] text-center"
-                                                      style={{ color: 'var(--text-main)' }}
-                                                    />
-                                                  </div>
-                                                  <div className="flex rounded-lg border p-0.5 shrink-0" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                                    {['px', '%'].map((u) => {
-                                                      const isActive = currentUnit === u;
-                                                      return (
-                                                        <button
-                                                          key={u}
-                                                          type="button"
-                                                          onClick={() => updateLogoSetting('partner', m.unitField, u)}
-                                                          className="px-1.5 py-0.5 text-[8px] font-extrabold rounded transition-all cursor-pointer"
-                                                          style={{
-                                                            backgroundColor: isActive ? 'var(--primary-accent)' : 'transparent',
-                                                            color: isActive ? '#ffffff' : 'var(--text-muted)',
-                                                          }}
-                                                        >
-                                                          {u}
-                                                        </button>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
+                                                <CtrlPixelPorcentage
+                                                  value={val}
+                                                  unit={currentUnit}
+                                                  onChangeValue={(v) => updateLogoSetting('partner', m.field, v)}
+                                                  onChangeUnit={(u) => updateLogoSetting('partner', m.unitField, u)}
+                                                  min={-100}
+                                                  max={currentUnit === '%' ? 100 : 200}
+                                                />
                                               </div>
                                             );
                                           })}
@@ -3948,23 +3838,27 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                            <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Vertical</label>
                                            <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                              {[
-                                               { id: 'top', label: 'Arriba' },
-                                               { id: 'center', label: 'Centro' },
-                                               { id: 'bottom', label: 'Abajo' },
-                                             ].map((pos) => (
-                                               <button
-                                                 key={pos.id}
-                                                 type="button"
-                                                 onClick={() => updatePrecargaPartnerLogo('position_v', pos.id)}
-                                                 className="botab-item flex-1 text-center"
-                                                 style={{
-                                                   backgroundColor: partnerV === pos.id ? 'var(--primary-accent)' : 'transparent',
-                                                   color: partnerV === pos.id ? '#ffffff' : 'var(--text-muted)',
-                                                 }}
-                                               >
-                                                 {pos.label}
-                                               </button>
-                                             ))}
+                                               { id: 'top', label: 'Arriba', icon: AlignVerticalJustifyStart },
+                                               { id: 'center', label: 'Centro', icon: AlignVerticalJustifyCenter },
+                                               { id: 'bottom', label: 'Abajo', icon: AlignVerticalJustifyEnd },
+                                             ].map((pos) => {
+                                               const Icon = pos.icon;
+                                               return (
+                                                 <button
+                                                   key={pos.id}
+                                                   type="button"
+                                                   onClick={() => updatePrecargaPartnerLogo('position_v', pos.id)}
+                                                   className="botab-item flex-1"
+                                                   style={{
+                                                     backgroundColor: partnerV === pos.id ? 'var(--primary-accent)' : 'transparent',
+                                                     color: partnerV === pos.id ? '#ffffff' : 'var(--text-muted)',
+                                                   }}
+                                                   title={pos.label}
+                                                 >
+                                                   <Icon size={14} />
+                                                 </button>
+                                               );
+                                             })}
                                            </div>
                                          </div>
 
@@ -3973,23 +3867,27 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                            <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Alineación Horizontal</label>
                                            <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                              {[
-                                               { id: 'left', label: 'Izq' },
-                                               { id: 'center', label: 'Centro' },
-                                               { id: 'right', label: 'Der' },
-                                             ].map((pos) => (
-                                               <button
-                                                 key={pos.id}
-                                                 type="button"
-                                                 onClick={() => updatePrecargaPartnerLogo('position_h', pos.id)}
-                                                 className="botab-item flex-1 text-center"
-                                                 style={{
-                                                   backgroundColor: partnerH === pos.id ? 'var(--primary-accent)' : 'transparent',
-                                                   color: partnerH === pos.id ? '#ffffff' : 'var(--text-muted)',
-                                                 }}
-                                               >
-                                                 {pos.label}
-                                               </button>
-                                             ))}
+                                               { id: 'left', label: 'Izquierda', icon: AlignLeft },
+                                               { id: 'center', label: 'Centro', icon: AlignCenter },
+                                               { id: 'right', label: 'Derecha', icon: AlignRight },
+                                             ].map((pos) => {
+                                               const Icon = pos.icon;
+                                               return (
+                                                 <button
+                                                   key={pos.id}
+                                                   type="button"
+                                                   onClick={() => updatePrecargaPartnerLogo('position_h', pos.id)}
+                                                   className="botab-item flex-1"
+                                                   style={{
+                                                     backgroundColor: partnerH === pos.id ? 'var(--primary-accent)' : 'transparent',
+                                                     color: partnerH === pos.id ? '#ffffff' : 'var(--text-muted)',
+                                                   }}
+                                                   title={pos.label}
+                                                 >
+                                                   <Icon size={14} />
+                                                 </button>
+                                               );
+                                             })}
                                            </div>
                                          </div>
                                        </div>
@@ -4102,7 +4000,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                   </>
                                 ) : infoScreenTarget === 'gps' ? (
                                   <>
-                                    <MapPin size={16} style={{ color: 'var(--primary-accent)' }} /> Verificación GPS
+                                    <MapPin size={16} style={{ color: 'var(--primary-accent)' }} /> GPS
                                   </>
                                 ) : infoScreenTarget === 'registro' ? (
                                   <>
@@ -4148,13 +4046,24 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                             {/* CONTENIDO 1: BIENVENIDA */}
                             {infoScreenTarget === 'bienvenida' && (
-                              <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Título de Bienvenida</label>
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Titulo</label>
                                   <input
                                     type="text"
                                     value={settings.welcome_title ?? '¡Bienvenido al evento!'}
                                     onChange={(e) => updateSetting('welcome_title', e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Contenido</label>
+                                  <input
+                                    type="text"
+                                    value={settings.welcome_subtitle ?? 'Prepárate para capturar los mejores momentos'}
+                                    onChange={(e) => updateSetting('welcome_subtitle', e.target.value)}
                                     className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
                                     style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                                   />
@@ -4173,18 +4082,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                 </div>
 
                                 <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Subtítulo / Contenido</label>
-                                  <input
-                                    type="text"
-                                    value={settings.welcome_subtitle ?? 'Prepárate para capturar los mejores momentos'}
-                                    onChange={(e) => updateSetting('welcome_subtitle', e.target.value)}
-                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Botón Principal</label>
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto Boton</label>
                                   <input
                                     type="text"
                                     value={settings.welcome_button_text ?? 'Ingresar'}
@@ -4197,78 +4095,212 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                             )}
 
                             {/* CONTENIDO 2: GPS */}
-                            {infoScreenTarget === 'gps' && (
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Título GPS</label>
-                                  <input
-                                    type="text"
-                                    value={settings.gps_title ?? 'Verificación GPS'}
-                                    onChange={(e) => updateSetting('gps_title', e.target.value)}
-                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                  />
-                                </div>
+                            {infoScreenTarget === 'gps' && (() => {
+                              const eventAddress =
+                                eventData?.location ||
+                                eventData?.address ||
+                                eventData?.itinerary?.[0]?.address ||
+                                eventData?.itinerary?.[0]?.location_name ||
+                                'Ubicación no especificada en el evento';
 
-                                <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Nombre del Evento</label>
-                                  <input
-                                    type="text"
-                                    readOnly
-                                    disabled
-                                    value={eventData?.event_name || eventData?.name || eventData?.title || settings.welcome_event || settings.event_name || 'Evento'}
-                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium opacity-70 cursor-not-allowed select-none"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                  />
-                                </div>
+                              const rawGpsLat = settings.welcome_gps_latitude ?? eventData?.latitude ?? eventData?.itinerary?.[0]?.latitude;
+                              const rawGpsLng = settings.welcome_gps_longitude ?? eventData?.longitude ?? eventData?.itinerary?.[0]?.longitude;
+                              const gpsCurrentLat = rawGpsLat !== null && rawGpsLat !== undefined && rawGpsLat !== '' ? Number(rawGpsLat) : null;
+                              const gpsCurrentLng = rawGpsLng !== null && rawGpsLng !== undefined && rawGpsLng !== '' ? Number(rawGpsLng) : null;
+                              const gpsHasCoords = gpsCurrentLat !== null && gpsCurrentLng !== null && !isNaN(gpsCurrentLat) && !isNaN(gpsCurrentLng);
+                              const gpsMapCenter: [number, number] = gpsHasCoords ? [gpsCurrentLat, gpsCurrentLng] : [10.4806, -66.9036];
 
-                                <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Texto del Contenido GPS</label>
-                                  <input
-                                    type="text"
-                                    value={settings.gps_subtitle ?? 'Debes estar en el lugar del evento para ingresar'}
-                                    onChange={(e) => updateSetting('gps_subtitle', e.target.value)}
-                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                  />
-                                </div>
+                              return (
+                                <div className="grid grid-cols-1 lg:grid-cols-6 gap-5 items-start">
+                                  {/* COLUMNA IZQUIERDA (4/6): Titulo, Contenido, Evento, Mensaje de Error */}
+                                  <div className="lg:col-span-4 space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Titulo</label>
+                                        <input
+                                          type="text"
+                                          value={settings.gps_title ?? 'Verificación GPS'}
+                                          onChange={(e) => updateSetting('gps_title', e.target.value)}
+                                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                        />
+                                      </div>
 
-                                <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Error (Fuera de Rango)</label>
-                                  <input
-                                    type="text"
-                                    value={settings.welcome_gps_error_msg ?? 'Debes estar en el lugar del evento para continuar'}
-                                    onChange={(e) => updateSetting('welcome_gps_error_msg', e.target.value)}
-                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                  />
-                                </div>
+                                      <div>
+                                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Contenido</label>
+                                        <input
+                                          type="text"
+                                          value={settings.gps_subtitle ?? 'Debes estar en el lugar del evento para ingresar'}
+                                          onChange={(e) => updateSetting('gps_subtitle', e.target.value)}
+                                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                        />
+                                      </div>
 
-                                <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                                  <div>
-                                    <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Activar Verificación de Ubicación GPS</p>
-                                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Requiere que los invitados estén en la ubicación física del evento para continuar</p>
+                                      <div>
+                                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Evento</label>
+                                        <input
+                                          type="text"
+                                          readOnly
+                                          disabled
+                                          value={eventData?.event_name || eventData?.name || eventData?.title || settings.welcome_event || settings.event_name || 'Evento'}
+                                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium opacity-70 cursor-not-allowed select-none"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Error</label>
+                                        <input
+                                          type="text"
+                                          value={settings.welcome_gps_error_msg ?? 'Debes estar en el lugar del evento para continuar'}
+                                          onChange={(e) => updateSetting('welcome_gps_error_msg', e.target.value)}
+                                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
-                                  <input
-                                    type="checkbox"
-                                    checked={settings.welcome_gps_enabled ?? false}
-                                    onChange={(e) => updateSetting('welcome_gps_enabled', e.target.checked)}
-                                    className="w-4 h-4 rounded cursor-pointer"
-                                  />
-                                </div>
 
-                                <div>
-                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Radio Máximo de Distancia (Metros)</label>
-                                  <input
-                                    type="number"
-                                    value={settings.welcome_gps_radius ?? '500'}
-                                    onChange={(e) => updateSetting('welcome_gps_radius', e.target.value)}
-                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                  />
+                                  {/* COLUMNA DERECHA (2/6): Rango y Suiche Arriba, Dirección y Mapa Abajo */}
+                                  <div className="lg:col-span-2 space-y-3">
+                                    {/* Arriba: Rango y Suiche de Activación */}
+                                    <div className="flex items-end justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <label className="block text-xs font-bold mb-1.5 truncate" style={{ color: 'var(--text-muted)' }}>Radio (Metros)</label>
+                                        <input
+                                          type="number"
+                                          value={settings.welcome_gps_radius ?? '500'}
+                                          onChange={(e) => updateSetting('welcome_gps_radius', e.target.value)}
+                                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                        />
+                                      </div>
+
+                                      <div className="shrink-0 flex flex-col items-center">
+                                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Activar GPS</label>
+                                        <div className="h-[38px] flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={settings.welcome_gps_enabled ?? false}
+                                            onClick={() => updateSetting('welcome_gps_enabled', !(settings.welcome_gps_enabled ?? false))}
+                                            className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                                            style={{
+                                              backgroundColor: settings.welcome_gps_enabled ? 'var(--primary-accent)' : 'rgba(150, 150, 150, 0.3)',
+                                            }}
+                                            title={settings.welcome_gps_enabled ? 'GPS Activado (Clic para desactivar)' : 'GPS Desactivado (Clic para activar)'}
+                                          >
+                                            <span
+                                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                settings.welcome_gps_enabled ? 'translate-x-5' : 'translate-x-0'
+                                              }`}
+                                            />
+                                          </button>
+                                          <span className="text-[11px] font-bold select-none" style={{ color: settings.welcome_gps_enabled ? 'var(--primary-accent)' : 'var(--text-muted)' }}>
+                                            {settings.welcome_gps_enabled ? 'Sí' : 'No'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Dirección del Evento */}
+                                    <div>
+                                      <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                        Dirección del Evento
+                                      </label>
+                                      <div
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium"
+                                        style={{
+                                          backgroundColor: 'var(--bg-app)',
+                                          borderColor: 'var(--border-color)',
+                                          color: 'var(--text-main)',
+                                        }}
+                                      >
+                                        <MapPin size={14} className="shrink-0 text-primary-500" />
+                                        <span className="truncate" title={eventAddress}>
+                                          {eventAddress}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Mapa como en el Form de Evento */}
+                                    <div className="flex flex-col gap-1.5 w-full">
+                                      <div
+                                        className="h-52 w-full rounded-xl overflow-hidden border z-0 relative shadow-inner"
+                                        style={{ borderColor: 'var(--border-color)' }}
+                                      >
+                                        <MapContainer
+                                          center={gpsMapCenter}
+                                          zoom={gpsHasCoords ? 15 : 13}
+                                          style={{ height: '100%', width: '100%', zIndex: 0 }}
+                                        >
+                                          <TileLayer
+                                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                            className="grayscale sepia saturate-200 hue-rotate-[320deg] dark:invert dark:grayscale dark:sepia dark:saturate-200 dark:hue-rotate-[320deg] dark:brightness-90"
+                                          />
+                                          <GpsMapController coords={gpsHasCoords ? [gpsCurrentLat!, gpsCurrentLng!] : null} />
+                                          <GpsMapEvents
+                                            setCoordinates={(lat, lng) => {
+                                              updateSetting('welcome_gps_latitude', lat);
+                                              updateSetting('welcome_gps_longitude', lng);
+                                            }}
+                                          />
+                                          {gpsHasCoords && (
+                                            <>
+                                              <Marker
+                                                position={[gpsCurrentLat!, gpsCurrentLng!]}
+                                                icon={createGpsCustomIcon()}
+                                                draggable={true}
+                                                eventHandlers={{
+                                                  dragend(e) {
+                                                    const marker = e.target;
+                                                    const pos = marker.getLatLng();
+                                                    updateSetting('welcome_gps_latitude', pos.lat);
+                                                    updateSetting('welcome_gps_longitude', pos.lng);
+                                                  },
+                                                }}
+                                              />
+                                              <Circle
+                                                center={[gpsCurrentLat!, gpsCurrentLng!]}
+                                                radius={Number(settings.welcome_gps_radius) || 500}
+                                                pathOptions={{
+                                                  color: '#E07A5F',
+                                                  fillColor: '#E07A5F',
+                                                  fillOpacity: 0.18,
+                                                  weight: 2,
+                                                }}
+                                              />
+                                            </>
+                                          )}
+                                        </MapContainer>
+                                      </div>
+
+                                      {gpsHasCoords ? (
+                                        <div className="flex items-center justify-between text-[11px] px-1" style={{ color: 'var(--text-muted)' }}>
+                                          <span>Coordenadas GPS:</span>
+                                          <span
+                                            className="font-mono px-1.5 py-0.5 rounded border text-[10px]"
+                                            style={{
+                                              backgroundColor: 'var(--bg-app)',
+                                              borderColor: 'var(--border-color)',
+                                              color: 'var(--text-main)',
+                                            }}
+                                          >
+                                            {gpsCurrentLat!.toFixed(5)}, {gpsCurrentLng!.toFixed(5)}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <p className="text-[11px] text-amber-600 dark:text-amber-400 px-1">
+                                          Haz clic en el mapa para marcar la ubicación GPS.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
 
                             {/* CONTENIDO 3: REGISTRO */}
                             {infoScreenTarget === 'registro' && (
