@@ -189,7 +189,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [precargaLogoState, setPrecargaLogoState] = useState<'precarga' | 'qr'>('precarga');
   const [generalSubTab, setGeneralSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [welcomeSubTab, setWelcomeSubTab] = useState<'precarga' | 'evento'>('precarga');
-  const [infoScreenTarget, setInfoScreenTarget] = useState<'bienvenida' | 'gps' | 'registro'>('bienvenida');
+  const [infoScreenTarget, setInfoScreenTarget] = useState<'bienvenida' | 'gps' | 'registro' | 'camera' | 'gallery'>('bienvenida');
+  const [logoActiveScreen, setLogoActiveScreen] = useState<'welcome' | 'gps' | 'registro'>('welcome');
   const [bienvenidaSubTab, setBienvenidaSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'info'>('fuentes');
   const [gpsSubTab, setGpsSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'info'>('fuentes');
   const [registroSubTab, setRegistroSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'info'>('fuentes');
@@ -634,7 +635,9 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     {[
                       { id: 'precarga', label: 'Precarga', icon: Hourglass },
                       { id: 'qr', label: 'Escáner QR', icon: QrCode },
-                      { id: 'welcome', label: 'Pantallas', icon: Tv },
+                      { id: 'welcome', label: 'Bienvenida', icon: Tv },
+                      { id: 'gps', label: 'Verificación GPS', icon: MapPin },
+                      { id: 'registro', label: 'Registro Asistente', icon: UserPlus },
                       { id: 'camera', label: 'Cámara', icon: Camera },
                       { id: 'gallery', label: 'Galería', icon: ImageIcon },
                     ].map((viewItem) => {
@@ -645,7 +648,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           key={viewItem.id}
                           type="button"
                           title={`Ver vista de ${viewItem.label}`}
-                          onClick={() => setPreviewView(viewItem.id)}
+                          onClick={() => {
+                            setPreviewView(viewItem.id);
+                            if (['welcome', 'gps', 'registro', 'camera', 'gallery'].includes(viewItem.id)) {
+                              setInfoScreenTarget(viewItem.id === 'welcome' ? 'bienvenida' : viewItem.id as any);
+                            }
+                          }}
                           className="p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center"
                           style={{
                             backgroundColor: isActive ? 'var(--primary-accent)' : 'var(--bg-app)',
@@ -681,8 +689,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                     { id: 'programa', label: 'Programa', icon: Sliders },
                     { id: 'general', label: 'General', icon: Sparkles },
                     { id: 'welcome', label: 'Pantallas', icon: Tv },
-                    { id: 'camera', label: 'Cámara', icon: Camera },
-                    { id: 'gallery', label: 'Galería', icon: ImageIcon },
                   ].map((tab) => {
                     const Icon = tab.icon;
                     const isActive = mobileActiveView === tab.id;
@@ -1831,12 +1837,16 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                         {generalSubTab === 'logos' && (() => {
                           const displayEventLogo = settings.event_logo_url || eventData?.logo_url || (eventData?.logo ? `/storage/${eventData.logo}` : null);
                           const displayPartnerLogo = settings.project_logo_precarga_url || settings.partner_logo_precarga_url || settings.partner_logo_url || eventData?.partner_logo_url || eventData?.partner?.logo_url || "/dinvited.png";
-                          const activeState = 'welcome';
-                          const stateLabels: Record<string, string> = { welcome: 'Bienvenida', camera: 'Cámara', gallery: 'Galería' };
+                          const activeState = (['welcome', 'gps', 'registro'].includes(previewView) ? previewView : logoActiveScreen) as 'welcome' | 'gps' | 'registro';
+                          const stateLabels: Record<string, string> = { welcome: 'Bienvenida', gps: 'GPS', registro: 'Registro' };
 
                           const getSettingVal = (type: 'event' | 'partner', field: string, defaultVal: any) => {
                             const key = `${type}_logo_${activeState}_${field}`;
                             if (settings[key] !== undefined) return settings[key];
+                            if (activeState !== 'welcome') {
+                              const welcomeKey = `${type}_logo_welcome_${field}`;
+                              if (settings[welcomeKey] !== undefined) return settings[welcomeKey];
+                            }
                             return defaultVal;
                           };
                           const updateLogoSetting = (type: 'event' | 'partner', field: string, value: any) => {
@@ -1853,11 +1863,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                           const partnerSize = getSettingVal('partner', 'size', 40);
                           const partnerUnit = getSettingVal('partner', 'unit', 'px');
 
-                          const eventShowKey = `event_logo_show_welcome`;
-                          const partnerShowKey = `partner_logo_show_welcome`;
+                          const eventShowKey = `event_logo_show_${activeState}`;
+                          const partnerShowKey = `partner_logo_show_${activeState}`;
 
-                          const eventShow = settings[eventShowKey] ?? true;
-                          const partnerShow = settings[partnerShowKey] ?? true;
+                          const eventShow = settings[eventShowKey] ?? (activeState !== 'welcome' ? (settings['event_logo_show_welcome'] ?? true) : true);
+                          const partnerShow = settings[partnerShowKey] ?? (activeState !== 'welcome' ? (settings['partner_logo_show_welcome'] ?? true) : true);
 
                           return (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1888,11 +1898,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         { id: 'registro', label: 'Registro', key: 'event_logo_show_registro' },
                                       ].map((screen) => {
                                         const isSelected = activeState === screen.id;
-                                        const isVis = settings[screen.key] ?? true;
+                                        const isVis = settings[screen.key] ?? (screen.id !== 'welcome' ? (settings['event_logo_show_welcome'] ?? true) : true);
                                         return (
                                           <div
                                             key={screen.id}
-                                            onClick={() => setPreviewView(screen.id)}
+                                            onClick={() => {
+                                              setLogoActiveScreen(screen.id as any);
+                                              setPreviewView(screen.id);
+                                            }}
                                             className="botab-item select-none cursor-pointer"
                                             style={{
                                               backgroundColor: isSelected ? 'var(--primary-accent)' : 'transparent',
@@ -2185,11 +2198,14 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         { id: 'registro', label: 'Registro', key: 'partner_logo_show_registro' },
                                       ].map((screen) => {
                                         const isSelected = activeState === screen.id;
-                                        const isVis = settings[screen.key] ?? true;
+                                        const isVis = settings[screen.key] ?? (screen.id !== 'welcome' ? (settings['partner_logo_show_welcome'] ?? true) : true);
                                         return (
                                           <div
                                             key={screen.id}
-                                            onClick={() => setPreviewView(screen.id)}
+                                            onClick={() => {
+                                              setLogoActiveScreen(screen.id as any);
+                                              setPreviewView(screen.id);
+                                            }}
                                             className="botab-item select-none cursor-pointer"
                                             style={{
                                               backgroundColor: isSelected ? 'var(--primary-accent)' : 'transparent',
@@ -4067,63 +4083,56 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                   </div>
                 )}
 
-                {/* 2. BIENVENIDA TAB CON SUB-PESTAÑAS (PRECARGA, BIENVENIDA, VERIFICACIÓN GPS, REGISTRO) */}
+                {/* 2. BIENVENIDA TAB (PANTALLAS) */}
                 {mobileActiveView === 'welcome' && (
                   <div className="space-y-4">
-                    {/* BARRA DE NAVEGACIÓN DE SUB-PESTAÑAS EN PANTALLAS (BIENVENIDA, GPS, REGISTRO) */}
-                    <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                      {[
-                        { id: 'bienvenida', label: 'Bienvenida', icon: Tv },
-                        { id: 'gps', label: 'Verificación GPS', icon: MapPin },
-                        { id: 'registro', label: 'Registro Asistente', icon: UserPlus },
-                      ].map((sub) => {
-                        const SubIcon = sub.icon;
-                        const isSubActive = infoScreenTarget === sub.id;
-                        return (
-                          <button
-                            key={sub.id}
-                            type="button"
-                            onClick={() => {
-                              setInfoScreenTarget(sub.id as any);
-                              setPreviewView('welcome');
-                            }}
-                            className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                            style={{
-                              backgroundColor: isSubActive ? 'var(--primary-accent-light)' : 'transparent',
-                              color: isSubActive ? 'var(--primary-accent)' : 'var(--text-muted)',
-                              border: isSubActive ? '1px solid var(--primary-accent)' : '1px solid transparent',
-                            }}
-                            title={sub.label}
-                          >
-                            <SubIcon size={14} />
-                            <span>{sub.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
                     {/* CONTENIDO DE PANTALLAS (INFORMACIÓN Y TEXTOS) */}
                     <div className="space-y-4">
                         {true && (
                           <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                             <div className="pb-3 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" style={{ borderColor: 'var(--border-color)' }}>
                               <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                                <Info size={16} style={{ color: 'var(--primary-accent)' }} /> Información y Textos de Bienvenida
+                                {infoScreenTarget === 'camera' ? (
+                                  <>
+                                    <Camera size={16} style={{ color: 'var(--primary-accent)' }} /> Ajustes de Cámara Móvil
+                                  </>
+                                ) : infoScreenTarget === 'gallery' ? (
+                                  <>
+                                    <ImageIcon size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Galería
+                                  </>
+                                ) : infoScreenTarget === 'gps' ? (
+                                  <>
+                                    <MapPin size={16} style={{ color: 'var(--primary-accent)' }} /> Verificación GPS
+                                  </>
+                                ) : infoScreenTarget === 'registro' ? (
+                                  <>
+                                    <UserPlus size={16} style={{ color: 'var(--primary-accent)' }} /> Registro de Asistente
+                                  </>
+                                ) : (
+                                  <>
+                                    <Info size={16} style={{ color: 'var(--primary-accent)' }} /> Información y Textos de Bienvenida
+                                  </>
+                                )}
                               </h3>
 
-                              {/* SELECTOR DE PANTALLA (GPS, REGISTRO, BIENVENIDA) ARRIBA A LA DERECHA */}
+                              {/* SELECTOR DE PANTALLA ARRIBA A LA DERECHA */}
                               <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
                                 {[
+                                  { id: 'bienvenida', label: 'Bienvenida' },
                                   { id: 'gps', label: 'GPS' },
                                   { id: 'registro', label: 'Registro' },
-                                  { id: 'bienvenida', label: 'Bienvenida' },
+                                  { id: 'camera', label: 'Cámara' },
+                                  { id: 'gallery', label: 'Galería' },
                                 ].map((screenItem) => {
                                   const isScreenActive = infoScreenTarget === screenItem.id;
                                   return (
                                     <button
                                       key={screenItem.id}
                                       type="button"
-                                      onClick={() => setInfoScreenTarget(screenItem.id as any)}
+                                      onClick={() => {
+                                        setInfoScreenTarget(screenItem.id as any);
+                                        setPreviewView(screenItem.id === 'bienvenida' ? 'welcome' : screenItem.id);
+                                      }}
                                       className="botab-item"
                                       style={{
                                         backgroundColor: isScreenActive ? 'var(--primary-accent)' : 'transparent',
@@ -4326,76 +4335,64 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                 </div>
                               </div>
                             )}
+
+                            {/* CONTENIDO 4: CÁMARA */}
+                            {infoScreenTarget === 'camera' && (
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Instrucciones en Pantalla de Cámara</label>
+                                  <input
+                                    type="text"
+                                    value={settings.camera_instructions}
+                                    onChange={(e) => updateSetting('camera_instructions', e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  <div>
+                                    <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Rejilla de Composición (Grid Overlay)</p>
+                                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Muestra la rejilla de los tercios en el visor de cámara</p>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.camera_show_grid}
+                                    onChange={(e) => updateSetting('camera_show_grid', e.target.checked)}
+                                    className="w-4 h-4 rounded cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* CONTENIDO 5: GALERÍA */}
+                            {infoScreenTarget === 'gallery' && (
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Título del Muro de Fotos</label>
+                                  <input
+                                    type="text"
+                                    value={settings.gallery_title}
+                                    onChange={(e) => updateSetting('gallery_title', e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Muro Vacío</label>
+                                  <input
+                                    type="text"
+                                    value={settings.gallery_empty_text}
+                                    onChange={(e) => updateSetting('gallery_empty_text', e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
+                                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* 3. CÁMARA TAB */}
-                {mobileActiveView === 'camera' && (
-                  <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                      <Camera size={16} style={{ color: 'var(--primary-accent)' }} /> Ajustes de Cámara Móvil
-                    </h3>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Instrucciones en Pantalla de Cámara</label>
-                        <input
-                          type="text"
-                          value={settings.camera_instructions}
-                          onChange={(e) => updateSetting('camera_instructions', e.target.value)}
-                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                        <div>
-                          <p className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Rejilla de Composición (Grid Overlay)</p>
-                          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Muestra la rejilla de los tercios en el visor de cámara</p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={settings.camera_show_grid}
-                          onChange={(e) => updateSetting('camera_show_grid', e.target.checked)}
-                          className="w-4 h-4 rounded cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. GALERÍA TAB */}
-                {mobileActiveView === 'gallery' && (
-                  <div className="rounded-2xl p-5 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                      <ImageIcon size={16} style={{ color: 'var(--primary-accent)' }} /> Configuración de Galería
-                    </h3>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Título del Muro de Fotos</label>
-                        <input
-                          type="text"
-                          value={settings.gallery_title}
-                          onChange={(e) => updateSetting('gallery_title', e.target.value)}
-                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Muro Vacío</label>
-                        <input
-                          type="text"
-                          value={settings.gallery_empty_text}
-                          onChange={(e) => updateSetting('gallery_empty_text', e.target.value)}
-                          className="w-full rounded-xl px-3 py-2 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
                     </div>
                   </div>
                 )}

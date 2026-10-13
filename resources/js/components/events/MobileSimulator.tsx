@@ -22,7 +22,9 @@ import {
     ZoomIn,
     Loader2,
     Hourglass,
-    Tv
+    Tv,
+    MapPin,
+    UserPlus
 } from "lucide-react";
 
 interface MobileSimulatorProps {
@@ -371,12 +373,17 @@ export default function MobileSimulator({
         const showKey1 = `${type}_logo_show_${view}`;
         const showKey2 = `${type}_logo_${view}_show`;
         const showKeyLegacy = `${type}_logo_enabled`;
-        const isShowSetting = settings[showKey1] ?? settings[showKey2] ?? settings[showKeyLegacy] ?? true;
+        const welcomeShow = settings[`${type}_logo_show_welcome`] ?? true;
+        const isShowSetting = settings[showKey1] ?? settings[showKey2] ?? (view !== 'welcome' ? welcomeShow : settings[showKeyLegacy]) ?? true;
         const show = isShowSetting && !!logoUrl;
 
         const getValue = (field: string, legacyField: string, defaultVal: any) => {
             const viewKey = `${type}_logo_${view}_${field}`;
             if (settings[viewKey] !== undefined) return settings[viewKey];
+            if (view !== 'welcome') {
+                const welcomeKey = `${type}_logo_welcome_${field}`;
+                if (settings[welcomeKey] !== undefined) return settings[welcomeKey];
+            }
             if (settings[legacyField] !== undefined) return settings[legacyField];
             return defaultVal;
         };
@@ -516,7 +523,7 @@ export default function MobileSimulator({
             />
 
             {/* cFondo_Imagen — background image if screen_image_url exists and bgType is image or transparent */}
-            {settings.screen_image_url && (settings.screen_bg_type === 'image' || settings.screen_bg_color === 'transparent') && settings.screen_bg_type !== 'video' && ["welcome", "gallery"].includes(previewView) && (
+            {settings.screen_image_url && (settings.screen_bg_type === 'image' || settings.screen_bg_color === 'transparent') && settings.screen_bg_type !== 'video' && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
                 <div
                     className="absolute inset-0 z-[1] bg-cover bg-center transition-opacity duration-300"
                     style={{ backgroundImage: `url(${settings.screen_image_url})` }}
@@ -524,7 +531,7 @@ export default function MobileSimulator({
             )}
 
             {/* cFondo_Video — background video if screen_bg_type is video or screen_bg_color is transparent and video loaded */}
-            {(settings.screen_bg_type === 'video' || (settings.screen_bg_color === 'transparent' && settings.screen_bg_type === 'video')) && settings.screen_image_url && ["welcome", "gallery"].includes(previewView) && (
+            {(settings.screen_bg_type === 'video' || (settings.screen_bg_color === 'transparent' && settings.screen_bg_type === 'video')) && settings.screen_image_url && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
                 <div className="absolute inset-0 z-[1] w-full h-full overflow-hidden flex items-center justify-center bg-black">
                     <video
                         src={settings.screen_image_url}
@@ -542,7 +549,7 @@ export default function MobileSimulator({
             )}
 
             {/* Capa de tinte / color y desenfoque glass sobre el FONDO (screen) de pantalla */}
-            {settings.screen_image_url && ["welcome", "gallery"].includes(previewView) && (
+            {settings.screen_image_url && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
                 <div
                     className={`absolute inset-0 w-full h-full z-[1] pointer-events-none transition-all ${
                         (settings.screen_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
@@ -561,7 +568,7 @@ export default function MobileSimulator({
 
             {/* cFondo_Evento — event branding background (used for welcome and gallery when not transparent/image/video) */}
             <div
-                className={`absolute inset-0 z-[1] transition-opacity duration-[800ms] ease-in-out ${["welcome", "gallery"].includes(previewView) && settings.screen_bg_type !== 'video' && (!settings.screen_image_url || settings.screen_bg_color !== 'transparent') ? "opacity-100" : "opacity-0"}`}
+                className={`absolute inset-0 z-[1] transition-opacity duration-[800ms] ease-in-out ${["welcome", "gps", "registro", "gallery"].includes(previewView) && settings.screen_bg_type !== 'video' && (!settings.screen_image_url || settings.screen_bg_color !== 'transparent') ? "opacity-100" : "opacity-0"}`}
                 style={brandingStyles}
             />
 
@@ -879,6 +886,273 @@ export default function MobileSimulator({
                                     >
                                         Continuar <ArrowLeft className="w-3 h-3 rotate-180" />
                                     </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* ===== VISTA GPS / VERIFICACIÓN UBICACIÓN ===== */}
+                {previewView === "gps" && (() => {
+                    const eventCfg = getLogoConfig('event', 'gps');
+                    const partnerCfg = getLogoConfig('partner', 'gps');
+                    return (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+                            <div className="w-full flex flex-col items-center gap-4 transition-opacity duration-[800ms] ease-in-out opacity-100 mb-8">
+                                {/* Logo del evento */}
+                                {eventCfg.show && (
+                                    <img
+                                        src={eventCfg.logoUrl!}
+                                        alt="Logo Evento"
+                                        style={eventCfg.style}
+                                        className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    />
+                                )}
+
+                                {/* Logo del Partner / Marca */}
+                                {partnerCfg.show && (
+                                    <img
+                                        src={partnerCfg.logoUrl!}
+                                        alt="Logo Partner"
+                                        style={partnerCfg.style}
+                                        className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    />
+                                )}
+
+                                {/* Contenedor principal */}
+                                <div
+                                    className="backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-white/10 flex flex-col items-center justify-center w-full max-w-[320px] relative overflow-hidden"
+                                    style={containerStyles}
+                                >
+                                    {/* Video / Imagen de fondo para el contenedor */}
+                                    {(settings.container_bg_type === 'video' ||
+                                      String(settings.container_image_url || '').startsWith('data:video') ||
+                                      String(settings.container_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.container_image_url ? (
+                                        <video
+                                            src={settings.container_image_url}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                        />
+                                    ) : settings.container_image_url ? (
+                                        <div
+                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                            style={{ backgroundImage: `url(${settings.container_image_url})` }}
+                                        />
+                                    ) : null}
+
+                                    {/* Capa de tinte / color y desenfoque glass */}
+                                    {settings.container_image_url && (
+                                        <div
+                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                            }`}
+                                            style={{
+                                                backgroundColor: (() => {
+                                                    const bgColor = settings.container_bg_color || "#0f172a";
+                                                    const bgOpacity = settings.container_bg_opacity ?? 75;
+                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                    return `${bgColor}${opacityHex}`;
+                                                })()
+                                            }}
+                                        />
+                                    )}
+
+                                    <div className="relative z-10 w-full flex flex-col items-center justify-center text-center">
+                                        <div className="w-11 h-11 rounded-full flex items-center justify-center mb-2.5 shadow-md bg-white/10 border border-white/20 text-white">
+                                            <MapPin className="w-5 h-5 text-emerald-400" />
+                                        </div>
+
+                                        {/* TÍTULO PRINCIPAL */}
+                                        <h1
+                                            className="text-lg drop-shadow-md leading-none uppercase mt-1 mb-1.5"
+                                            style={{
+                                                color: settings.welcome_title_font_color || settings.global_title_font_color || settings.title_font_color || "#ffffff",
+                                                fontFamily: settings.welcome_title_font_family || settings.global_title_font_family || settings.title_font_family || "Inter",
+                                                fontWeight: (settings.welcome_title_font_weight || settings.global_title_font_weight) as any || "bold",
+                                            }}
+                                        >
+                                            {settings.gps_title || "Verificación GPS"}
+                                        </h1>
+
+                                        {/* NOMBRE DEL EVENTO */}
+                                        <h2
+                                            className="text-xs font-bold drop-shadow-sm uppercase mb-2 opacity-95"
+                                            style={{
+                                                color: settings.welcome_event_font_color || settings.global_title_font_color || "#ffffff",
+                                                fontFamily: settings.welcome_event_font_family || settings.global_title_font_family || "Inter",
+                                            }}
+                                        >
+                                            {settings.welcome_event || event?.event_name || event?.name || event?.title || "Evento"}
+                                        </h2>
+
+                                        {/* TEXTO DE CONTENIDO */}
+                                        <p
+                                            className="text-[11px] leading-tight mt-1 mb-3 opacity-90"
+                                            style={{
+                                                color: settings.welcome_subtitle_font_color || settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
+                                                fontFamily: settings.welcome_subtitle_font_family || settings.global_text_font_family || "Inter",
+                                            }}
+                                        >
+                                            {settings.gps_subtitle || "Debes estar en el lugar del evento para ingresar"}
+                                        </p>
+
+                                        {/* Radio de distancia */}
+                                        <div className="w-full py-1.5 px-3 rounded-xl bg-white/10 border border-white/15 text-[10px] text-white/90 mb-4 flex items-center justify-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                            <span>Radio permitido: {settings.welcome_gps_radius || 500} m</span>
+                                        </div>
+
+                                        {/* Botón Verificar */}
+                                        <button
+                                            type="button"
+                                            className="w-4/5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                                            style={activeGetButtonStyles(false)}
+                                        >
+                                            Verificar Ubicación
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* ===== VISTA REGISTRO / ASISTENTE ===== */}
+                {previewView === "registro" && (() => {
+                    const eventCfg = getLogoConfig('event', 'registro');
+                    const partnerCfg = getLogoConfig('partner', 'registro');
+                    return (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+                            <div className="w-full flex flex-col items-center gap-4 transition-opacity duration-[800ms] ease-in-out opacity-100 mb-8">
+                                {/* Logo del evento */}
+                                {eventCfg.show && (
+                                    <img
+                                        src={eventCfg.logoUrl!}
+                                        alt="Logo Evento"
+                                        style={eventCfg.style}
+                                        className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    />
+                                )}
+
+                                {/* Logo del Partner / Marca */}
+                                {partnerCfg.show && (
+                                    <img
+                                        src={partnerCfg.logoUrl!}
+                                        alt="Logo Partner"
+                                        style={partnerCfg.style}
+                                        className="drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    />
+                                )}
+
+                                {/* Contenedor principal */}
+                                <div
+                                    className="backdrop-blur-md rounded-3xl p-5 shadow-2xl border border-white/10 flex flex-col items-center justify-center w-full max-w-[320px] relative overflow-hidden"
+                                    style={containerStyles}
+                                >
+                                    {/* Video / Imagen de fondo */}
+                                    {(settings.container_bg_type === 'video' ||
+                                      String(settings.container_image_url || '').startsWith('data:video') ||
+                                      String(settings.container_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.container_image_url ? (
+                                        <video
+                                            src={settings.container_image_url}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                        />
+                                    ) : settings.container_image_url ? (
+                                        <div
+                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                            style={{ backgroundImage: `url(${settings.container_image_url})` }}
+                                        />
+                                    ) : null}
+
+                                    {/* Capa de tinte / color y desenfoque glass */}
+                                    {settings.container_image_url && (
+                                        <div
+                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                            }`}
+                                            style={{
+                                                backgroundColor: (() => {
+                                                    const bgColor = settings.container_bg_color || "#0f172a";
+                                                    const bgOpacity = settings.container_bg_opacity ?? 75;
+                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                    return `${bgColor}${opacityHex}`;
+                                                })()
+                                            }}
+                                        />
+                                    )}
+
+                                    <div className="relative z-10 w-full flex flex-col items-center justify-center text-center">
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 shadow-md bg-white/10 border border-white/20 text-white">
+                                            <UserPlus className="w-5 h-5 text-indigo-300" />
+                                        </div>
+
+                                        {/* TÍTULO PRINCIPAL */}
+                                        <h1
+                                            className="text-base drop-shadow-md leading-none uppercase mt-1 mb-1.5"
+                                            style={{
+                                                color: settings.welcome_title_font_color || settings.global_title_font_color || settings.title_font_color || "#ffffff",
+                                                fontFamily: settings.welcome_title_font_family || settings.global_title_font_family || settings.title_font_family || "Inter",
+                                                fontWeight: (settings.welcome_title_font_weight || settings.global_title_font_weight) as any || "bold",
+                                            }}
+                                        >
+                                            {settings.registro_title || "Registro de Asistente"}
+                                        </h1>
+
+                                        {/* TEXTO DE CONTENIDO */}
+                                        <p
+                                            className="text-[10px] leading-tight mt-0.5 mb-3 opacity-90"
+                                            style={{
+                                                color: settings.welcome_subtitle_font_color || settings.global_text_font_color || settings.subtitle_font_color || "#ffffff",
+                                                fontFamily: settings.welcome_subtitle_font_family || settings.global_text_font_family || "Inter",
+                                            }}
+                                        >
+                                            {settings.registro_subtitle || "Ingresa tus datos para continuar"}
+                                        </p>
+
+                                        {/* Formulario simulado */}
+                                        <div className="w-full space-y-1.5 mb-3 text-left">
+                                            {(settings.registro_require_name ?? true) && (
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    placeholder="Nombre y Apellidos *"
+                                                    className="w-full px-2.5 py-1.5 text-[11px] rounded-lg bg-black/30 border border-white/20 text-white placeholder-white/50 pointer-events-none"
+                                                />
+                                            )}
+                                            {(settings.registro_require_email ?? false) && (
+                                                <input
+                                                    type="email"
+                                                    readOnly
+                                                    placeholder="Correo electrónico *"
+                                                    className="w-full px-2.5 py-1.5 text-[11px] rounded-lg bg-black/30 border border-white/20 text-white placeholder-white/50 pointer-events-none"
+                                                />
+                                            )}
+                                            {(settings.registro_require_phone ?? false) && (
+                                                <input
+                                                    type="tel"
+                                                    readOnly
+                                                    placeholder="Teléfono / WhatsApp *"
+                                                    className="w-full px-2.5 py-1.5 text-[11px] rounded-lg bg-black/30 border border-white/20 text-white placeholder-white/50 pointer-events-none"
+                                                />
+                                            )}
+                                        </div>
+
+                                        {/* Botón Registrar */}
+                                        <button
+                                            type="button"
+                                            className="w-4/5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                                            style={activeGetButtonStyles(false)}
+                                        >
+                                            Registrarme
+                                        </button>
                                     </div>
                                 </div>
                             </div>
