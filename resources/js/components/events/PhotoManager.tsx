@@ -43,6 +43,11 @@ import {
   MapPin,
   UserPlus,
   Info,
+  Sun,
+  SlidersHorizontal,
+  Wand2,
+  Layers,
+  RotateCcw,
 } from 'lucide-react';
 import api from '../../lib/api';
 import MobileSimulator from './MobileSimulator';
@@ -69,10 +74,24 @@ const customGpsPinSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24
   <circle cx="12" cy="11" r="4" fill="#3D405B"/>
 </svg>`;
 
-const createGpsCustomIcon = () => {
+const createGpsCustomIcon = (pinColor: string = '#E07A5F') => {
+  const pinSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
+  <defs>
+    <linearGradient id="gpsPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${pinColor}" />
+      <stop offset="100%" stop-color="#F2CC8F" />
+    </linearGradient>
+    <filter id="gpsShadow" x="-30%" y="-20%" width="160%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 36 12 36 C12 36 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill="url(#gpsPinGrad)" stroke="#FFFFFF" stroke-width="1.5" filter="url(#gpsShadow)"/>
+  <circle cx="12" cy="11" r="4" fill="#3D405B"/>
+</svg>`;
+
   return new L.DivIcon({
     className: 'custom-leaflet-marker-pin',
-    html: `<div style="width: 24px; height: 36px; display: flex; align-items: flex-end; justify-content: center;">${customGpsPinSvg}</div>`,
+    html: `<div style="width: 24px; height: 36px; display: flex; align-items: flex-end; justify-content: center;">${pinSvg}</div>`,
     iconSize: [24, 36],
     iconAnchor: [12, 36],
     popupAnchor: [0, -36],
@@ -255,6 +274,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [logoActiveScreen, setLogoActiveScreen] = useState<'welcome' | 'gps' | 'registro'>('welcome');
   const [bienvenidaSubTab, setBienvenidaSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'info'>('fuentes');
   const [gpsSubTab, setGpsSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'info'>('fuentes');
+  const [gpsMapConfigTab, setGpsMapConfigTab] = useState<'elements' | 'effects' | 'pin' | 'presets'>('elements');
   const [registroSubTab, setRegistroSubTab] = useState<'fuentes' | 'fondos' | 'logos' | 'info'>('fuentes');
   const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'botones' | 'fondos' | 'logos'>('fuentes');
   const [textTarget, setTextTarget] = useState<'global_title' | 'global_text'>('global_title');
@@ -4103,6 +4123,86 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                 eventData?.itinerary?.[0]?.location_name ||
                                 'Ubicación no especificada en el evento';
 
+                              const activeEventColor =
+                                eventData?.theme_color ||
+                                (Array.isArray(eventColors) && eventColors.length > 0 ? eventColors[0] : null) ||
+                                '#E07A5F';
+
+                              const rawPalette = [
+                                ...(Array.isArray(eventColors) ? eventColors : []),
+                                ...(eventData?.theme_color ? [eventData.theme_color] : []),
+                              ].filter((c, i, arr) => c && typeof c === 'string' && arr.indexOf(c) === i);
+
+                              const displayPalette = rawPalette.length > 0
+                                ? rawPalette
+                                : ['#E07A5F', '#6366F1', '#EC4899', '#059669', '#D4AF37', '#2563EB'];
+
+                              const baseStyle =
+                                settings.gps_map_base_style ??
+                                (settings.gps_map_theme === 'dark' || settings.gps_map_theme === 'event_dark'
+                                  ? 'dark'
+                                  : settings.gps_map_theme === 'natural'
+                                  ? 'standard'
+                                  : 'light');
+                              const isStandardOSM = baseStyle === 'standard';
+                              const isDarkOSM = baseStyle === 'dark';
+
+                              // Colores individuales de cada elemento
+                              const mapBgColor = settings.gps_map_bg_color ?? (isDarkOSM ? '#0f172a' : '#fafaf9');
+                              const mapRoadsColor = settings.gps_map_roads_color ?? activeEventColor;
+                              const mapBuildingsColor = settings.gps_map_buildings_color ?? (isDarkOSM ? '#1e293b' : '#e2e8f0');
+                              const mapParksColor = settings.gps_map_parks_color ?? (isDarkOSM ? '#064e3b' : '#dcfce7');
+                              const mapWaterColor = settings.gps_map_water_color ?? (isDarkOSM ? '#082f49' : '#bfdbfe');
+
+                              // Efectos fotométricos y ajustes de luz
+                              const mapBrightness = typeof settings.gps_map_brightness === 'number' ? settings.gps_map_brightness : 100;
+                              const mapContrast = typeof settings.gps_map_contrast === 'number' ? settings.gps_map_contrast : 100;
+                              const mapSaturation = typeof settings.gps_map_saturation === 'number' ? settings.gps_map_saturation : 100;
+                              const mapSepia = typeof settings.gps_map_sepia === 'number' ? settings.gps_map_sepia : 0;
+                              const mapInvert = !!settings.gps_map_invert;
+
+                              // Pin y Radio
+                              const mapPinColor = settings.gps_map_pin_color ?? mapRoadsColor ?? activeEventColor;
+                              const mapCircleColor = settings.gps_map_circle_color ?? mapRoadsColor ?? activeEventColor;
+                              const mapCircleOpacity = typeof settings.gps_map_circle_opacity === 'number' ? settings.gps_map_circle_opacity : 18;
+                              const mapCircleWeight = typeof settings.gps_map_circle_weight === 'number' ? settings.gps_map_circle_weight : 2;
+                              const mapCircleDashed = !!settings.gps_map_circle_dashed;
+
+                              const hexToRgb01 = (hex: string): [number, number, number] => {
+                                let c = (hex || '').replace('#', '');
+                                if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+                                const num = parseInt(c, 16);
+                                if (isNaN(num)) return [1, 1, 1];
+                                return [
+                                  ((num >> 16) & 255) / 255,
+                                  ((num >> 8) & 255) / 255,
+                                  (num & 255) / 255,
+                                ];
+                              };
+
+                              const [rBg, gBg, bBg] = hexToRgb01(mapBgColor);
+                              const [rRoads, gRoads, bRoads] = hexToRgb01(mapRoadsColor);
+                              const [rBld, gBld, bBld] = hexToRgb01(mapBuildingsColor);
+                              const [rParks, gParks, bParks] = hexToRgb01(mapParksColor);
+                              const [rWater, gWater, bWater] = hexToRgb01(mapWaterColor);
+
+                              // Mapeo en 5 puntos para el filtro SVG
+                              const tableR = isDarkOSM
+                                ? `${rBg.toFixed(3)} ${rWater.toFixed(3)} ${rParks.toFixed(3)} ${rBld.toFixed(3)} ${rRoads.toFixed(3)}`
+                                : `${rRoads.toFixed(3)} ${rBld.toFixed(3)} ${rParks.toFixed(3)} ${rWater.toFixed(3)} ${rBg.toFixed(3)}`;
+
+                              const tableG = isDarkOSM
+                                ? `${gBg.toFixed(3)} ${gWater.toFixed(3)} ${gParks.toFixed(3)} ${gBld.toFixed(3)} ${gRoads.toFixed(3)}`
+                                : `${gRoads.toFixed(3)} ${gBld.toFixed(3)} ${gParks.toFixed(3)} ${gWater.toFixed(3)} ${gBg.toFixed(3)}`;
+
+                              const tableB = isDarkOSM
+                                ? `${bBg.toFixed(3)} ${bWater.toFixed(3)} ${bParks.toFixed(3)} ${bBld.toFixed(3)} ${bRoads.toFixed(3)}`
+                                : `${bRoads.toFixed(3)} ${bBld.toFixed(3)} ${bParks.toFixed(3)} ${bWater.toFixed(3)} ${bBg.toFixed(3)}`;
+
+                              const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+                              const tileAttribution =
+                                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
                               const rawGpsLat = settings.welcome_gps_latitude ?? eventData?.latitude ?? eventData?.itinerary?.[0]?.latitude;
                               const rawGpsLng = settings.welcome_gps_longitude ?? eventData?.longitude ?? eventData?.itinerary?.[0]?.longitude;
                               const gpsCurrentLat = rawGpsLat !== null && rawGpsLat !== undefined && rawGpsLat !== '' ? Number(rawGpsLat) : null;
@@ -4110,10 +4210,165 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                               const gpsHasCoords = gpsCurrentLat !== null && gpsCurrentLng !== null && !isNaN(gpsCurrentLat) && !isNaN(gpsCurrentLng);
                               const gpsMapCenter: [number, number] = gpsHasCoords ? [gpsCurrentLat, gpsCurrentLng] : [10.4806, -66.9036];
 
+                              const mapPresetsList = [
+                                {
+                                  name: 'Boda Romántica',
+                                  emoji: '🌸',
+                                  desc: 'Rosa pastel, marfil y salvia suave',
+                                  bg: '#fffafb',
+                                  roads: '#e08ba5',
+                                  buildings: '#fce7f3',
+                                  parks: '#ecfdf5',
+                                  water: '#e0f2fe',
+                                  pin: '#e08ba5',
+                                  circle: '#e08ba5',
+                                  base: 'light',
+                                },
+                                {
+                                  name: 'Noche de Gala',
+                                  emoji: '🌙',
+                                  desc: 'Carbón oscuro, oro y azul noche',
+                                  bg: '#0b0f19',
+                                  roads: '#f59e0b',
+                                  buildings: '#1e293b',
+                                  parks: '#064e3b',
+                                  water: '#0c4a6e',
+                                  pin: '#f59e0b',
+                                  circle: '#f59e0b',
+                                  base: 'dark',
+                                },
+                                {
+                                  name: 'Jardín Boho',
+                                  emoji: '🌿',
+                                  desc: 'Tierra cálida, terracota y verde bosque',
+                                  bg: '#faf7f2',
+                                  roads: '#c2410c',
+                                  buildings: '#e7e5e4',
+                                  parks: '#15803d',
+                                  water: '#0e7490',
+                                  pin: '#c2410c',
+                                  circle: '#c2410c',
+                                  base: 'light',
+                                },
+                                {
+                                  name: 'Fiesta Neón',
+                                  emoji: '⚡',
+                                  desc: 'Negro carbón, cian eléctrico y acentos lima',
+                                  bg: '#050505',
+                                  roads: '#06b6d4',
+                                  buildings: '#2e1065',
+                                  parks: '#22c55e',
+                                  water: '#1d4ed8',
+                                  pin: '#ec4899',
+                                  circle: '#06b6d4',
+                                  base: 'dark',
+                                },
+                                {
+                                  name: 'Minimalista Nórdico',
+                                  emoji: '❄️',
+                                  desc: 'Blanco puro, gris perla y azul pizarra',
+                                  bg: '#ffffff',
+                                  roads: '#475569',
+                                  buildings: '#f1f5f9',
+                                  parks: '#f0fdf4',
+                                  water: '#f0f9ff',
+                                  pin: '#475569',
+                                  circle: '#475569',
+                                  base: 'light',
+                                },
+                              ];
+
+                              const applyEventPaletteToAll = () => {
+                                const p1 = displayPalette[0] || activeEventColor;
+                                const p2 = displayPalette[1] || displayPalette[0] || activeEventColor;
+                                const p3 = displayPalette[2] || '#cbd5e1';
+                                const p4 = displayPalette[3] || '#dcfce7';
+                                const p5 = displayPalette[4] || '#bfdbfe';
+
+                                if (isDarkOSM) {
+                                  updateSetting('gps_map_bg_color', '#0f172a');
+                                  updateSetting('gps_map_roads_color', p1);
+                                  updateSetting('gps_map_buildings_color', '#1e293b');
+                                  updateSetting('gps_map_parks_color', '#064e3b');
+                                  updateSetting('gps_map_water_color', '#082f49');
+                                } else {
+                                  updateSetting('gps_map_bg_color', '#fafaf9');
+                                  updateSetting('gps_map_roads_color', p1);
+                                  updateSetting('gps_map_buildings_color', p3);
+                                  updateSetting('gps_map_parks_color', p4);
+                                  updateSetting('gps_map_water_color', p5);
+                                }
+                                updateSetting('gps_map_pin_color', p1);
+                                updateSetting('gps_map_circle_color', p2);
+                              };
+
+                              const resetMapColors = () => {
+                                updateSetting('gps_map_base_style', 'light');
+                                updateSetting('gps_map_bg_color', '#fafaf9');
+                                updateSetting('gps_map_roads_color', activeEventColor);
+                                updateSetting('gps_map_buildings_color', '#e2e8f0');
+                                updateSetting('gps_map_parks_color', '#dcfce7');
+                                updateSetting('gps_map_water_color', '#bfdbfe');
+                                updateSetting('gps_map_pin_color', activeEventColor);
+                                updateSetting('gps_map_circle_color', activeEventColor);
+                                updateSetting('gps_map_brightness', 100);
+                                updateSetting('gps_map_contrast', 100);
+                                updateSetting('gps_map_saturation', 100);
+                                updateSetting('gps_map_sepia', 0);
+                                updateSetting('gps_map_invert', false);
+                                updateSetting('gps_map_circle_opacity', 18);
+                                updateSetting('gps_map_circle_weight', 2);
+                                updateSetting('gps_map_circle_dashed', false);
+                              };
+
+                              const mapElementsConfig = [
+                                {
+                                  key: 'gps_map_bg_color',
+                                  val: mapBgColor,
+                                  title: 'Fondo / Base',
+                                  desc: 'Superficie general y suelo del mapa',
+                                  emoji: '🏞️',
+                                  quickNeutrals: ['#ffffff', '#fafaf9', '#f3f4f6', '#0f172a', '#18181b'],
+                                },
+                                {
+                                  key: 'gps_map_roads_color',
+                                  val: mapRoadsColor,
+                                  title: 'Calles / Rutas',
+                                  desc: 'Avenidas, calles y trazados principales',
+                                  emoji: '🛣️',
+                                  quickNeutrals: ['#1e293b', '#475569', '#3b82f6', '#ef4444', '#f59e0b'],
+                                },
+                                {
+                                  key: 'gps_map_buildings_color',
+                                  val: mapBuildingsColor,
+                                  title: 'Edificios / Zonas',
+                                  desc: 'Manzanas, estructuras y construcciones',
+                                  emoji: '🏢',
+                                  quickNeutrals: ['#e2e8f0', '#cbd5e1', '#94a3b8', '#334155', '#1e293b'],
+                                },
+                                {
+                                  key: 'gps_map_parks_color',
+                                  val: mapParksColor,
+                                  title: 'Parques / Verde',
+                                  desc: 'Bosques, jardines y áreas naturales',
+                                  emoji: '🌲',
+                                  quickNeutrals: ['#dcfce7', '#bbf7d0', '#86efac', '#15803d', '#064e3b'],
+                                },
+                                {
+                                  key: 'gps_map_water_color',
+                                  val: mapWaterColor,
+                                  title: 'Lagos / Ríos',
+                                  desc: 'Ríos, lagos, mares e hidrografía',
+                                  emoji: '🌊',
+                                  quickNeutrals: ['#bfdbfe', '#93c5fd', '#60a5fa', '#0284c7', '#0c4a6e'],
+                                },
+                              ];
+
                               return (
                                 <div className="grid grid-cols-1 lg:grid-cols-6 gap-5 items-start">
-                                  {/* COLUMNA IZQUIERDA (4/6): Titulo, Contenido, Evento, Mensaje de Error */}
+                                  {/* COLUMNA IZQUIERDA (4/6) */}
                                   <div className="lg:col-span-4 space-y-3">
+                                    {/* FILA 1: Titulo y Contenido */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                       <div>
                                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Titulo</label>
@@ -4136,9 +4391,12 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                           style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                                         />
                                       </div>
+                                    </div>
 
-                                      <div>
-                                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Evento</label>
+                                    {/* FILA 2: Evento (2/6) y Mensaje de Error (4/6) */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                                      <div className="sm:col-span-2">
+                                        <label className="block text-xs font-bold mb-1.5 truncate" style={{ color: 'var(--text-muted)' }}>Evento</label>
                                         <input
                                           type="text"
                                           readOnly
@@ -4149,7 +4407,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         />
                                       </div>
 
-                                      <div>
+                                      <div className="sm:col-span-4">
                                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Mensaje de Error</label>
                                         <input
                                           type="text"
@@ -4160,9 +4418,587 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                         />
                                       </div>
                                     </div>
+
+                                    {/* FILA 3: Dirección del Evento */}
+                                    <div>
+                                      <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                        Dirección del Evento
+                                      </label>
+                                      <div className="relative flex items-center">
+                                        <MapPin size={15} className="absolute left-3 text-primary-500 pointer-events-none" />
+                                        <input
+                                          type="text"
+                                          value={settings.welcome_gps_address ?? eventAddress}
+                                          onChange={(e) => updateSetting('welcome_gps_address', e.target.value)}
+                                          placeholder="Dirección o lugar del evento..."
+                                          className="w-full rounded-xl pl-9 pr-3 py-2 border outline-none text-xs font-medium"
+                                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* FILA 4: PANEL AVANZADO DE COLORES DEL MAPA (OpenStreetMap) */}
+                                    <div className="p-4 rounded-2xl border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                      {/* Encabezado Principal */}
+                                      <div className="flex items-center justify-between border-b pb-2.5 flex-wrap gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(224, 122, 95, 0.15)', color: 'var(--primary-accent)' }}>
+                                            <Palette size={17} />
+                                          </div>
+                                          <div>
+                                            <h4 className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Personalización de Colores del Mapa</h4>
+                                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>100% Gratuito vía OpenStreetMap • Personaliza elementos, iluminación y estilos</p>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 ml-auto">
+                                          <button
+                                            type="button"
+                                            onClick={applyEventPaletteToAll}
+                                            className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border flex items-center gap-1 hover:opacity-90 transition cursor-pointer shadow-sm"
+                                            style={{ backgroundColor: 'var(--primary-accent)', borderColor: 'var(--primary-accent)', color: '#ffffff' }}
+                                            title="Distribuir los colores de la paleta del evento en calles, edificios, zonas verdes y pin"
+                                          >
+                                            <Sparkles size={11} /> Paleta del Evento a Todo
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={resetMapColors}
+                                            className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border hover:opacity-80 transition cursor-pointer flex items-center gap-1"
+                                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-card)' }}
+                                            title="Restablecer todos los colores y efectos a los valores de fábrica"
+                                          >
+                                            <RotateCcw size={11} /> Restablecer
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Selector de Estilo Base */}
+                                      <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-[11px] font-bold" style={{ color: 'var(--text-main)' }}>
+                                            Estilo Base del Mapa:
+                                          </label>
+                                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Define la iluminación general del mapa</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                          {[
+                                            { id: 'light', label: '☀️ Claro (Día)', desc: 'Base blanca/crema personalizable' },
+                                            { id: 'dark', label: '🌙 Oscuro (Noche)', desc: 'Base nocturna personalizable' },
+                                            { id: 'standard', label: '🗺️ Original OSM', desc: 'Colores clásicos de OpenStreetMap' },
+                                          ].map((style) => {
+                                            const isSelected = baseStyle === style.id;
+                                            return (
+                                              <button
+                                                key={style.id}
+                                                type="button"
+                                                onClick={() => {
+                                                  updateSetting('gps_map_base_style', style.id);
+                                                  if (style.id === 'dark') {
+                                                    updateSetting('gps_map_bg_color', '#0f172a');
+                                                    updateSetting('gps_map_buildings_color', '#1e293b');
+                                                    updateSetting('gps_map_parks_color', '#064e3b');
+                                                    updateSetting('gps_map_water_color', '#082f49');
+                                                  } else if (style.id === 'light') {
+                                                    updateSetting('gps_map_bg_color', '#fafaf9');
+                                                    updateSetting('gps_map_buildings_color', '#e2e8f0');
+                                                    updateSetting('gps_map_parks_color', '#dcfce7');
+                                                    updateSetting('gps_map_water_color', '#bfdbfe');
+                                                  }
+                                                }}
+                                                className="p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-center"
+                                                style={{
+                                                  backgroundColor: isSelected ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                                  borderColor: isSelected ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                  color: isSelected ? '#ffffff' : 'var(--text-main)',
+                                                }}
+                                              >
+                                                <span className="text-xs font-bold leading-tight">{style.label}</span>
+                                                <span className="text-[9px] mt-0.5 opacity-80 leading-tight">{style.desc}</span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+
+                                      {!isStandardOSM && (
+                                        <>
+                                          {/* Barra de Pestañas Interna de Configuración */}
+                                          <div className="flex items-center gap-1 p-1 rounded-xl border bg-zinc-100/60 dark:bg-zinc-800/60" style={{ borderColor: 'var(--border-color)' }}>
+                                            {[
+                                              { id: 'elements', label: '🎨 Elementos', icon: Layers, count: '5' },
+                                              { id: 'effects', label: '✨ Luz y Tono', icon: SlidersHorizontal, count: '4' },
+                                              { id: 'pin', label: '📍 Pin y Radio', icon: MapPin, count: '5' },
+                                              { id: 'presets', label: '⭐ Estilos Rápidos', icon: Wand2, count: '5' },
+                                            ].map((tab) => {
+                                              const isActive = gpsMapConfigTab === tab.id;
+                                              const IconComp = tab.icon;
+                                              return (
+                                                <button
+                                                  key={tab.id}
+                                                  type="button"
+                                                  onClick={() => setGpsMapConfigTab(tab.id as any)}
+                                                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                                    isActive ? 'shadow-sm' : 'opacity-70 hover:opacity-100'
+                                                  }`}
+                                                  style={{
+                                                    backgroundColor: isActive ? 'var(--bg-card)' : 'transparent',
+                                                    color: isActive ? 'var(--primary-accent)' : 'var(--text-main)',
+                                                  }}
+                                                >
+                                                  <IconComp size={13} />
+                                                  <span className="hidden sm:inline">{tab.label}</span>
+                                                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+
+                                          {/* PESTAÑA 1: 🎨 ELEMENTOS EN LA MISMA FILA CON COLORPICKER */}
+                                          {gpsMapConfigTab === 'elements' && (
+                                            <div className="space-y-2 pt-1">
+                                              <div className="flex items-center justify-between">
+                                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                                  Haz clic en cualquier selector para abrir el ColorPicker o elige un color rápido:
+                                                </p>
+                                                <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                                                  5 Elementos
+                                                </span>
+                                              </div>
+
+                                              {/* Cuadrícula de 5 controles en la misma fila en desktop */}
+                                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                                                {mapElementsConfig.map((elem) => (
+                                                  <div
+                                                    key={elem.key}
+                                                    className="p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition-all hover:border-primary-500/50 shadow-2xs"
+                                                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+                                                  >
+                                                    {/* Título y Emoji */}
+                                                    <div className="flex items-center justify-between gap-1">
+                                                      <span className="text-[11px] font-bold truncate flex items-center gap-1" style={{ color: 'var(--text-main)' }} title={elem.title}>
+                                                        <span>{elem.emoji}</span> <span className="truncate">{elem.title}</span>
+                                                      </span>
+                                                    </div>
+
+                                                    {/* ColorPickerPopover compacto */}
+                                                    <div className="w-full">
+                                                      <ColorPickerPopover
+                                                        value={elem.val}
+                                                        onChange={(c) => updateSetting(elem.key, c)}
+                                                        allowGradient={false}
+                                                        allowTransparent={false}
+                                                        eventColors={displayPalette}
+                                                        eventColorImage={eventColorImage}
+                                                      />
+                                                    </div>
+
+                                                    {/* Código Hex y Mini-swatches rápidos de la paleta */}
+                                                    <div className="flex items-center justify-between gap-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                                                      <span className="text-[9px] font-mono font-bold uppercase truncate" style={{ color: 'var(--text-muted)' }}>
+                                                        {elem.val}
+                                                      </span>
+                                                      <div className="flex items-center gap-1 shrink-0">
+                                                        {displayPalette.slice(0, 3).map((c, i) => (
+                                                          <button
+                                                            key={i}
+                                                            type="button"
+                                                            onClick={() => updateSetting(elem.key, c)}
+                                                            className="w-3.5 h-3.5 rounded-full border shrink-0 transition-transform hover:scale-125 cursor-pointer"
+                                                            style={{
+                                                              backgroundColor: c,
+                                                              borderColor: elem.val.toLowerCase() === c.toLowerCase() ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                            }}
+                                                            title={`Asignar ${c}`}
+                                                          />
+                                                        ))}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* PESTAÑA 2: ✨ LUZ Y TONO (EFECTOS FOTOMÉTRICOS EN LA MISMA FILA) */}
+                                          {gpsMapConfigTab === 'effects' && (
+                                            <div className="space-y-3 pt-1">
+                                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                                Ajusta la luminosidad, intensidad y atmósfera visual de las teselas del mapa:
+                                              </p>
+
+                                              <div className="p-3 rounded-xl border space-y-3" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                                {/* 4 Controles en la misma fila en desktop */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                                  {/* Brillo */}
+                                                  <div className="p-2.5 rounded-lg border space-y-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                      <span className="font-semibold flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-main)' }}>
+                                                        <Sun size={12} className="text-amber-500" /> Brillo
+                                                      </span>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--primary-accent)' }}>{mapBrightness}%</span>
+                                                        {mapBrightness !== 100 && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => updateSetting('gps_map_brightness', 100)}
+                                                            className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition cursor-pointer"
+                                                            title="Restablecer a 100%"
+                                                          >
+                                                            <RotateCcw size={10} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    <input
+                                                      type="range"
+                                                      min="50"
+                                                      max="150"
+                                                      step="5"
+                                                      value={mapBrightness}
+                                                      onChange={(e) => updateSetting('gps_map_brightness', Number(e.target.value))}
+                                                      className="w-full accent-primary-500 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
+                                                    />
+                                                  </div>
+
+                                                  {/* Contraste */}
+                                                  <div className="p-2.5 rounded-lg border space-y-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                      <span className="font-semibold flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-main)' }}>
+                                                        <SlidersHorizontal size={12} className="text-blue-500" /> Contraste
+                                                      </span>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--primary-accent)' }}>{mapContrast}%</span>
+                                                        {mapContrast !== 100 && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => updateSetting('gps_map_contrast', 100)}
+                                                            className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition cursor-pointer"
+                                                            title="Restablecer a 100%"
+                                                          >
+                                                            <RotateCcw size={10} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    <input
+                                                      type="range"
+                                                      min="50"
+                                                      max="200"
+                                                      step="5"
+                                                      value={mapContrast}
+                                                      onChange={(e) => updateSetting('gps_map_contrast', Number(e.target.value))}
+                                                      className="w-full accent-primary-500 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
+                                                    />
+                                                  </div>
+
+                                                  {/* Saturación */}
+                                                  <div className="p-2.5 rounded-lg border space-y-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                      <span className="font-semibold flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-main)' }}>
+                                                        <Palette size={12} className="text-purple-500" /> Saturación
+                                                      </span>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--primary-accent)' }}>{mapSaturation}%</span>
+                                                        {mapSaturation !== 100 && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => updateSetting('gps_map_saturation', 100)}
+                                                            className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition cursor-pointer"
+                                                            title="Restablecer a 100%"
+                                                          >
+                                                            <RotateCcw size={10} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    <input
+                                                      type="range"
+                                                      min="0"
+                                                      max="200"
+                                                      step="5"
+                                                      value={mapSaturation}
+                                                      onChange={(e) => updateSetting('gps_map_saturation', Number(e.target.value))}
+                                                      className="w-full accent-primary-500 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
+                                                    />
+                                                  </div>
+
+                                                  {/* Sepia */}
+                                                  <div className="p-2.5 rounded-lg border space-y-1.5" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                      <span className="font-semibold flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-main)' }}>
+                                                        <Sparkles size={12} className="text-amber-600" /> Sepia Vintage
+                                                      </span>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--primary-accent)' }}>{mapSepia}%</span>
+                                                        {mapSepia !== 0 && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => updateSetting('gps_map_sepia', 0)}
+                                                            className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition cursor-pointer"
+                                                            title="Quitar sepia"
+                                                          >
+                                                            <RotateCcw size={10} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    <input
+                                                      type="range"
+                                                      min="0"
+                                                      max="100"
+                                                      step="5"
+                                                      value={mapSepia}
+                                                      onChange={(e) => updateSetting('gps_map_sepia', Number(e.target.value))}
+                                                      className="w-full accent-primary-500 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                {/* Invertir Tonalidad */}
+                                                <div className="pt-2 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+                                                  <div>
+                                                    <span className="text-xs font-bold block" style={{ color: 'var(--text-main)' }}>Invertir Tonalidad del Mapa</span>
+                                                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Invierte los contrastes claros/oscuros en las teselas</span>
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    role="switch"
+                                                    aria-checked={mapInvert}
+                                                    onClick={() => updateSetting('gps_map_invert', !mapInvert)}
+                                                    className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                                                    style={{
+                                                      backgroundColor: mapInvert ? 'var(--primary-accent)' : 'rgba(150, 150, 150, 0.3)',
+                                                    }}
+                                                  >
+                                                    <span
+                                                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                        mapInvert ? 'translate-x-5' : 'translate-x-0'
+                                                      }`}
+                                                    />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* PESTAÑA 3: 📍 PIN Y RADIO DE COBERTURA EN FILAS */}
+                                          {gpsMapConfigTab === 'pin' && (
+                                            <div className="space-y-3 pt-1">
+                                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                                  Personaliza el marcador geográfico y la visualización del radio de asistencia:
+                                                </p>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    updateSetting('gps_map_pin_color', mapRoadsColor);
+                                                    updateSetting('gps_map_circle_color', mapRoadsColor);
+                                                  }}
+                                                  className="text-[10px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 hover:opacity-85 transition cursor-pointer"
+                                                  style={{
+                                                    backgroundColor: 'var(--bg-card)',
+                                                    borderColor: 'var(--border-color)',
+                                                    color: 'var(--primary-accent)',
+                                                  }}
+                                                  title="Sincronizar Pin y Radio con el color de las calles"
+                                                >
+                                                  <Sparkles size={11} /> Sincronizar con Calles
+                                                </button>
+                                              </div>
+
+                                              {/* Fila con los 2 ColorPickers (Pin y Radio) */}
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {/* Color del Pin */}
+                                                <div className="p-2.5 rounded-xl border space-y-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                                  <div className="flex items-center justify-between">
+                                                    <label className="text-[11px] font-bold flex items-center gap-1" style={{ color: 'var(--text-main)' }}>
+                                                      <MapPin size={13} className="text-primary-500" /> Color del Marcador (Pin)
+                                                    </label>
+                                                    <span className="text-[10px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>{mapPinColor}</span>
+                                                  </div>
+                                                  <ColorPickerPopover
+                                                    value={mapPinColor}
+                                                    onChange={(c) => updateSetting('gps_map_pin_color', c)}
+                                                    allowGradient={false}
+                                                    allowTransparent={false}
+                                                    eventColors={displayPalette}
+                                                    eventColorImage={eventColorImage}
+                                                  />
+                                                </div>
+
+                                                {/* Color del Círculo (Radio) */}
+                                                <div className="p-2.5 rounded-xl border space-y-2 shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                                  <div className="flex items-center justify-between">
+                                                    <label className="text-[11px] font-bold flex items-center gap-1" style={{ color: 'var(--text-main)' }}>
+                                                      <Square size={13} className="text-indigo-500" /> Color del Círculo (Radio)
+                                                    </label>
+                                                    <span className="text-[10px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>{mapCircleColor}</span>
+                                                  </div>
+                                                  <ColorPickerPopover
+                                                    value={mapCircleColor}
+                                                    onChange={(c) => updateSetting('gps_map_circle_color', c)}
+                                                    allowGradient={false}
+                                                    allowTransparent={false}
+                                                    eventColors={displayPalette}
+                                                    eventColorImage={eventColorImage}
+                                                  />
+                                                </div>
+                                              </div>
+
+                                              {/* Fila con propiedades del radio: Opacidad, Grosor y Línea Discontinua */}
+                                              <div className="p-3 rounded-xl border grid grid-cols-1 sm:grid-cols-3 gap-3 items-center shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                                                {/* Opacidad del relleno del radio */}
+                                                <div className="space-y-1">
+                                                  <div className="flex items-center justify-between text-xs">
+                                                    <span className="font-semibold text-[11px]" style={{ color: 'var(--text-main)' }}>Opacidad Cobertura</span>
+                                                    <span className="font-mono text-[10px] font-bold" style={{ color: 'var(--primary-accent)' }}>{mapCircleOpacity}%</span>
+                                                  </div>
+                                                  <input
+                                                    type="range"
+                                                    min="5"
+                                                    max="60"
+                                                    step="5"
+                                                    value={mapCircleOpacity}
+                                                    onChange={(e) => updateSetting('gps_map_circle_opacity', Number(e.target.value))}
+                                                    className="w-full accent-primary-500 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
+                                                  />
+                                                </div>
+
+                                                {/* Grosor del borde */}
+                                                <div className="space-y-1">
+                                                  <label className="block text-[11px] font-semibold" style={{ color: 'var(--text-main)' }}>
+                                                    Grosor del Borde:
+                                                  </label>
+                                                  <div className="grid grid-cols-4 gap-1">
+                                                    {[1, 2, 3, 4].map((w) => (
+                                                      <button
+                                                        key={w}
+                                                        type="button"
+                                                        onClick={() => updateSetting('gps_map_circle_weight', w)}
+                                                        className={`py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                                          mapCircleWeight === w ? 'border-primary-500 text-white' : ''
+                                                        }`}
+                                                        style={{
+                                                          backgroundColor: mapCircleWeight === w ? 'var(--primary-accent)' : 'var(--bg-app)',
+                                                          borderColor: mapCircleWeight === w ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                          color: mapCircleWeight === w ? '#ffffff' : 'var(--text-main)',
+                                                        }}
+                                                      >
+                                                        {w}px
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                </div>
+
+                                                {/* Estilo Continuo / Punteado */}
+                                                <div className="space-y-1">
+                                                  <label className="block text-[11px] font-semibold" style={{ color: 'var(--text-main)' }}>
+                                                    Estilo del Perímetro:
+                                                  </label>
+                                                  <div className="grid grid-cols-2 gap-1">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => updateSetting('gps_map_circle_dashed', false)}
+                                                      className={`py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                                        !mapCircleDashed ? 'border-primary-500 text-white' : ''
+                                                      }`}
+                                                      style={{
+                                                        backgroundColor: !mapCircleDashed ? 'var(--primary-accent)' : 'var(--bg-app)',
+                                                        borderColor: !mapCircleDashed ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                        color: !mapCircleDashed ? '#ffffff' : 'var(--text-main)',
+                                                      }}
+                                                    >
+                                                      — Sólido
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => updateSetting('gps_map_circle_dashed', true)}
+                                                      className={`py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                                        mapCircleDashed ? 'border-primary-500 text-white' : ''
+                                                      }`}
+                                                      style={{
+                                                        backgroundColor: mapCircleDashed ? 'var(--primary-accent)' : 'var(--bg-app)',
+                                                        borderColor: mapCircleDashed ? 'var(--primary-accent)' : 'var(--border-color)',
+                                                        color: mapCircleDashed ? '#ffffff' : 'var(--text-main)',
+                                                      }}
+                                                    >
+                                                      - - Punteado
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* PESTAÑA 4: ⭐ ESTILOS RÁPIDOS (PRESETS CON 1 CLIC) */}
+                                          {gpsMapConfigTab === 'presets' && (
+                                            <div className="space-y-3 pt-1">
+                                              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                                Selecciona una plantilla de diseño prediseñada lista para cualquier ocasión:
+                                              </p>
+
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                                {mapPresetsList.map((preset) => (
+                                                  <div
+                                                    key={preset.name}
+                                                    className="p-3 rounded-xl border flex flex-col justify-between gap-2.5 hover:shadow-md transition"
+                                                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+                                                  >
+                                                    <div>
+                                                      <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                                                          <span>{preset.emoji}</span> {preset.name}
+                                                        </span>
+                                                        <span className="text-[9px] px-1.5 py-0.5 rounded border font-semibold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                                                          {preset.base === 'dark' ? '🌙 Noche' : '☀️ Día'}
+                                                        </span>
+                                                      </div>
+                                                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{preset.desc}</p>
+                                                    </div>
+
+                                                    {/* Previsualización de los 5 colores del preset */}
+                                                    <div className="flex items-center justify-between pt-1">
+                                                      <div className="flex items-center -space-x-1">
+                                                        {[preset.bg, preset.roads, preset.buildings, preset.parks, preset.water].map((pc, pidx) => (
+                                                          <div
+                                                            key={pidx}
+                                                            className="w-5 h-5 rounded-full border border-white dark:border-zinc-800 shadow-xs"
+                                                            style={{ backgroundColor: pc }}
+                                                            title={pc}
+                                                          />
+                                                        ))}
+                                                      </div>
+
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          updateSetting('gps_map_base_style', preset.base);
+                                                          updateSetting('gps_map_bg_color', preset.bg);
+                                                          updateSetting('gps_map_roads_color', preset.roads);
+                                                          updateSetting('gps_map_buildings_color', preset.buildings);
+                                                          updateSetting('gps_map_parks_color', preset.parks);
+                                                          updateSetting('gps_map_water_color', preset.water);
+                                                          updateSetting('gps_map_pin_color', preset.pin);
+                                                          updateSetting('gps_map_circle_color', preset.circle);
+                                                        }}
+                                                        className="text-[10px] font-bold px-2 py-1 rounded-lg border hover:opacity-90 transition cursor-pointer"
+                                                        style={{ backgroundColor: 'var(--primary-accent)', borderColor: 'var(--primary-accent)', color: '#ffffff' }}
+                                                      >
+                                                        Aplicar Estilo
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
 
-                                  {/* COLUMNA DERECHA (2/6): Rango y Suiche Arriba, Dirección y Mapa Abajo */}
+                                  {/* COLUMNA DERECHA (2/6): Radio y Suiche Arriba, Mapa Abajo */}
                                   <div className="lg:col-span-2 space-y-3">
                                     {/* Arriba: Rango y Suiche de Activación */}
                                     <div className="flex items-end justify-between gap-3">
@@ -4204,42 +5040,54 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                       </div>
                                     </div>
 
-                                    {/* Dirección del Evento */}
-                                    <div>
-                                      <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                                        Dirección del Evento
-                                      </label>
-                                      <div
-                                        className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium"
-                                        style={{
-                                          backgroundColor: 'var(--bg-app)',
-                                          borderColor: 'var(--border-color)',
-                                          color: 'var(--text-main)',
-                                        }}
-                                      >
-                                        <MapPin size={14} className="shrink-0 text-primary-500" />
-                                        <span className="truncate" title={eventAddress}>
-                                          {eventAddress}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Mapa como en el Form de Evento */}
+                                    {/* Mapa interactivo con tamaño generoso y tinte en vivo */}
                                     <div className="flex flex-col gap-1.5 w-full">
                                       <div
-                                        className="h-52 w-full rounded-xl overflow-hidden border z-0 relative shadow-inner"
-                                        style={{ borderColor: 'var(--border-color)' }}
+                                        className="h-72 sm:h-80 w-full rounded-xl overflow-hidden border z-0 relative shadow-inner"
+                                        style={{ borderColor: 'var(--border-color)', backgroundColor: mapBgColor }}
                                       >
+                                        <style>{`
+                                          .osm-custom-tile-filter {
+                                            filter: url(#osmCustomColorFilter)
+                                                    brightness(${mapBrightness}%)
+                                                    contrast(${mapContrast}%)
+                                                    saturate(${mapSaturation}%)
+                                                    sepia(${mapSepia}%)
+                                                    ${mapInvert ? 'invert(100%) hue-rotate(180deg)' : ''} !important;
+                                          }
+                                        `}</style>
+                                        <svg className="absolute w-0 h-0 overflow-hidden pointer-events-none" aria-hidden="true">
+                                          <filter id="osmCustomColorFilter" colorInterpolationFilters="sRGB">
+                                            <feColorMatrix
+                                              type="matrix"
+                                              values="
+                                                0.33 0.33 0.33 0 0
+                                                0.33 0.33 0.33 0 0
+                                                0.33 0.33 0.33 0 0
+                                                0 0 0 1 0"
+                                              result="gray"
+                                            />
+                                            <feComponentTransfer in="gray">
+                                              <feFuncR type="table" tableValues={tableR} />
+                                              <feFuncG type="table" tableValues={tableG} />
+                                              <feFuncB type="table" tableValues={tableB} />
+                                            </feComponentTransfer>
+                                          </filter>
+                                        </svg>
+
                                         <MapContainer
+                                          key={`${tileUrl}-${baseStyle}`}
                                           center={gpsMapCenter}
                                           zoom={gpsHasCoords ? 15 : 13}
                                           style={{ height: '100%', width: '100%', zIndex: 0 }}
                                         >
                                           <TileLayer
-                                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                            className="grayscale sepia saturate-200 hue-rotate-[320deg] dark:invert dark:grayscale dark:sepia dark:saturate-200 dark:hue-rotate-[320deg] dark:brightness-90"
+                                            key={`${tileUrl}-${baseStyle}`}
+                                            attribution={tileAttribution}
+                                            url={tileUrl}
+                                            className={isStandardOSM ? '' : 'osm-custom-tile-filter'}
                                           />
+
                                           <GpsMapController coords={gpsHasCoords ? [gpsCurrentLat!, gpsCurrentLng!] : null} />
                                           <GpsMapEvents
                                             setCoordinates={(lat, lng) => {
@@ -4251,7 +5099,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                             <>
                                               <Marker
                                                 position={[gpsCurrentLat!, gpsCurrentLng!]}
-                                                icon={createGpsCustomIcon()}
+                                                icon={createGpsCustomIcon(mapPinColor)}
                                                 draggable={true}
                                                 eventHandlers={{
                                                   dragend(e) {
@@ -4266,10 +5114,11 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                                                 center={[gpsCurrentLat!, gpsCurrentLng!]}
                                                 radius={Number(settings.welcome_gps_radius) || 500}
                                                 pathOptions={{
-                                                  color: '#E07A5F',
-                                                  fillColor: '#E07A5F',
-                                                  fillOpacity: 0.18,
-                                                  weight: 2,
+                                                  color: mapCircleColor,
+                                                  fillColor: mapCircleColor,
+                                                  fillOpacity: (Number(mapCircleOpacity) || 18) / 100,
+                                                  weight: Number(mapCircleWeight) || 2,
+                                                  dashArray: mapCircleDashed ? '6, 6' : undefined,
                                                 }}
                                               />
                                             </>
