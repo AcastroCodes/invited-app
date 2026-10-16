@@ -13,6 +13,8 @@ import {
   Moon,
   LogOut,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../theme/ThemeProvider';
@@ -21,6 +23,7 @@ interface SidebarProps {
   open: boolean;
   onClose: () => void;
   isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const globalNavItems = [
@@ -34,7 +37,7 @@ const bottomNavItems = [
   { to: '/users', label: 'Users', icon: UserCog },
 ];
 
-export default function Sidebar({ open, onClose, isCollapsed = false }: SidebarProps) {
+export default function Sidebar({ open, onClose, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
@@ -98,8 +101,12 @@ export default function Sidebar({ open, onClose, isCollapsed = false }: SidebarP
         }}
       >
         {/* Logo */}
-        <div className={`flex h-16 items-center px-6 ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <div className="flex items-center gap-3">
+        <div className={`flex h-16 items-center px-4 ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div
+            className={`flex items-center gap-3 ${isCollapsed && onToggleCollapse ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+            onClick={isCollapsed && onToggleCollapse ? onToggleCollapse : undefined}
+            title={isCollapsed ? 'Expandir barra lateral' : undefined}
+          >
             <div
               className="flex h-8 w-8 items-center justify-center rounded-lg text-white text-sm font-bold flex-shrink-0"
               style={{ backgroundColor: coralAccent }}
@@ -112,13 +119,26 @@ export default function Sidebar({ open, onClose, isCollapsed = false }: SidebarP
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 md:hidden"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-1">
+            {onToggleCollapse && !isCollapsed && (
+              <button
+                onClick={onToggleCollapse}
+                className="hidden md:flex rounded-lg p-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                title="Colapsar menú"
+                aria-label="Colapsar menú"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 md:hidden"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Navigation */}

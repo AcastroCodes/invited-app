@@ -8,9 +8,11 @@ import type { Partner } from '../../types';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  onToggleCollapse?: () => void;
+  isCollapsed?: boolean;
 }
 
-export default function Header({ onMenuClick }: HeaderProps) {
+export default function Header({ onMenuClick, onToggleCollapse, isCollapsed = false }: HeaderProps) {
   const { user, logout } = useAuth();
   const { selectedPartner, setSelectedPartner } = usePartner();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -47,21 +49,36 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className="flex h-12 items-center gap-4 px-4 md:px-6"
+      className="flex h-12 items-center gap-3 px-3 md:px-6"
       style={{
         backgroundColor: 'var(--bg-card)',
         borderBottom: '1px solid var(--border-color)',
       }}
     >
+      {/* Mobile drawer trigger */}
       <button
         onClick={onMenuClick}
-        className="rounded-lg p-2 md:hidden"
+        className="rounded-lg p-2 md:hidden hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
         style={{ color: 'var(--text-muted)' }}
+        aria-label="Abrir menú"
       >
         <Menu size={22} />
       </button>
 
-      <div className="flex items-center gap-2 md:ml-4">
+      {/* Desktop collapse toggle */}
+      {onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          className="hidden md:flex items-center justify-center rounded-lg p-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title={isCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+          aria-label={isCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+        >
+          <Menu size={20} />
+        </button>
+      )}
+
+      <div className="flex items-center gap-2">
         <div className="relative" ref={partnerDropdownRef}>
           <button
             onClick={() => setShowPartnerDropdown(!showPartnerDropdown)}

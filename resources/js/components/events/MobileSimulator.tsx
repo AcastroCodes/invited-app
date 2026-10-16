@@ -99,7 +99,8 @@ export default function MobileSimulator({
                 backgroundImage = activeGenerateGradient(gradData);
             }
         } else if (bgType === "image" || bgType === "video" || (settings[`${prefix}_image_url`] && bgType !== "gradient")) {
-            const imgUrl = settings[`${prefix}_image_url`] || (isHover ? settings.button_image_url : undefined);
+            const useButtonMedia = settings[`${prefix}_use_media`] ?? (isHover ? (settings.button_use_media ?? true) : true);
+            const imgUrl = useButtonMedia ? (settings[`${prefix}_image_url`] || (isHover ? settings.button_image_url : undefined)) : undefined;
             if (imgUrl && !String(imgUrl).startsWith('data:video') && !String(imgUrl).match(/\.(mp4|webm|ogg)$/i)) {
                 backgroundImage = `url(${imgUrl})`;
             }
@@ -167,10 +168,11 @@ export default function MobileSimulator({
                 backgroundImage = `linear-gradient(${gradientAngle}deg, ${gradientFrom}${gOpacityHex}, ${gradientTo}${gOpacityHex})`;
             }
         } else if (bgType === "image") {
-            if (settings.screen_image_url) {
+            const useScreenMedia = (settings.welcome_screen_use_media ?? settings.screen_use_media ?? true);
+            if (useScreenMedia && settings.screen_image_url) {
                 backgroundImage = `url(${settings.screen_image_url})`;
                 background = "transparent";
-            } else if (event?.background_image) {
+            } else if (useScreenMedia && event?.background_image) {
                 backgroundImage = `url(/storage/${event.background_image})`;
                 background = "transparent";
             }
@@ -196,10 +198,16 @@ export default function MobileSimulator({
 
     // --- Reproduce getContainerStyles() from EventLogin.tsx ---
     const getContainerStyles = (): React.CSSProperties => {
-        const bgType = settings.container_bg_type || "color";
-        const bgColor = settings.container_bg_color || "#000000";
-        const bgOpacity = settings.container_bg_opacity !== undefined ? settings.container_bg_opacity : "50";
-        const borderRadius = settings.container_border_radius !== undefined ? settings.container_border_radius : "24";
+        const useCardMedia = (settings.welcome_card_use_media ?? settings.container_use_media ?? true);
+        const bgImg = useCardMedia ? (settings.container_image_url || settings.welcome_card_image_url) : '';
+        const bgType = settings.container_bg_type || settings.welcome_card_bg_type || (bgImg ? "image" : "color");
+        const bgColor = settings.container_bg_color || settings.welcome_card_bg_color || "#000000";
+        const bgOpacity = settings.container_bg_opacity !== undefined
+            ? settings.container_bg_opacity
+            : (settings.welcome_card_bg_opacity !== undefined ? settings.welcome_card_bg_opacity : (bgImg ? 30 : "50"));
+        const borderRadius = settings.container_border_radius !== undefined
+            ? settings.container_border_radius
+            : (settings.welcome_card_border_radius !== undefined ? settings.welcome_card_border_radius : "24");
 
         let innerBackground = "transparent";
         let innerBackgroundImage = "none";
@@ -208,8 +216,9 @@ export default function MobileSimulator({
             const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
             innerBackground = `${bgColor}${opacityHex}`;
         } else if (bgType === "gradient") {
-            if (settings.container_gradient_data) {
-                innerBackgroundImage = activeGenerateGradient(settings.container_gradient_data);
+            const gradData = settings.container_gradient_data || settings.welcome_card_gradient_data;
+            if (gradData) {
+                innerBackgroundImage = activeGenerateGradient(gradData);
             } else {
                 const angle = settings.container_gradient_angle || "180";
                 const from = settings.container_gradient_from || "#000000";
@@ -217,15 +226,15 @@ export default function MobileSimulator({
                 const opacityHex = Math.round((parseInt(settings.container_gradient_opacity || "100") || 0) * 2.55).toString(16).padStart(2, "0");
                 innerBackgroundImage = `linear-gradient(${angle}deg, ${from}${opacityHex}, ${to}${opacityHex})`;
             }
-        } else if (bgType === "image" || bgType === "video" || (settings.container_image_url && bgType !== "gradient")) {
-            if (settings.container_image_url && !String(settings.container_image_url).startsWith('data:video') && !String(settings.container_image_url).match(/\.(mp4|webm|ogg)$/i)) {
-                innerBackgroundImage = `url(${settings.container_image_url})`;
+        } else if (bgType === "image" || bgType === "video" || (bgImg && bgType !== "gradient")) {
+            if (bgImg && !String(bgImg).startsWith('data:video') && !String(bgImg).match(/\.(mp4|webm|ogg)$/i)) {
+                innerBackgroundImage = `url(${bgImg})`;
             }
         }
 
-        const borderWidth = settings.container_border_width ?? 0;
-        const borderStyle = settings.container_border_style || "solid";
-        const borderColor = settings.container_border_color || "#E07A5F";
+        const borderWidth = settings.container_border_width ?? settings.welcome_card_border_width ?? 0;
+        const borderStyle = settings.container_border_style || settings.welcome_card_border_style || "solid";
+        const borderColor = settings.container_border_color || settings.welcome_card_border_color || "#E07A5F";
         const shadowBlur = settings.container_shadow_blur ?? 0;
         const shadowColor = settings.container_shadow_color || "#000000";
         const shadowX = settings.container_shadow_offset_x ?? 0;
@@ -364,7 +373,9 @@ export default function MobileSimulator({
         : null;
 
     const activeEventLogoUrl = settings.event_logo_url || eventLogoUrl;
-    const activePartnerLogoUrl = settings.project_logo_precarga_url || settings.partner_logo_precarga_url || settings.partner_logo_url || partnerLogoUrl || settings.event_icon_url || "/dinvited.png";
+    const activePartnerLogoUrl = settings.partner_logo_source === 'program'
+        ? (settings.project_logo_precarga_url || "/dinvited.png")
+        : (settings.partner_logo_url || partnerLogoUrl || settings.partner_logo_precarga_url || settings.project_logo_precarga_url || settings.event_icon_url || "/dinvited.png");
 
     const getLogoConfig = (type: 'event' | 'partner', view: string) => {
         const isEvent = type === 'event';
@@ -404,7 +415,8 @@ export default function MobileSimulator({
         const style = getLogoStyle(
             vPos, hPos, size, unit,
             mTop, mBottom, mLeft, mRight,
-            mTopUnit, mBottomUnit, mLeftUnit, mRightUnit
+            mTopUnit, mBottomUnit, mLeftUnit, mRightUnit,
+            view
         );
 
         return { show, style, logoUrl };
@@ -422,13 +434,14 @@ export default function MobileSimulator({
         mTopUnit = 'px',
         mBottomUnit = 'px',
         mLeftUnit = 'px',
-        mRightUnit = 'px'
+        mRightUnit = 'px',
+        view = 'welcome'
     ): React.CSSProperties => {
         const isPercent = unit === '%';
         const style: React.CSSProperties = {
             position: 'absolute',
             objectFit: 'contain',
-            zIndex: 35,
+            zIndex: 45,
             pointerEvents: 'none',
         };
 
@@ -441,7 +454,14 @@ export default function MobileSimulator({
         }
 
         const topVal = vPos === 'top' ? 12 : 0;
-        const bottomVal = vPos === 'bottom' ? 12 : 0;
+        let bottomVal = vPos === 'bottom' ? 12 : 0;
+        if (vPos === 'bottom') {
+            if (view === 'camera') {
+                bottomVal = 62;
+            } else if (view === 'gallery') {
+                bottomVal = 70;
+            }
+        }
         const leftVal = hPos === 'left' ? 12 : 0;
         const rightVal = hPos === 'right' ? 12 : 0;
 
@@ -523,7 +543,7 @@ export default function MobileSimulator({
             />
 
             {/* cFondo_Imagen — background image if screen_image_url exists and bgType is image or transparent */}
-            {settings.screen_image_url && (settings.screen_bg_type === 'image' || settings.screen_bg_color === 'transparent') && settings.screen_bg_type !== 'video' && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
+            {(settings.welcome_screen_use_media ?? settings.screen_use_media ?? true) && settings.screen_image_url && (settings.screen_bg_type === 'image' || settings.screen_bg_color === 'transparent') && settings.screen_bg_type !== 'video' && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
                 <div
                     className="absolute inset-0 z-[1] bg-cover bg-center transition-opacity duration-300"
                     style={{ backgroundImage: `url(${settings.screen_image_url})` }}
@@ -531,7 +551,7 @@ export default function MobileSimulator({
             )}
 
             {/* cFondo_Video — background video if screen_bg_type is video or screen_bg_color is transparent and video loaded */}
-            {(settings.screen_bg_type === 'video' || (settings.screen_bg_color === 'transparent' && settings.screen_bg_type === 'video')) && settings.screen_image_url && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
+            {(settings.welcome_screen_use_media ?? settings.screen_use_media ?? true) && (settings.screen_bg_type === 'video' || (settings.screen_bg_color === 'transparent' && settings.screen_bg_type === 'video')) && settings.screen_image_url && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
                 <div className="absolute inset-0 z-[1] w-full h-full overflow-hidden flex items-center justify-center bg-black">
                     <video
                         src={settings.screen_image_url}
@@ -549,7 +569,7 @@ export default function MobileSimulator({
             )}
 
             {/* Capa de tinte / color y desenfoque glass sobre el FONDO (screen) de pantalla */}
-            {settings.screen_image_url && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
+            {(settings.welcome_screen_use_media ?? settings.screen_use_media ?? true) && settings.screen_image_url && ["welcome", "gps", "registro", "gallery"].includes(previewView) && (
                 <div
                     className={`absolute inset-0 w-full h-full z-[1] pointer-events-none transition-all ${
                         (settings.screen_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
@@ -584,11 +604,12 @@ export default function MobileSimulator({
                     const precargaSubtitle = settings.precarga_subtitle || "Espere por favor";
                     const showLogo = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
                     const precargaBgType = settings.precarga_bg_type || 'color';
+                    const useBgMedia = settings.precarga_screen_use_media ?? settings.precarga_bg_use_media ?? true;
                     const precargaBgStyle: React.CSSProperties = {
                         backgroundColor: precargaBgType === 'color' ? (settings.precarga_bg_color || '#0f172a') : undefined,
                         backgroundImage: precargaBgType === 'gradient'
                             ? (settings.precarga_bg_gradient || 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)')
-                            : precargaBgType === 'image' && settings.precarga_bg_image_url
+                            : precargaBgType === 'image' && useBgMedia && settings.precarga_bg_image_url
                             ? `url(${settings.precarga_bg_image_url})`
                             : undefined,
                         backgroundSize: 'cover',
@@ -615,6 +636,14 @@ export default function MobileSimulator({
                     const cardShadowBlur = settings.precarga_card_shadow_blur || 16;
                     const cardShadowColor = settings.precarga_card_shadow_color || 'rgba(0,0,0,0.4)';
 
+                    const useCardMedia = settings.precarga_card_use_media ?? true;
+                    const rawCardImg = useCardMedia ? (settings.precarga_card_image_url || settings.container_image_url) : '';
+                    const cardImg = rawCardImg
+                        ? (rawCardImg.startsWith('data:') || rawCardImg.startsWith('http') || rawCardImg.startsWith('/') ? rawCardImg : `/storage/${rawCardImg}`)
+                        : '';
+                    const isCardVideo = (cardBgType === 'video' || String(cardImg || '').startsWith('data:video') || String(cardImg || '').match(/\.(mp4|webm|ogg)$/i)) && cardImg;
+                    const cardVideoRotate = settings.precarga_card_video_rotate || settings.container_video_rotate;
+
                     return (
                         <div
                             className="absolute inset-0 z-30 flex flex-col items-center justify-between p-5 text-center overflow-hidden"
@@ -623,16 +652,10 @@ export default function MobileSimulator({
                             {/* Espaciador superior */}
                             <div className="w-full h-6" />
 
-                            {/* RECUADRO CENTRAL DE CARGA */}
+                            {/* RECUADRO CENTRAL DE CARGA (MENSAJE) */}
                             <div
-                                className={`p-5 flex flex-col items-center justify-center w-full max-w-[210px] ${
-                                    isGlass ? 'backdrop-blur-md' : ''
-                                }`}
+                                className={`relative p-5 flex flex-col items-center justify-center w-full max-w-[210px] overflow-hidden`}
                                 style={{
-                                    backgroundColor: cardBgType === 'gradient' && cardGradient
-                                        ? undefined
-                                        : (isGlass ? `rgba(0, 0, 0, ${0.4 * cardOpacity})` : cardBgColor),
-                                    backgroundImage: cardBgType === 'gradient' && cardGradient ? cardGradient : undefined,
                                     borderRadius: cardBorderRadius,
                                     borderWidth: cardBorderWidth,
                                     borderStyle: cardBorderStyle,
@@ -640,10 +663,54 @@ export default function MobileSimulator({
                                     boxShadow: `0 ${cardShadowBlur / 2}px ${cardShadowBlur}px ${cardShadowColor}`,
                                 }}
                             >
-                                {/* Icono de Cargando */}
-                                <div className="mb-2.5 relative flex items-center justify-center">
-                                    <Loader2 size={34} className="animate-spin text-white opacity-95 drop-shadow-md" />
-                                </div>
+                                {/* Video de fondo para el recuadro de cargando */}
+                                {isCardVideo ? (
+                                    <video
+                                        src={cardImg}
+                                        autoPlay
+                                        loop
+                                        muted
+                                        playsInline
+                                        className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${cardVideoRotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                    />
+                                ) : cardImg ? (
+                                    <div
+                                        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                        style={{ backgroundImage: `url(${cardImg})` }}
+                                    />
+                                ) : null}
+
+                                {/* Capa de color / gradiente y desenfoque glass */}
+                                <div
+                                    className={`absolute inset-0 w-full h-full z-0 pointer-events-none ${
+                                        isGlass ? 'backdrop-blur-md' : ''
+                                    }`}
+                                    style={{
+                                        backgroundColor: cardBgType === 'gradient' && cardGradient
+                                            ? undefined
+                                            : (() => {
+                                                const effectiveOpacity = cardImg && cardOpacity > 0.8 ? 0.35 : cardOpacity;
+                                                if (cardBgColor.startsWith('#')) {
+                                                    const r = parseInt(cardBgColor.slice(1, 3) || '00', 16);
+                                                    const g = parseInt(cardBgColor.slice(3, 5) || '00', 16);
+                                                    const b = parseInt(cardBgColor.slice(5, 7) || '00', 16);
+                                                    return `rgba(${r}, ${g}, ${b}, ${isGlass ? 0.4 * effectiveOpacity : effectiveOpacity})`;
+                                                }
+                                                if (cardBgColor.startsWith('rgb(')) {
+                                                    return cardBgColor.replace('rgb(', 'rgba(').replace(')', `, ${isGlass ? 0.4 * effectiveOpacity : effectiveOpacity})`);
+                                                }
+                                                return isGlass ? `rgba(0, 0, 0, ${0.4 * effectiveOpacity})` : cardBgColor;
+                                            })(),
+                                        backgroundImage: cardBgType === 'gradient' && cardGradient ? cardGradient : undefined,
+                                    }}
+                                />
+
+                                {/* CONTENIDO DEL RECUADRO DE CARGA */}
+                                <div className="relative z-10 flex flex-col items-center justify-center w-full">
+                                    {/* Icono de Cargando */}
+                                    <div className="mb-2.5 relative flex items-center justify-center">
+                                        <Loader2 size={34} className="animate-spin text-white opacity-95 drop-shadow-md" />
+                                    </div>
 
                                 {/* Título: "Cargando" */}
                                 <h2
@@ -691,6 +758,7 @@ export default function MobileSimulator({
                                         {settings.precarga_content}
                                     </p>
                                 )}
+                                </div>
                             </div>
 
                             {/* SECCIÓN INFERIOR: POWERED BY & LOGO PROYECTO */}
@@ -794,40 +862,50 @@ export default function MobileSimulator({
                                     style={containerStyles}
                                 >
                                     {/* Video de fondo para el contenedor de Mensaje */}
-                                    {(settings.container_bg_type === 'video' ||
-                                      String(settings.container_image_url || '').startsWith('data:video') ||
-                                      String(settings.container_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.container_image_url ? (
-                                        <video
-                                            src={settings.container_image_url}
-                                            autoPlay
-                                            loop
-                                            muted
-                                            playsInline
-                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
-                                        />
-                                    ) : settings.container_image_url ? (
-                                        <div
-                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
-                                            style={{ backgroundImage: `url(${settings.container_image_url})` }}
-                                        />
-                                    ) : null}
+                                    {(() => {
+                                        const useCardMedia = (settings.welcome_card_use_media ?? settings.container_use_media ?? true);
+                                        const cardMediaUrl = useCardMedia ? (settings.container_image_url || settings.welcome_card_image_url) : '';
+                                        const isCardVideo = (settings.container_bg_type === 'video' ||
+                                            String(cardMediaUrl || '').startsWith('data:video') ||
+                                            String(cardMediaUrl || '').match(/\.(mp4|webm|ogg)$/i)) && cardMediaUrl;
+                                        
+                                        return (
+                                            <>
+                                                {isCardVideo ? (
+                                                    <video
+                                                        src={cardMediaUrl}
+                                                        autoPlay
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                                    />
+                                                ) : cardMediaUrl ? (
+                                                    <div
+                                                        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                                        style={{ backgroundImage: `url(${cardMediaUrl})` }}
+                                                    />
+                                                ) : null}
 
-                                    {/* Capa de tinte / color y desenfoque glass sobre la imagen o video */}
-                                    {settings.container_image_url && (
-                                        <div
-                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
-                                                (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
-                                            }`}
-                                            style={{
-                                                backgroundColor: (() => {
-                                                    const bgColor = settings.container_bg_color || "#0f172a";
-                                                    const bgOpacity = settings.container_bg_opacity ?? 75;
-                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
-                                                    return `${bgColor}${opacityHex}`;
-                                                })()
-                                            }}
-                                        />
-                                    )}
+                                                {/* Capa de tinte / color y desenfoque glass sobre la imagen o video */}
+                                                {cardMediaUrl && (
+                                                    <div
+                                                        className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                            (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                                        }`}
+                                                        style={{
+                                                            backgroundColor: (() => {
+                                                                const bgColor = settings.container_bg_color || "#0f172a";
+                                                                const bgOpacity = settings.container_bg_opacity ?? 75;
+                                                                const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                                return `${bgColor}${opacityHex}`;
+                                                            })()
+                                                        }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()}
 
                                     <div className="relative z-10 w-full flex flex-col items-center justify-center">
                                     {/* 1. TÍTULO PRINCIPAL */}
@@ -926,40 +1004,50 @@ export default function MobileSimulator({
                                     style={containerStyles}
                                 >
                                     {/* Video / Imagen de fondo para el contenedor */}
-                                    {(settings.container_bg_type === 'video' ||
-                                      String(settings.container_image_url || '').startsWith('data:video') ||
-                                      String(settings.container_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.container_image_url ? (
-                                        <video
-                                            src={settings.container_image_url}
-                                            autoPlay
-                                            loop
-                                            muted
-                                            playsInline
-                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
-                                        />
-                                    ) : settings.container_image_url ? (
-                                        <div
-                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
-                                            style={{ backgroundImage: `url(${settings.container_image_url})` }}
-                                        />
-                                    ) : null}
+                                    {(() => {
+                                        const useCardMedia = (settings.welcome_card_use_media ?? settings.container_use_media ?? true);
+                                        const cardMediaUrl = useCardMedia ? (settings.container_image_url || settings.welcome_card_image_url) : '';
+                                        const isCardVideo = (settings.container_bg_type === 'video' ||
+                                            String(cardMediaUrl || '').startsWith('data:video') ||
+                                            String(cardMediaUrl || '').match(/\.(mp4|webm|ogg)$/i)) && cardMediaUrl;
+                                        
+                                        return (
+                                            <>
+                                                {isCardVideo ? (
+                                                    <video
+                                                        src={cardMediaUrl}
+                                                        autoPlay
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                                    />
+                                                ) : cardMediaUrl ? (
+                                                    <div
+                                                        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                                        style={{ backgroundImage: `url(${cardMediaUrl})` }}
+                                                    />
+                                                ) : null}
 
-                                    {/* Capa de tinte / color y desenfoque glass */}
-                                    {settings.container_image_url && (
-                                        <div
-                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
-                                                (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
-                                            }`}
-                                            style={{
-                                                backgroundColor: (() => {
-                                                    const bgColor = settings.container_bg_color || "#0f172a";
-                                                    const bgOpacity = settings.container_bg_opacity ?? 75;
-                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
-                                                    return `${bgColor}${opacityHex}`;
-                                                })()
-                                            }}
-                                        />
-                                    )}
+                                                {/* Capa de tinte / color y desenfoque glass */}
+                                                {cardMediaUrl && (
+                                                    <div
+                                                        className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                            (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                                        }`}
+                                                        style={{
+                                                            backgroundColor: (() => {
+                                                                const bgColor = settings.container_bg_color || "#0f172a";
+                                                                const bgOpacity = settings.container_bg_opacity ?? 75;
+                                                                const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                                return `${bgColor}${opacityHex}`;
+                                                            })()
+                                                        }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()}
 
                                     <div className="relative z-10 w-full flex flex-col items-center justify-center text-center">
                                         <div className="w-11 h-11 rounded-full flex items-center justify-center mb-2.5 shadow-md bg-white/10 border border-white/20 text-white">
@@ -1054,40 +1142,50 @@ export default function MobileSimulator({
                                     style={containerStyles}
                                 >
                                     {/* Video / Imagen de fondo */}
-                                    {(settings.container_bg_type === 'video' ||
-                                      String(settings.container_image_url || '').startsWith('data:video') ||
-                                      String(settings.container_image_url || '').match(/\.(mp4|webm|ogg)$/i)) && settings.container_image_url ? (
-                                        <video
-                                            src={settings.container_image_url}
-                                            autoPlay
-                                            loop
-                                            muted
-                                            playsInline
-                                            className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
-                                        />
-                                    ) : settings.container_image_url ? (
-                                        <div
-                                            className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
-                                            style={{ backgroundImage: `url(${settings.container_image_url})` }}
-                                        />
-                                    ) : null}
+                                    {(() => {
+                                        const useCardMedia = (settings.welcome_card_use_media ?? settings.container_use_media ?? true);
+                                        const cardMediaUrl = useCardMedia ? (settings.container_image_url || settings.welcome_card_image_url) : '';
+                                        const isCardVideo = (settings.container_bg_type === 'video' ||
+                                            String(cardMediaUrl || '').startsWith('data:video') ||
+                                            String(cardMediaUrl || '').match(/\.(mp4|webm|ogg)$/i)) && cardMediaUrl;
+                                        
+                                        return (
+                                            <>
+                                                {isCardVideo ? (
+                                                    <video
+                                                        src={cardMediaUrl}
+                                                        autoPlay
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${settings.container_video_rotate ? 'scale-[2.2] rotate-90' : ''}`}
+                                                    />
+                                                ) : cardMediaUrl ? (
+                                                    <div
+                                                        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                                        style={{ backgroundImage: `url(${cardMediaUrl})` }}
+                                                    />
+                                                ) : null}
 
-                                    {/* Capa de tinte / color y desenfoque glass */}
-                                    {settings.container_image_url && (
-                                        <div
-                                            className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
-                                                (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
-                                            }`}
-                                            style={{
-                                                backgroundColor: (() => {
-                                                    const bgColor = settings.container_bg_color || "#0f172a";
-                                                    const bgOpacity = settings.container_bg_opacity ?? 75;
-                                                    const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
-                                                    return `${bgColor}${opacityHex}`;
-                                                })()
-                                            }}
-                                        />
-                                    )}
+                                                {/* Capa de tinte / color y desenfoque glass */}
+                                                {cardMediaUrl && (
+                                                    <div
+                                                        className={`absolute inset-0 w-full h-full z-[1] pointer-events-none ${
+                                                            (settings.container_glass_enabled ?? true) ? 'backdrop-blur-md' : ''
+                                                        }`}
+                                                        style={{
+                                                            backgroundColor: (() => {
+                                                                const bgColor = settings.container_bg_color || "#0f172a";
+                                                                const bgOpacity = settings.container_bg_opacity ?? 75;
+                                                                const opacityHex = Math.round((parseInt(bgOpacity) || 0) * 2.55).toString(16).padStart(2, "0");
+                                                                return `${bgColor}${opacityHex}`;
+                                                            })()
+                                                        }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()}
 
                                     <div className="relative z-10 w-full flex flex-col items-center justify-center text-center">
                                         <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 shadow-md bg-white/10 border border-white/20 text-white">
@@ -1229,125 +1327,169 @@ export default function MobileSimulator({
                                 </div>
                             </div>
 
-                            {/* ZONA INFERIOR: CONTENEDOR CON LÍNEA SUPERIOR EN MEDIALUNA CÓNCAVA HACIA ABAJO (DE EXTREMO A EXTREMO) (2/5 del alto) */}
-                            <div
-                                className={`relative w-full h-[42%] px-4 pt-6 pb-2.5 flex flex-col items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.6)] ${
-                                    (settings.precarga_card_glass_enabled ?? true) ? 'backdrop-blur-xl' : ''
-                                }`}
-                                style={{
-                                    backgroundColor: (settings.precarga_card_bg_type || 'color') === 'gradient'
-                                        ? undefined
-                                        : (() => {
-                                            const cardBgColor = settings.precarga_card_bg_color || '#0f172a';
-                                            const opacityVal = (settings.precarga_card_bg_opacity ?? 95) / 100;
-                                            if (cardBgColor.startsWith('#')) {
-                                                const r = parseInt(cardBgColor.slice(1, 3) || '0f', 16);
-                                                const g = parseInt(cardBgColor.slice(3, 5) || '17', 16);
-                                                const b = parseInt(cardBgColor.slice(5, 7) || '2a', 16);
-                                                return `rgba(${r}, ${g}, ${b}, ${opacityVal})`;
-                                            }
-                                            if (cardBgColor.startsWith('rgb(')) {
-                                                return cardBgColor.replace('rgb(', 'rgba(').replace(')', `, ${opacityVal})`);
-                                            }
-                                            return cardBgColor;
-                                        })(),
-                                    backgroundImage: (settings.precarga_card_bg_type || 'color') === 'gradient' ? settings.precarga_card_gradient_data : undefined,
-                                }}
-                            >
-                                {/* SVG Medialuna Cóncava hacia abajo de extremo a extremo */}
-                                <svg
-                                    className="absolute -top-[23.5px] left-0 w-full h-[25px] pointer-events-none drop-shadow-[0_-2px_4px_rgba(0,0,0,0.4)] z-0"
-                                    viewBox="0 0 100 25"
-                                    preserveAspectRatio="none"
-                                    style={{
-                                        color: (settings.precarga_card_bg_type || 'color') === 'gradient'
-                                            ? '#0f172a'
-                                            : (() => {
-                                                const cardBgColor = settings.precarga_card_bg_color || '#0f172a';
-                                                const opacityVal = (settings.precarga_card_bg_opacity ?? 95) / 100;
-                                                if (cardBgColor.startsWith('#')) {
-                                                    const r = parseInt(cardBgColor.slice(1, 3) || '0f', 16);
-                                                    const g = parseInt(cardBgColor.slice(3, 5) || '17', 16);
-                                                    const b = parseInt(cardBgColor.slice(5, 7) || '2a', 16);
-                                                    return `rgba(${r}, ${g}, ${b}, ${opacityVal})`;
-                                                }
-                                                if (cardBgColor.startsWith('rgb(')) {
-                                                    return cardBgColor.replace('rgb(', 'rgba(').replace(')', `, ${opacityVal})`);
-                                                }
-                                                return cardBgColor;
-                                            })()
-                                    }}
-                                >
-                                    <path
-                                        d="M 0 0 Q 50 24 100 0 L 100 25 L 0 25 Z"
-                                        fill="currentColor"
-                                    />
-                                    <path
-                                        d="M 0 0 Q 50 24 100 0"
-                                        fill="none"
-                                        stroke={settings.precarga_card_border_color || 'rgba(255, 255, 255, 0.15)'}
-                                        strokeWidth="0.8"
-                                    />
-                                </svg>
+                            {/* ZONA INFERIOR: CONTENEDOR UNIFICADO CON LÍNEA SUPERIOR EN MEDIALUNA CÓNCAVA (MEDIALUNA + RECUADRO COMO UN SOLO OBJETO) */}
+                            {(() => {
+                                const qrUseMedia = (settings.precarga_card_use_media ?? settings.welcome_card_use_media ?? settings.container_use_media ?? true);
+                                const rawQrCardImg = qrUseMedia ? (settings.precarga_card_image_url || settings.welcome_card_image_url || settings.container_image_url) : '';
+                                const qrCardImg = rawQrCardImg
+                                    ? (rawQrCardImg.startsWith('data:') || rawQrCardImg.startsWith('http') || rawQrCardImg.startsWith('/') ? rawQrCardImg : `/storage/${rawQrCardImg}`)
+                                    : '';
+                                const qrCardType = settings.precarga_card_bg_type || settings.welcome_card_bg_type || settings.container_bg_type || (qrCardImg ? 'image' : 'color');
+                                const cardBgColor = settings.precarga_card_bg_color || settings.welcome_card_bg_color || settings.container_bg_color || '#0f172a';
+                                const rawOpacity = settings.precarga_card_bg_opacity ?? settings.welcome_card_bg_opacity ?? settings.container_bg_opacity;
+                                const opacityVal = rawOpacity !== undefined
+                                    ? (qrCardImg && Number(rawOpacity) > 80 ? 0.35 : Number(rawOpacity) / 100)
+                                    : (qrCardImg ? 0.35 : 0.95);
+                                const isVideo = (qrCardType === 'video' || String(qrCardImg || '').startsWith('data:video') || String(qrCardImg || '').match(/\.(mp4|webm|ogg)$/i)) && qrCardImg;
+                                const qrCardRotate = settings.precarga_card_video_rotate || settings.welcome_card_video_rotate || settings.container_video_rotate;
+                                const qrCardGlass = settings.precarga_card_glass_enabled ?? settings.welcome_card_glass_enabled ?? settings.container_glass_enabled ?? true;
+                                const qrCardBorderColor = settings.precarga_card_border_color || settings.welcome_card_border_color || settings.container_border_color || 'rgba(255, 255, 255, 0.25)';
 
-                                {/* ZONA SUPERIOR DEL CONTENEDOR: CONTROLES DEL CÓDIGO (SOLO TEXTBOX Y BOTÓN, ELEVADOS HACIA ARRIBA) */}
-                                <div className="w-full flex flex-col items-center justify-start gap-2.5 flex-1 mt-1 mb-auto">
-                                    {/* Cuadro de Texto de Entrada */}
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder={settings.welcome_qr_placeholder || "CÓDIGO"}
-                                        className="w-full max-w-[210px] py-1.5 px-3 rounded-lg bg-black/60 border border-white/20 text-center text-[11px] font-bold text-white placeholder:text-white/60 tracking-wider outline-none focus:border-[var(--primary-accent)] shadow-inner"
-                                    />
+                                const resolvedBgColor = (() => {
+                                    if (cardBgColor.startsWith('#')) {
+                                        const r = parseInt(cardBgColor.slice(1, 3) || '0f', 16);
+                                        const g = parseInt(cardBgColor.slice(3, 5) || '17', 16);
+                                        const b = parseInt(cardBgColor.slice(5, 7) || '2a', 16);
+                                        return `rgba(${r}, ${g}, ${b}, ${opacityVal})`;
+                                    }
+                                    if (cardBgColor.startsWith('rgb(')) {
+                                        return cardBgColor.replace('rgb(', 'rgba(').replace(')', `, ${opacityVal})`);
+                                    }
+                                    return cardBgColor;
+                                })();
 
-                                    {/* Botón Entrar */}
-                                    <button
-                                        type="button"
-                                        className="w-full max-w-[210px] py-1.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                                        style={{
-                                            backgroundColor: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? undefined : (settings.button_bg_color || 'var(--primary-accent)'),
-                                            backgroundImage: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? settings.button_gradient_data : undefined,
-                                            borderRadius: settings.button_border_radius !== undefined ? `${settings.button_border_radius}px` : '8px',
-                                            borderWidth: settings.button_border_width !== undefined ? `${settings.button_border_width}px` : '0px',
-                                            borderStyle: settings.button_border_style || 'solid',
-                                            borderColor: settings.button_border_color || 'var(--primary-accent)',
-                                        }}
-                                    >
-                                        Entrar
-                                    </button>
-                                </div>
+                                const qrMaskSvg = `
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                        <path d="M 0 0 Q 50 12 100 0 L 100 100 L 0 100 Z" fill="white" />
+                                    </svg>
+                                `.trim().replace(/\n/g, "").replace(/\s+/g, " ");
+                                const qrEncodedMask = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrMaskSvg)}")`;
 
-                                {/* PIE DE PÁGINA: LOGO DEL PROYECTO + POWERED BY (ALINEADO Y AJUSTADO EN EL FONDO) */}
-                                {showLogo ? (() => {
-                                    return (
-                                        <div className={`flex ${flexDirClass} items-center justify-center gap-1.5 shrink-0 z-20 pb-0.5`}>
-                                            <span
-                                                className="tracking-widest uppercase select-none drop-shadow-xs shrink-0"
-                                                style={{
-                                                    fontFamily: settings.precarga_powered_by_font_family || 'Inter',
-                                                    fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
-                                                    color: settings.precarga_powered_by_font_color || 'rgba(255, 255, 255, 0.75)',
-                                                    fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
-                                                    fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
-                                                    textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
-                                                }}
-                                            >
-                                                {settings.precarga_powered_by_text || 'Powered by'}
-                                            </span>
-                                            {showLogo && (
-                                                <img
-                                                    src={displayLogo}
-                                                    alt="Logo del Proyecto dInvited"
-                                                    style={projectLogoStyle}
-                                                    className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0"
+                                return (
+                                    <div className="relative w-full h-[45%] flex flex-col justify-between shrink-0 select-none z-10 drop-shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
+                                        {/* CAPA DE FONDO UNIFICADA: CUBRE TANTO LA MEDIALUNA COMO EL RECUADRO INFERIOR COMO UN SOLO OBJETO */}
+                                        <div
+                                            className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
+                                            style={{
+                                                WebkitMaskImage: qrEncodedMask,
+                                                maskImage: qrEncodedMask,
+                                                WebkitMaskSize: "100% 100%",
+                                                maskSize: "100% 100%",
+                                                WebkitMaskRepeat: "no-repeat",
+                                                maskRepeat: "no-repeat",
+                                            }}
+                                        >
+                                            {/* Video de fondo unificado */}
+                                            {isVideo ? (
+                                                <video
+                                                    src={qrCardImg}
+                                                    autoPlay
+                                                    loop
+                                                    muted
+                                                    playsInline
+                                                    className={`absolute inset-0 w-full h-full object-cover z-0 pointer-events-none ${qrCardRotate ? 'scale-[2.2] rotate-90' : ''}`}
                                                 />
+                                            ) : qrCardImg ? (
+                                                <div
+                                                    className="absolute inset-0 w-full h-full bg-cover bg-center z-0 pointer-events-none"
+                                                    style={{ backgroundImage: `url(${qrCardImg})` }}
+                                                />
+                                            ) : null}
+
+                                            {/* Capa de color / gradiente y desenfoque glass unificado sobre toda la forma */}
+                                            <div
+                                                className={`absolute inset-0 w-full h-full z-0 pointer-events-none ${
+                                                    qrCardGlass ? 'backdrop-blur-xl' : ''
+                                                }`}
+                                                style={{
+                                                    backgroundColor: qrCardType === 'gradient'
+                                                        ? undefined
+                                                        : resolvedBgColor,
+                                                    backgroundImage: qrCardType === 'gradient'
+                                                        ? (settings.precarga_card_gradient_data || settings.welcome_card_gradient_data || settings.container_gradient_data)
+                                                        : undefined,
+                                                }}
+                                            />
+
+                                            {/* Borde superior trazado exactamente sobre la curvatura cóncava de la medialuna */}
+                                            <svg
+                                                className="absolute top-0 left-0 w-full pointer-events-none z-10"
+                                                style={{ height: '12%' }}
+                                                viewBox="0 0 100 12"
+                                                preserveAspectRatio="none"
+                                            >
+                                                <path
+                                                    d="M 0 0 Q 50 12 100 0"
+                                                    fill="none"
+                                                    stroke={qrCardBorderColor}
+                                                    strokeWidth="1.2"
+                                                />
+                                            </svg>
+                                        </div>
+
+                                        {/* CONTENIDO INTERNO: ELEVADO Y CENTRADO DENTRO DEL CONTENEDOR */}
+                                        <div className="relative z-10 w-full h-full px-4 pt-7 pb-2.5 flex flex-col items-center justify-between">
+                                            {/* ZONA SUPERIOR DEL CONTENEDOR: CONTROLES DEL CÓDIGO */}
+                                            <div className="w-full flex flex-col items-center justify-start gap-2.5 flex-1 mt-1 mb-auto">
+                                                {/* Cuadro de Texto de Entrada */}
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    placeholder={settings.welcome_qr_placeholder || "CÓDIGO"}
+                                                    className="w-full max-w-[210px] py-1.5 px-3 rounded-lg bg-black/60 border border-white/20 text-center text-[11px] font-bold text-white placeholder:text-white/60 tracking-wider outline-none focus:border-[var(--primary-accent)] shadow-inner"
+                                                />
+
+                                                {/* Botón Entrar */}
+                                                <button
+                                                    type="button"
+                                                    className="w-full max-w-[210px] py-1.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                                                    style={{
+                                                        backgroundColor: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? undefined : (settings.button_bg_color || 'var(--primary-accent)'),
+                                                        backgroundImage: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? settings.button_gradient_data : undefined,
+                                                        borderRadius: settings.button_border_radius !== undefined ? `${settings.button_border_radius}px` : '8px',
+                                                        borderWidth: settings.button_border_width !== undefined ? `${settings.button_border_width}px` : '0px',
+                                                        borderStyle: settings.button_border_style || 'solid',
+                                                        borderColor: settings.button_border_color || 'var(--primary-accent)',
+                                                    }}
+                                                >
+                                                    Entrar
+                                                </button>
+                                            </div>
+
+                                            {/* PIE DE PÁGINA: LOGO DEL PROYECTO + POWERED BY */}
+                                            {showLogo ? (() => {
+                                                return (
+                                                    <div className={`flex ${flexDirClass} items-center justify-center gap-1.5 shrink-0 z-20 pb-0.5`}>
+                                                        <span
+                                                            className="tracking-widest uppercase select-none drop-shadow-xs shrink-0"
+                                                            style={{
+                                                                fontFamily: settings.precarga_powered_by_font_family || 'Inter',
+                                                                fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
+                                                                color: settings.precarga_powered_by_font_color || 'rgba(255, 255, 255, 0.75)',
+                                                                fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
+                                                                fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
+                                                                textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
+                                                            }}
+                                                        >
+                                                            {settings.precarga_powered_by_text || 'Powered by'}
+                                                        </span>
+                                                        {showLogo && (
+                                                            <img
+                                                                src={displayLogo}
+                                                                alt="Logo del Proyecto dInvited"
+                                                                style={projectLogoStyle}
+                                                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                );
+                                            })() : (
+                                                <div className="w-full h-4 shrink-0" />
                                             )}
                                         </div>
-                                    );
-                                })() : (
-                                    <div className="w-full h-4 shrink-0" />
-                                )}
-                            </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     );
                 })()}
