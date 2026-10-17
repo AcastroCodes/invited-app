@@ -36,6 +36,29 @@
   --color-accent-400: #E07A5F;
   --color-accent-500: #E07A5F;
   --color-accent-600: #c65f45;
+
+  /* Escala tipográfica global al 80% (mismo tamaño visual que zoom al 80% pero sin zoom) */
+  --text-xs: 0.6rem;
+  --text-xs--line-height: 0.8rem;
+  --text-sm: 0.7rem;
+  --text-sm--line-height: 1rem;
+  --text-base: 0.8rem;
+  --text-base--line-height: 1.2rem;
+  --text-lg: 0.9rem;
+  --text-lg--line-height: 1.4rem;
+  --text-xl: 1rem;
+  --text-xl--line-height: 1.4rem;
+  --text-2xl: 1.2rem;
+  --text-2xl--line-height: 1.6rem;
+  --text-3xl: 1.5rem;
+  --text-3xl--line-height: 1.8rem;
+  --text-4xl: 1.8rem;
+  --text-4xl--line-height: 2rem;
+  --text-5xl: 2.4rem;
+  --text-5xl--line-height: 1;
+
+  /* Escala de espaciados, márgenes y paddings global al 80% (base 0.2rem en lugar de 0.25rem) */
+  --spacing: 0.2rem;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -124,6 +147,7 @@ html.dark {
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-app);
