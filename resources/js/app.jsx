@@ -17,6 +17,7 @@ import GuestList from './pages/events/GuestList.tsx';
 import TableList from './pages/events/TableList.tsx';
 import InvitationDesigner from './pages/events/InvitationDesigner.tsx';
 import InvitationViewer from './pages/events/InvitationViewer.tsx';
+import AppMovil from './pages/AppMovil.tsx';
 
 import { AuthProvider } from './hooks/useAuth.tsx';
 import { PartnerProvider } from './context/PartnerContext.tsx';
@@ -68,6 +69,7 @@ function App() {
                             
                             <Route element={<AppLayout />}>
                                 <Route path="/dashboard" element={<Dashboard />} />
+                                <Route path="/app-movil" element={<AppMovil />} />
                                 <Route path="/users" element={<Users />} />
                                 <Route path="/partners" element={<Partners />} />
                                 <Route path="/events" element={<EventList />} />

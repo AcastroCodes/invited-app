@@ -9,6 +9,7 @@ import {
   Wallet,
   Building2,
   UserCog,
+  Smartphone,
   Sun,
   Moon,
   LogOut,
@@ -32,6 +33,7 @@ const globalNavItems = [
 ];
 
 const bottomNavItems = [
+  { to: '/app-movil', label: 'App Móvil', icon: Smartphone },
   { to: '/credits', label: 'Credits', icon: Wallet },
   { to: '/partners', label: 'Partners', icon: Building2 },
   { to: '/users', label: 'Users', icon: UserCog },

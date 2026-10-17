@@ -258,7 +258,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
   const [showGradientModal, setShowGradientModal] = useState(false);
 
   // Mobile app config states
-  const [mobileActiveView, setMobileActiveView] = useState<'programa' | 'general' | 'welcome' | 'camera' | 'gallery'>('programa');
+  const [mobileActiveView, setMobileActiveView] = useState<'general' | 'welcome' | 'camera' | 'gallery'>('welcome');
   const [previewView, setPreviewView] = useState<string>('welcome');
   const [activeLogoState, setActiveLogoState] = useState<'precarga' | 'qr' | 'welcome' | 'camera' | 'gallery'>('welcome');
   const [precargaLogoState, setPrecargaLogoState] = useState<'precarga' | 'qr'>('precarga');
@@ -699,7 +699,7 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                 </div>
 
                 {/* BOTONES FLOTANTES INTEGRADOS CON LOS COLORES DEL PROYECTO */}
-                {(mobileActiveView === 'programa' || mobileActiveView === 'general' || mobileActiveView === 'welcome') && (
+                {(mobileActiveView === 'general' || mobileActiveView === 'welcome') && (
                   <div 
                     className="absolute right-2 top-2 z-50 flex flex-col gap-1.5 p-1.5 rounded-xl border shadow-2xl shrink-0 backdrop-blur-md"
                     style={{
@@ -761,7 +761,6 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
 
                 <div className="flex items-center gap-5 overflow-visible flex-1">
                   {[
-                    { id: 'programa', label: 'Programa', icon: Sliders },
                     { id: 'general', label: 'General', icon: Sparkles },
                     { id: 'welcome', label: 'Pantallas', icon: Tv },
                   ].map((tab) => {
@@ -2413,8 +2412,8 @@ export default function PhotoManager({ eventId, activeSubTab, onSubTabChange }: 
                   </div>
                 )}
 
-                {/* 0. PROGRAMA TAB (FUENTE, CONTENEDOR, LOGOS) */}
-                {mobileActiveView === 'programa' && (
+                {/* PROGRAMA TAB MIGRADO AL MÓDULO APP MÓVIL (/app-movil) */}
+                {false && (
                   <div className="space-y-4">
                     {/* BARRA DE NAVEGACIÓN DE SUB-PESTAÑAS PARA PROGRAMA */}
                     <div className="flex p-1 rounded-xl border gap-1" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>

@@ -216,9 +216,14 @@ export default function UserList() {
           backgroundColor: 'var(--primary-accent-light)',
         }}
       >
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-main)' }}>
-          Gestión de Usuarios
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--text-main)' }}>
+            Users
+          </h1>
+          <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            Gestión de Usuarios
+          </p>
+        </div>
         <div className="relative w-full sm:w-72">
           <Search
             size={18}

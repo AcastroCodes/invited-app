@@ -625,9 +625,14 @@ export default function EventList() {
           backgroundColor: 'var(--primary-accent-light)',
         }}
       >
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-main)' }}>
-          Gestión de Eventos
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--text-main)' }}>
+            Events
+          </h1>
+          <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            Gestión de Eventos
+          </p>
+        </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search
