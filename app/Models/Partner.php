@@ -19,6 +19,7 @@ class Partner extends Model
         'is_active',
         'credits_web',
         'credits_video',
+        'mobile_template_id',
     ];
 
     protected function casts(): array
@@ -56,5 +57,8 @@ class Partner extends Model
         return $this->belongsToMany(User::class, 'partner_user');
     }
 
-
+    public function mobileTemplate()
+    {
+        return $this->belongsTo(MobileTemplate::class, 'mobile_template_id');
+    }
 }

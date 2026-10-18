@@ -19,7 +19,8 @@ export default function AppLayout() {
 
   const isDesignerRoute = location.pathname.includes('/designer');
   const isEventConfigRoute = /\/events\/[^/]+\/config(\/.*)?$/.test(location.pathname);
-  const isAutoCollapsedRoute = isDesignerRoute || isEventConfigRoute;
+  const isAppMovilConfigRoute = /\/app-movil\/[^/]+\/config(\/.*)?$/.test(location.pathname);
+  const isAutoCollapsedRoute = isDesignerRoute || isEventConfigRoute || isAppMovilConfigRoute;
 
   // Store previous sidebar state in memory before entering auto-collapsed route
   const prevSidebarStateRef = useRef<boolean | null>(null);

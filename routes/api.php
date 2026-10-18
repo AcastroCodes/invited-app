@@ -38,4 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Widgets Templates
     Route::apiResource('widgets', App\Http\Controllers\Api\WidgetController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    // Mobile App Templates
+    Route::apiResource('mobile-templates', App\Http\Controllers\Api\MobileTemplateController::class);
 });

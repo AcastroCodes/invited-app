@@ -25,7 +25,9 @@ import {
   EyeOff,
   MousePointer2,
   MousePointerClick,
+  ArrowLeft,
 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import MobileSimulator from '../components/events/MobileSimulator';
 import GradientPickerModal, { GradientData } from '../components/events/GradientPickerModal';
 import FontPickerModal from '../components/events/FontPickerModal';
@@ -129,12 +131,13 @@ const CtrlPixelPorcentage = ({
   </div>
 );
 
-export default function AppMovil() {
+export default function AppMovilConfig() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [template, setTemplate] = useState<any>(null);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
+
   const [settings, setSettings] = useState<Record<string, any>>(() => {
-    try {
-      const saved = localStorage.getItem('invited_app_movil_settings');
-      if (saved) return JSON.parse(saved);
-    } catch {}
     return {
       welcome_precarga_text: 'Cargando',
       precarga_title: 'Cargando',
@@ -192,35 +195,35 @@ export default function AppMovil() {
   const eventColors = ['#E07A5F', '#F2CC8F', '#52B788', '#E63946', '#0A0A0A', '#1E1B4B'];
   const eventColorImage = null;
 
-  // Cargar configuración existente si está disponible
+  // Cargar configuración existente del template específico
   useEffect(() => {
-    api.get('/settings').then((res) => {
-      if (res?.data && typeof res.data === 'object') {
-        setSettings((prev) => ({ ...prev, ...res.data }));
-      }
-    }).catch(() => {});
-  }, []);
+    if (!id) return;
+    setIsLoadingTemplate(true);
+    api.get(`/mobile-templates/${id}`)
+      .then((res) => {
+        setTemplate(res.data);
+        if (res.data?.settings && typeof res.data.settings === 'object' && Object.keys(res.data.settings).length > 0) {
+          setSettings((prev) => ({ ...prev, ...res.data.settings }));
+        }
+      })
+      .catch((err) => console.error('Error cargando template:', err))
+      .finally(() => setIsLoadingTemplate(false));
+  }, [id]);
 
   const updateSetting = (key: string, value: any) => {
-    setSettings((prev) => {
-      const next = { ...prev, [key]: value };
-      try {
-        localStorage.setItem('invited_app_movil_settings', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
-      localStorage.setItem('invited_app_movil_settings', JSON.stringify(settings));
-      await api.post('/settings', { settings }).catch(() => {});
+      if (id) {
+        await api.put(`/mobile-templates/${id}`, { settings });
+      }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
-    } catch {
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      console.error('Error guardando template:', err);
     } finally {
       setIsSavingSettings(false);
     }
@@ -228,7 +231,7 @@ export default function AppMovil() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-[calc(100vh-115px)] max-h-[calc(100vh-115px)]">
-      {/* HEADER IDÉNTICO AL ESTILO DE PARTNERS */}
+      {/* HEADER IDÉNTICO AL ESTILO DE PARTNERS CON BOTÓN VOLVER */}
       <div
         className="flex flex-col gap-4 rounded-none -mx-4 -mt-2 px-3 py-1.5 sm:flex-row sm:items-center sm:justify-between md:-mx-6 md:-mt-4 lg:-mx-8 lg:-mt-6 shrink-0"
         style={{
@@ -236,13 +239,39 @@ export default function AppMovil() {
           backgroundColor: 'var(--primary-accent-light)',
         }}
       >
-        <div>
-          <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--text-main)' }}>
-            App Móvil
-          </h1>
-          <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-            Configuración
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/app-movil')}
+            className="p-1.5 rounded-lg border hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--primary-accent)',
+            }}
+            title="Volver a lista de templates"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold leading-tight flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+              <span>App Móvil</span>
+              {template && (
+                <span
+                  className="text-xs px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider shrink-0"
+                  style={{
+                    backgroundColor: 'var(--primary-accent)',
+                    color: '#ffffff',
+                  }}
+                >
+                  {template.name}
+                </span>
+              )}
+            </h1>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              Configuración de Apariencia del Template
+            </p>
+          </div>
         </div>
 
         {/* BOTÓN GUARDAR EN LA FILA DEL HEADER (LADO DERECHO) */}
