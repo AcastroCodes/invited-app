@@ -455,268 +455,239 @@ export default function AppMovilConfig() {
               const partnerEnabled = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
               const isQrView = previewView === 'qr';
 
-              // Determinar el target efectivo según la vista activa del preview
-              const effectiveTarget = isQrView
-                ? (precargaTextTarget === 'title' || precargaTextTarget === 'subtitle' ? 'button' : precargaTextTarget)
-                : (precargaTextTarget === 'button' || precargaTextTarget === 'code' ? 'title' : precargaTextTarget);
+              // Helper para renderizar cada elemento de texto como sección individual vertical
+              const renderTextSection = (target: 'title' | 'subtitle' | 'button' | 'code' | 'powered_by') => {
+                const isBtn = target === 'button';
+                const isCode = target === 'code';
+                const isPoweredBy = target === 'powered_by';
+                const isH = isBtn && buttonState === 'hover';
+                const isSectionActive = precargaTextTarget === target;
 
-              const isPoweredByDisabled = effectiveTarget === 'powered_by' && !partnerEnabled;
+                const configMeta = {
+                  title: {
+                    label: 'Título Principal',
+                    hint: 'Texto del loader de bienvenida',
+                    defaultVal: 'Cargando',
+                    defaultSize: 14,
+                    defaultColor: '#ffffff',
+                  },
+                  subtitle: {
+                    label: 'Subtítulo',
+                    hint: 'Texto secundario de espera',
+                    defaultVal: 'Espere por favor',
+                    defaultSize: 10,
+                    defaultColor: '#e2e8f0',
+                  },
+                  button: {
+                    label: 'Botón Entrar',
+                    hint: 'Botón principal de acción en pantalla QR',
+                    defaultVal: 'Entrar',
+                    defaultSize: 10,
+                    defaultColor: '#ffffff',
+                  },
+                  code: {
+                    label: 'Cuadro de Código QR',
+                    hint: 'Placeholder del código de acceso',
+                    defaultVal: 'CÓDIGO',
+                    defaultSize: 11,
+                    defaultColor: '#ffffff',
+                  },
+                  powered_by: {
+                    label: 'Powered by',
+                    hint: 'Créditos al pie de la pantalla',
+                    defaultVal: 'Powered by',
+                    defaultSize: 8.5,
+                    defaultColor: '#ffffff',
+                  },
+                }[target];
 
-              const targetLabels: Record<string, string> = {
-                title: 'Título Principal ("Cargando")',
-                subtitle: 'Subtítulo ("Espere por favor")',
-                button: 'Botón Entrar',
-                code: 'Cuadro de Código QR',
-                powered_by: 'Texto Powered by',
-              };
+                const isPoweredByDisabled = isPoweredBy && !partnerEnabled;
 
-              return (
-                <div className="space-y-4">
-                  {/* TARJETA PRINCIPAL: FUENTES Y TEXTOS */}
-                  <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+                // Valores de texto
+                const textVal = isBtn
+                  ? (settings.welcome_button_text ?? 'Entrar')
+                  : isCode
+                  ? (settings.welcome_qr_placeholder ?? 'CÓDIGO')
+                  : target === 'title'
+                  ? (settings.welcome_precarga_text ?? settings.precarga_title ?? 'Cargando')
+                  : target === 'subtitle'
+                  ? (settings.precarga_subtitle ?? 'Espere por favor')
+                  : (settings.precarga_powered_by_text ?? 'Powered by');
+
+                // Fuente
+                const fontFamilyVal = isBtn
+                  ? (settings.precarga_button_font_family || settings.global_button_font_family || 'Inter')
+                  : isCode
+                  ? (settings.qr_input_font_family || settings.global_text_font_family || 'Inter')
+                  : target === 'title'
+                  ? (settings.precarga_title_font_family || settings.global_title_font_family || 'Inter')
+                  : target === 'subtitle'
+                  ? (settings.precarga_subtitle_font_family || settings.global_text_font_family || 'Inter')
+                  : (settings.precarga_powered_by_font_family || 'Inter');
+
+                // Tamaño
+                const sizeKey = isCode ? 'qr_input_font_size' : `precarga_${target}_font_size`;
+                const currSize = parseFloat(settings[sizeKey] || configMeta.defaultSize.toString());
+
+                // Formato
+                const weightKey = isCode ? 'qr_input_font_weight' : `precarga_${target}_font_weight`;
+                const styleKey = isCode ? 'qr_input_font_style' : `precarga_${target}_font_style`;
+                const decorKey = isCode ? 'qr_input_text_decoration' : `precarga_${target}_text_decoration`;
+
+                const isBold = settings[weightKey] === 'bold' || settings[weightKey] === '900' || ((target === 'title' || isBtn) && settings[weightKey] !== 'normal');
+                const isItalic = settings[styleKey] === 'italic';
+                const isUnderline = settings[decorKey] === 'underline';
+
+                // Alineación
+                const alignKey = isCode ? 'qr_input_text_align' : `precarga_${target}_text_align`;
+                const currAlign = settings[alignKey] || 'center';
+
+                // Estilo (Color, Contorno, Sombra)
+                const colorKey = isBtn
+                  ? (isH ? 'precarga_button_hover_font_color' : 'precarga_button_font_color')
+                  : isCode
+                  ? 'qr_input_font_color'
+                  : `precarga_${target}_font_color`;
+                const strokeActiveKey = isBtn ? (isH ? 'precarga_button_hover_stroke_active' : 'precarga_button_stroke_active') : `precarga_${target}_stroke_active`;
+                const strokeColorKey = isBtn ? (isH ? 'precarga_button_hover_stroke_color' : 'precarga_button_stroke_color') : `precarga_${target}_stroke_color`;
+                const strokeWidthKey = isBtn ? (isH ? 'precarga_button_hover_stroke_width' : 'precarga_button_stroke_width') : `precarga_${target}_stroke_width`;
+                const strokeTypeKey = isBtn ? (isH ? 'precarga_button_hover_stroke_type' : 'precarga_button_stroke_type') : `precarga_${target}_stroke_type`;
+                const shadowActiveKey = isBtn ? (isH ? 'precarga_button_hover_shadow_active' : 'precarga_button_shadow_active') : `precarga_${target}_shadow_active`;
+                const shadowColorKey = isBtn ? (isH ? 'precarga_button_hover_shadow_color' : 'precarga_button_shadow_color') : `precarga_${target}_shadow_color`;
+                const shadowBlurKey = isBtn ? (isH ? 'precarga_button_hover_shadow_blur' : 'precarga_button_shadow_blur') : `precarga_${target}_shadow_blur`;
+
+                return (
+                  <div
+                    key={target}
+                    id={`font-section-${target}`}
+                    className="rounded-lg p-3.5 border space-y-3 shadow-2xs transition-all"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border-color)',
+                    }}
+                  >
+                    {/* Encabezado de la Sección */}
                     <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
-                      <div className="flex items-center gap-2.5">
-                        <Type size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
-                        <div className="flex flex-col leading-tight">
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                            <span>Fuentes y Textos</span>
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
-                              {isQrView ? 'Escáner QR' : 'Precarga'}
-                            </span>
-                          </h3>
-                          <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            {targetLabels[effectiveTarget] || 'Texto'}
+                      <div className="flex items-center gap-2">
+                        <Type size={16} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                            {configMeta.label}
+                          </h4>
+                          <span className="text-[10px] font-semibold opacity-70" style={{ color: 'var(--text-muted)' }}>
+                            {configMeta.hint}
                           </span>
                         </div>
                       </div>
 
-                      {/* SELECTOR CONTEXTUAL DE PANTALLA Y ELEMENTO */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Selector de Pantalla Precarga / QR */}
-                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                          {[
-                            { id: 'precarga', label: 'Precarga', icon: Hourglass },
-                            { id: 'qr', label: 'QR', icon: QrCode },
-                          ].map((vw) => {
-                            const Icon = vw.icon;
-                            const isVwActive = previewView === vw.id;
-                            return (
-                              <button
-                                key={vw.id}
-                                type="button"
-                                onClick={() => {
-                                  setPreviewView(vw.id);
-                                  setPrecargaLogoState(vw.id as any);
-                                  if (vw.id === 'qr') setPrecargaTextTarget('button');
-                                  else setPrecargaTextTarget('title');
-                                }}
-                                className="botab-item"
-                                style={{
-                                  backgroundColor: isVwActive ? 'var(--primary-accent)' : 'transparent',
-                                  color: isVwActive ? '#ffffff' : 'var(--text-muted)',
-                                }}
-                              >
-                                <Icon size={12} />
-                                <span>{vw.label}</span>
-                              </button>
-                            );
-                          })}
+                      {/* Si es botón: Switch de estado Normal / Sobre */}
+                      {isBtn && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
+                            Estado:
+                          </span>
+                          <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            {[
+                              { id: 'normal', label: 'Normal' },
+                              { id: 'hover', label: 'Sobre' },
+                            ].map((modeItem) => {
+                              const isModeActive = buttonState === modeItem.id;
+                              return (
+                                <button
+                                  key={modeItem.id}
+                                  type="button"
+                                  onClick={() => setButtonState(modeItem.id as any)}
+                                  className="botab-item"
+                                  style={{
+                                    backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                    color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  {modeItem.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-
-                        {/* Selector de Elementos según la pantalla activa */}
-                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                          {(isQrView
-                            ? [
-                                { id: 'button', label: 'Botón Entrar' },
-                                { id: 'code', label: 'Cuadro Código' },
-                                { id: 'powered_by', label: 'Powered by' },
-                              ]
-                            : [
-                                { id: 'title', label: 'Título' },
-                                { id: 'subtitle', label: 'Subtítulo' },
-                                { id: 'powered_by', label: 'Powered by' },
-                              ]
-                          ).map((targetItem) => {
-                            const isTargetActive = effectiveTarget === targetItem.id;
-                            const isPoweredByItem = targetItem.id === 'powered_by';
-                            const isItemDisabled = isPoweredByItem && !partnerEnabled;
-
-                            return (
-                              <button
-                                key={targetItem.id}
-                                type="button"
-                                onClick={() => setPrecargaTextTarget(targetItem.id as any)}
-                                className="botab-item"
-                                style={{
-                                  backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
-                                  color: isTargetActive ? '#ffffff' : isItemDisabled ? 'var(--text-muted)' : 'var(--text-muted)',
-                                  opacity: isItemDisabled ? 0.6 : 1,
-                                }}
-                                title={isItemDisabled ? 'Visibilidad desactivada en la pestaña Logos' : undefined}
-                              >
-                                <span>{targetItem.label}</span>
-                                {isItemDisabled && <EyeOff size={11} className="shrink-0" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      )}
                     </div>
 
-                    {/* ADVERTENCIA SI POWERED BY ESTÁ DESACTIVADO */}
+                    {/* Advertencia si Powered by está desactivado */}
                     {isPoweredByDisabled && (
                       <div className="p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}>
                         <EyeOff size={16} className="shrink-0" />
-                        <span>El texto "Powered by" y el Logo están desactivados. Activa el suiche de visibilidad en la pestaña <strong>Logos</strong> para habilitar su edición y visualización.</span>
+                        <span>El texto "Powered by" está desactivado. Activa su visibilidad en la pestaña <strong>Logos</strong> para habilitar su edición.</span>
                       </div>
                     )}
 
-                    {/* SI EL TARGET ES EL BOTÓN ENTRAR: MOSTRAR SUB-PESTAÑA NORMAL / SOBRE */}
-                    {effectiveTarget === 'button' && (
-                      <div className="flex items-center justify-between pb-1 pt-0.5 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                        <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
-                          Estado del Botón en Simulador:
-                        </span>
-                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                          {[
-                            { id: 'normal', label: 'Normal' },
-                            { id: 'hover', label: 'Sobre' },
-                          ].map((modeItem) => {
-                            const isModeActive = buttonState === modeItem.id;
-                            return (
-                              <button
-                                key={modeItem.id}
-                                type="button"
-                                onClick={() => setButtonState(modeItem.id as any)}
-                                className="botab-item"
-                                style={{
-                                  backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
-                                  color: isModeActive ? '#ffffff' : 'var(--text-muted)',
-                                }}
-                              >
-                                {modeItem.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* FILA DE CONTROLES PRINCIPALES */}
+                    {/* Fila de controles */}
                     <div className={`flex flex-col md:flex-row items-stretch md:items-end gap-3 ${isPoweredByDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {/* 1. CAMPO DE TEXTO / PLACEHOLDER */}
+                      {/* 1. Texto / Placeholder */}
                       <div className="w-full md:w-52 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                          {effectiveTarget === 'title'
-                            ? 'Texto del Título'
-                            : effectiveTarget === 'subtitle'
-                            ? 'Texto del Subtítulo'
-                            : effectiveTarget === 'button'
-                            ? 'Texto del Botón'
-                            : effectiveTarget === 'code'
-                            ? 'Placeholder de Código'
-                            : 'Texto de Powered by'}
+                          {isCode ? 'Placeholder de Código' : isBtn ? 'Texto del Botón' : 'Texto a mostrar'}
                         </label>
                         <input
                           type="text"
                           disabled={isPoweredByDisabled}
-                          value={
-                            effectiveTarget === 'title'
-                              ? (settings.welcome_precarga_text ?? settings.precarga_title ?? 'Cargando')
-                              : effectiveTarget === 'subtitle'
-                              ? (settings.precarga_subtitle ?? 'Espere por favor')
-                              : effectiveTarget === 'button'
-                              ? (settings.welcome_button_text ?? 'Entrar')
-                              : effectiveTarget === 'code'
-                              ? (settings.welcome_qr_placeholder ?? 'CÓDIGO')
-                              : (settings.precarga_powered_by_text ?? 'Powered by')
-                          }
+                          value={textVal}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            if (effectiveTarget === 'title') {
-                              updateSetting('welcome_precarga_text', e.target.value);
-                              updateSetting('precarga_title', e.target.value);
-                            } else if (effectiveTarget === 'subtitle') {
-                              updateSetting('precarga_subtitle', e.target.value);
-                            } else if (effectiveTarget === 'button') {
-                              updateSetting('welcome_button_text', e.target.value);
-                            } else if (effectiveTarget === 'code') {
-                              updateSetting('welcome_qr_placeholder', e.target.value);
+                            const val = e.target.value;
+                            if (isBtn) {
+                              updateSetting('welcome_button_text', val);
+                            } else if (isCode) {
+                              updateSetting('welcome_qr_placeholder', val);
+                            } else if (target === 'title') {
+                              updateSetting('welcome_precarga_text', val);
+                              updateSetting('precarga_title', val);
+                            } else if (target === 'subtitle') {
+                              updateSetting('precarga_subtitle', val);
                             } else {
-                              updateSetting('precarga_powered_by_text', e.target.value);
+                              updateSetting('precarga_powered_by_text', val);
                             }
                           }}
-                          placeholder={
-                            effectiveTarget === 'title'
-                              ? 'Ej: Cargando'
-                              : effectiveTarget === 'subtitle'
-                              ? 'Ej: Espere por favor'
-                              : effectiveTarget === 'button'
-                              ? 'Ej: Entrar'
-                              : effectiveTarget === 'code'
-                              ? 'Ej: CÓDIGO'
-                              : 'Ej: Powered by'
-                          }
+                          placeholder={`Ej: ${configMeta.defaultVal}`}
                           className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
                           style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                         />
                       </div>
 
-                      {/* 2. FUENTE */}
+                      {/* 2. Fuente */}
                       <div className="flex-1 min-w-[180px]">
                         <FontPicker
                           label="Fuente"
-                          value={
-                            effectiveTarget === 'button'
-                              ? (settings.precarga_button_font_family || settings.global_button_font_family || 'Inter')
-                              : effectiveTarget === 'code'
-                              ? (settings.qr_input_font_family || settings.global_text_font_family || 'Inter')
-                              : effectiveTarget === 'title'
-                              ? (settings.precarga_title_font_family || settings.global_title_font_family || 'Inter')
-                              : effectiveTarget === 'subtitle'
-                              ? (settings.precarga_subtitle_font_family || settings.global_text_font_family || 'Inter')
-                              : (settings.precarga_powered_by_font_family || 'Inter')
-                          }
+                          value={fontFamilyVal}
                           onChange={(f: string) => {
-                            if (effectiveTarget === 'button') {
+                            if (isBtn) {
                               updateSetting('precarga_button_font_family', f);
                               updateSetting('global_button_font_family', f);
-                            } else if (effectiveTarget === 'code') {
+                            } else if (isCode) {
                               updateSetting('qr_input_font_family', f);
                             } else {
-                              updateSetting(`precarga_${effectiveTarget}_font_family`, f);
+                              updateSetting(`precarga_${target}_font_family`, f);
                             }
                           }}
                         />
                       </div>
 
-                      {/* 3. TAMAÑO */}
+                      {/* 3. Tamaño */}
                       <div className="w-full md:w-36 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                           Tamaño
                         </label>
                         <div
                           className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                          }}
+                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                         >
                           <button
                             type="button"
                             onClick={() => {
-                              const defaultSize = effectiveTarget === 'title' ? 14 : effectiveTarget === 'subtitle' ? 10 : effectiveTarget === 'button' ? 10 : effectiveTarget === 'code' ? 11 : 8.5;
-                              const key = effectiveTarget === 'code' ? 'qr_input_font_size' : `precarga_${effectiveTarget}_font_size`;
-                              const curr = parseFloat(settings[key] || defaultSize.toString());
-                              const nextVal = Math.max(5, curr - 0.5);
-                              updateSetting(key, nextVal.toString());
-                              if (effectiveTarget === 'button') updateSetting('global_button_font_size', nextVal.toString());
+                              const nextVal = Math.max(5, currSize - 0.5);
+                              updateSetting(sizeKey, nextVal.toString());
+                              if (isBtn) updateSetting('global_button_font_size', nextVal.toString());
                             }}
                             className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                            style={{
-                              backgroundColor: 'var(--bg-card)',
-                              borderColor: 'var(--border-color)',
-                              color: 'var(--primary-accent)',
-                            }}
+                            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
                             title="Disminuir tamaño"
                           >
                             <Minus size={12} />
@@ -728,15 +699,10 @@ export default function AppMovilConfig() {
                               min={5}
                               max={80}
                               step={0.5}
-                              value={
-                                effectiveTarget === 'code'
-                                  ? (settings.qr_input_font_size || '11')
-                                  : (settings[`precarga_${effectiveTarget}_font_size`] || (effectiveTarget === 'title' ? '14' : effectiveTarget === 'subtitle' ? '10' : effectiveTarget === 'button' ? '10' : '8.5'))
-                              }
+                              value={settings[sizeKey] || configMeta.defaultSize.toString()}
                               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                const key = effectiveTarget === 'code' ? 'qr_input_font_size' : `precarga_${effectiveTarget}_font_size`;
-                                updateSetting(key, e.target.value);
-                                if (effectiveTarget === 'button') updateSetting('global_button_font_size', e.target.value);
+                                updateSetting(sizeKey, e.target.value);
+                                if (isBtn) updateSetting('global_button_font_size', e.target.value);
                               }}
                               className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               style={{ color: 'var(--text-main)' }}
@@ -749,19 +715,12 @@ export default function AppMovilConfig() {
                           <button
                             type="button"
                             onClick={() => {
-                              const defaultSize = effectiveTarget === 'title' ? 14 : effectiveTarget === 'subtitle' ? 10 : effectiveTarget === 'button' ? 10 : effectiveTarget === 'code' ? 11 : 8.5;
-                              const key = effectiveTarget === 'code' ? 'qr_input_font_size' : `precarga_${effectiveTarget}_font_size`;
-                              const curr = parseFloat(settings[key] || defaultSize.toString());
-                              const nextVal = Math.min(80, curr + 0.5);
-                              updateSetting(key, nextVal.toString());
-                              if (effectiveTarget === 'button') updateSetting('global_button_font_size', nextVal.toString());
+                              const nextVal = Math.min(80, currSize + 0.5);
+                              updateSetting(sizeKey, nextVal.toString());
+                              if (isBtn) updateSetting('global_button_font_size', nextVal.toString());
                             }}
                             className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                            style={{
-                              backgroundColor: 'var(--bg-card)',
-                              borderColor: 'var(--border-color)',
-                              color: 'var(--primary-accent)',
-                            }}
+                            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}
                             title="Aumentar tamaño"
                           >
                             <Plus size={12} />
@@ -769,72 +728,55 @@ export default function AppMovilConfig() {
                         </div>
                       </div>
 
-                      {/* 4. FORMATO (NEGRITA, ITÁLICA, SUBRAYADO) */}
+                      {/* 4. Formato (Negrita, Itálica, Subrayado) */}
                       <div className="w-full md:w-28 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                           Formato
                         </label>
                         <div
                           className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                          }}
+                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                         >
-                          {(() => {
-                            const weightKey = effectiveTarget === 'code' ? 'qr_input_font_weight' : `precarga_${effectiveTarget}_font_weight`;
-                            const styleKey = effectiveTarget === 'code' ? 'qr_input_font_style' : `precarga_${effectiveTarget}_font_style`;
-                            const decorKey = effectiveTarget === 'code' ? 'qr_input_text_decoration' : `precarga_${effectiveTarget}_text_decoration`;
-
-                            const isBold = settings[weightKey] === 'bold' || settings[weightKey] === '900' || (effectiveTarget === 'title' && settings[weightKey] !== 'normal') || (effectiveTarget === 'button' && settings[weightKey] !== 'normal');
-                            const isItalic = settings[styleKey] === 'italic';
-                            const isUnderline = settings[decorKey] === 'underline';
-
-                            return (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => updateSetting(weightKey, isBold ? 'normal' : 'bold')}
-                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                                  style={{
-                                    backgroundColor: isBold ? 'var(--primary-accent)' : 'transparent',
-                                    color: isBold ? '#ffffff' : 'var(--text-muted)',
-                                  }}
-                                  title="Negrita"
-                                >
-                                  <Bold size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateSetting(styleKey, isItalic ? 'normal' : 'italic')}
-                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                                  style={{
-                                    backgroundColor: isItalic ? 'var(--primary-accent)' : 'transparent',
-                                    color: isItalic ? '#ffffff' : 'var(--text-muted)',
-                                  }}
-                                  title="Itálica"
-                                >
-                                  <Italic size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateSetting(decorKey, isUnderline ? 'none' : 'underline')}
-                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                                  style={{
-                                    backgroundColor: isUnderline ? 'var(--primary-accent)' : 'transparent',
-                                    color: isUnderline ? '#ffffff' : 'var(--text-muted)',
-                                  }}
-                                  title="Subrayado"
-                                >
-                                  <Underline size={13} />
-                                </button>
-                              </>
-                            );
-                          })()}
+                          <button
+                            type="button"
+                            onClick={() => updateSetting(weightKey, isBold ? 'normal' : 'bold')}
+                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                            style={{
+                              backgroundColor: isBold ? 'var(--primary-accent)' : 'transparent',
+                              color: isBold ? '#ffffff' : 'var(--text-muted)',
+                            }}
+                            title="Negrita"
+                          >
+                            <Bold size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSetting(styleKey, isItalic ? 'normal' : 'italic')}
+                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                            style={{
+                              backgroundColor: isItalic ? 'var(--primary-accent)' : 'transparent',
+                              color: isItalic ? '#ffffff' : 'var(--text-muted)',
+                            }}
+                            title="Itálica"
+                          >
+                            <Italic size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSetting(decorKey, isUnderline ? 'none' : 'underline')}
+                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                            style={{
+                              backgroundColor: isUnderline ? 'var(--primary-accent)' : 'transparent',
+                              color: isUnderline ? '#ffffff' : 'var(--text-muted)',
+                            }}
+                            title="Subrayado"
+                          >
+                            <Underline size={13} />
+                          </button>
                         </div>
                       </div>
 
-                      {/* 5. ALINEACIÓN */}
+                      {/* 5. Alineación */}
                       <div className="w-full md:w-32 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Alineación</label>
                         <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
@@ -845,15 +787,14 @@ export default function AppMovilConfig() {
                             { id: 'justify', icon: AlignJustify, title: 'Justificado' },
                           ].map((align) => {
                             const AlignIcon = align.icon;
-                            const alignKey = effectiveTarget === 'code' ? 'qr_input_text_align' : `precarga_${effectiveTarget}_text_align`;
-                            const isAlignActive = (settings[alignKey] || 'center') === align.id;
+                            const isAlignActive = currAlign === align.id;
                             return (
                               <button
                                 key={align.id}
                                 type="button"
                                 onClick={() => {
                                   updateSetting(alignKey, align.id);
-                                  if (effectiveTarget === 'button') updateSetting('global_button_text_align', align.id);
+                                  if (isBtn) updateSetting('global_button_text_align', align.id);
                                 }}
                                 className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
                                 style={{
@@ -869,61 +810,116 @@ export default function AppMovilConfig() {
                         </div>
                       </div>
 
-                      {/* 6. ESTILO DEL TEXTO (StylePickerPopover) */}
+                      {/* 6. Estilo (Color, Contorno, Sombra) */}
                       <div className="w-full md:w-32 shrink-0">
-                        {(() => {
-                          const isBtn = effectiveTarget === 'button';
-                          const isH = isBtn && buttonState === 'hover';
-                          const colorKey = isBtn
-                            ? (isH ? 'precarga_button_hover_font_color' : 'precarga_button_font_color')
-                            : effectiveTarget === 'code'
-                            ? 'qr_input_font_color'
-                            : `precarga_${effectiveTarget}_font_color`;
-                          const strokeActiveKey = isBtn ? (isH ? 'precarga_button_hover_stroke_active' : 'precarga_button_stroke_active') : `precarga_${effectiveTarget}_stroke_active`;
-                          const strokeColorKey = isBtn ? (isH ? 'precarga_button_hover_stroke_color' : 'precarga_button_stroke_color') : `precarga_${effectiveTarget}_stroke_color`;
-                          const strokeWidthKey = isBtn ? (isH ? 'precarga_button_hover_stroke_width' : 'precarga_button_stroke_width') : `precarga_${effectiveTarget}_stroke_width`;
-                          const strokeTypeKey = isBtn ? (isH ? 'precarga_button_hover_stroke_type' : 'precarga_button_stroke_type') : `precarga_${effectiveTarget}_stroke_type`;
-                          const shadowActiveKey = isBtn ? (isH ? 'precarga_button_hover_shadow_active' : 'precarga_button_shadow_active') : `precarga_${effectiveTarget}_shadow_active`;
-                          const shadowColorKey = isBtn ? (isH ? 'precarga_button_hover_shadow_color' : 'precarga_button_shadow_color') : `precarga_${effectiveTarget}_shadow_color`;
-                          const shadowBlurKey = isBtn ? (isH ? 'precarga_button_hover_shadow_blur' : 'precarga_button_shadow_blur') : `precarga_${effectiveTarget}_shadow_blur`;
-
-                          const defaultColor = isH ? '#ffffff' : (effectiveTarget === 'title' ? '#ffffff' : effectiveTarget === 'subtitle' ? '#e2e8f0' : '#ffffff');
-
-                          return (
-                            <StylePickerPopover
-                              label={isBtn ? `Estilo (${isH ? 'Sobre' : 'Normal'})` : 'Estilo texto'}
-                              elementType="text"
-                              eventColors={eventColors}
-                              eventColorImage={eventColorImage}
-                              styleConfig={{
-                                fillType: 'color',
-                                fillColor: settings[colorKey] || defaultColor,
-                                strokeActive: settings[strokeActiveKey] || false,
-                                strokeColor: settings[strokeColorKey] || '#000000',
-                                strokeWidth: parseInt(settings[strokeWidthKey] || '2'),
-                                strokeType: settings[strokeTypeKey] || 'OUT',
-                                shadowActive: settings[shadowActiveKey] || false,
-                                shadowColor: settings[shadowColorKey] || '#000000',
-                                shadowBlur: parseInt(settings[shadowBlurKey] || '8'),
-                              }}
-                              onChange={(updated: any) => {
-                                if (updated.fillColor) {
-                                  updateSetting(colorKey, updated.fillColor);
-                                  if (isBtn) updateSetting(isH ? 'global_button_hover_text' : 'global_button_text', updated.fillColor);
-                                }
-                                if (updated.strokeActive !== undefined) updateSetting(strokeActiveKey, updated.strokeActive);
-                                if (updated.strokeColor) updateSetting(strokeColorKey, updated.strokeColor);
-                                if (updated.strokeWidth !== undefined) updateSetting(strokeWidthKey, updated.strokeWidth.toString());
-                                if (updated.strokeType) updateSetting(strokeTypeKey, updated.strokeType);
-                                if (updated.shadowActive !== undefined) updateSetting(shadowActiveKey, updated.shadowActive);
-                                if (updated.shadowColor) updateSetting(shadowColorKey, updated.shadowColor);
-                                if (updated.shadowBlur !== undefined) updateSetting(shadowBlurKey, updated.shadowBlur.toString());
-                              }}
-                            />
-                          );
-                        })()}
+                        <StylePickerPopover
+                          label={isBtn ? `Estilo (${isH ? 'Sobre' : 'Normal'})` : 'Estilo texto'}
+                          elementType="text"
+                          eventColors={eventColors}
+                          eventColorImage={eventColorImage}
+                          styleConfig={{
+                            fillType: 'color',
+                            fillColor: settings[colorKey] || (isH ? '#ffffff' : configMeta.defaultColor),
+                            strokeActive: settings[strokeActiveKey] || false,
+                            strokeColor: settings[strokeColorKey] || '#000000',
+                            strokeWidth: parseInt(settings[strokeWidthKey] || '2'),
+                            strokeType: settings[strokeTypeKey] || 'OUT',
+                            shadowActive: settings[shadowActiveKey] || false,
+                            shadowColor: settings[shadowColorKey] || '#000000',
+                            shadowBlur: parseInt(settings[shadowBlurKey] || '8'),
+                          }}
+                          onChange={(updated: any) => {
+                            if (updated.fillColor) {
+                              updateSetting(colorKey, updated.fillColor);
+                              if (isBtn) updateSetting(isH ? 'global_button_hover_text' : 'global_button_text', updated.fillColor);
+                            }
+                            if (updated.strokeActive !== undefined) updateSetting(strokeActiveKey, updated.strokeActive);
+                            if (updated.strokeColor) updateSetting(strokeColorKey, updated.strokeColor);
+                            if (updated.strokeWidth !== undefined) updateSetting(strokeWidthKey, updated.strokeWidth.toString());
+                            if (updated.strokeType) updateSetting(strokeTypeKey, updated.strokeType);
+                            if (updated.shadowActive !== undefined) updateSetting(shadowActiveKey, updated.shadowActive);
+                            if (updated.shadowColor) updateSetting(shadowColorKey, updated.shadowColor);
+                            if (updated.shadowBlur !== undefined) updateSetting(shadowBlurKey, updated.shadowBlur.toString());
+                          }}
+                        />
                       </div>
                     </div>
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-4">
+                  {/* BARRA SUPERIOR: SELECTOR DE PANTALLA (PRECARGA / ESCÁNER QR) */}
+                  <div
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg border gap-2.5 shadow-2xs"
+                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Type size={18} style={{ color: 'var(--primary-accent)' }} />
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
+                          Fuentes y Textos
+                        </h3>
+                        <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                          {isQrView ? 'Editando textos de la pantalla Escáner QR' : 'Editando textos de la pantalla de Precarga'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* BOTONES PRECARGA Y ESCÁNER QR */}
+                    <div
+                      className="flex items-center p-1 rounded-lg border gap-1 self-stretch sm:self-auto"
+                      style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewView('precarga');
+                          setPrecargaLogoState('precarga');
+                        }}
+                        className="flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        style={{
+                          backgroundColor: !isQrView ? 'var(--primary-accent)' : 'transparent',
+                          color: !isQrView ? '#ffffff' : 'var(--text-muted)',
+                        }}
+                      >
+                        <Hourglass size={13} />
+                        <span>Precarga</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewView('qr');
+                          setPrecargaLogoState('qr');
+                        }}
+                        className="flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        style={{
+                          backgroundColor: isQrView ? 'var(--primary-accent)' : 'transparent',
+                          color: isQrView ? '#ffffff' : 'var(--text-muted)',
+                        }}
+                      >
+                        <QrCode size={13} />
+                        <span>Escáner QR</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* SECCIONES APILADAS VERTICALMENTE UNA DEBAJO DE LA OTRA */}
+                  <div className="space-y-3.5">
+                    {!isQrView ? (
+                      <>
+                        {renderTextSection('title')}
+                        {renderTextSection('subtitle')}
+                        {renderTextSection('powered_by')}
+                      </>
+                    ) : (
+                      <>
+                        {renderTextSection('button')}
+                        {renderTextSection('code')}
+                        {renderTextSection('powered_by')}
+                      </>
+                    )}
                   </div>
                 </div>
               );
