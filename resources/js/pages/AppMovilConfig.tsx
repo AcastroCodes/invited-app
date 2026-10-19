@@ -181,8 +181,8 @@ export default function AppMovilConfig() {
 
   const [precargaSubTab, setPrecargaSubTab] = useState<'fuentes' | 'fondos' | 'logos'>('fuentes');
   const [previewView, setPreviewView] = useState<string>('precarga');
-  const [precargaTextTarget, setPrecargaTextTarget] = useState<'title' | 'subtitle' | 'powered_by'>('title');
-  const [precargaContainerTarget, setPrecargaContainerTarget] = useState<'fondo' | 'mensaje'>('fondo');
+  const [precargaTextTarget, setPrecargaTextTarget] = useState<'title' | 'subtitle' | 'button' | 'code' | 'powered_by'>('title');
+  const [precargaContainerTarget, setPrecargaContainerTarget] = useState<'fondo' | 'mensaje' | 'input'>('fondo');
   const [buttonState, setButtonState] = useState<'normal' | 'hover'>('normal');
   const [precargaLogoState, setPrecargaLogoState] = useState<'precarga' | 'qr'>('precarga');
   const [containerTarget, setContainerTarget] = useState<'fondo' | 'mensaje' | 'botones'>('fondo');
@@ -226,6 +226,17 @@ export default function AppMovilConfig() {
       console.error('Error guardando template:', err);
     } finally {
       setIsSavingSettings(false);
+    }
+  };
+
+  const handleElementSelect = (subTab: 'fuentes' | 'fondos' | 'logos', target?: string) => {
+    setPrecargaSubTab(subTab);
+    if (subTab === 'fuentes' && target) {
+      setPrecargaTextTarget(target as any);
+    } else if (subTab === 'fondos' && target) {
+      setPrecargaContainerTarget(target as any);
+    } else if (subTab === 'logos' && target) {
+      setPrecargaLogoState(target as any);
     }
   };
 
@@ -342,7 +353,8 @@ export default function AppMovilConfig() {
                 data={{ settings }}
                 event={{ title: settings.welcome_title || 'App Móvil' }}
                 previewView={previewView}
-                previewButtonState={containerTarget === 'botones' ? buttonState : undefined}
+                previewButtonState={buttonState}
+                onSelectElement={handleElementSelect}
               />
             </div>
 
@@ -367,6 +379,22 @@ export default function AppMovilConfig() {
                     title={`Ver vista de ${viewItem.label}`}
                     onClick={() => {
                       setPreviewView(viewItem.id);
+                      setPrecargaLogoState(viewItem.id as any);
+                      if (viewItem.id === 'qr') {
+                        if (precargaTextTarget === 'title' || precargaTextTarget === 'subtitle') {
+                          setPrecargaTextTarget('button');
+                        }
+                        if (precargaContainerTarget === 'fondo') {
+                          setPrecargaContainerTarget('mensaje');
+                        }
+                      } else {
+                        if (precargaTextTarget === 'button' || precargaTextTarget === 'code') {
+                          setPrecargaTextTarget('title');
+                        }
+                        if (precargaContainerTarget === 'input') {
+                          setPrecargaContainerTarget('fondo');
+                        }
+                      }
                     }}
                     className="p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center"
                     style={{
@@ -402,7 +430,6 @@ export default function AppMovilConfig() {
                 type="button"
                 onClick={() => {
                   setPrecargaSubTab(sub.id as any);
-                  setPreviewView('precarga');
                 }}
                 className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 style={{
@@ -423,62 +450,120 @@ export default function AppMovilConfig() {
 
           {/* CONTENIDO INTERNO DE PROGRAMA */}
           <div className="space-y-4">
-            {/* 2.1.1 SUB-PESTAÑA FUENTES EN PRECARGA */}
+            {/* 2.1.1 SUB-PESTAÑA FUENTES */}
             {precargaSubTab === 'fuentes' && (() => {
               const partnerEnabled = settings.precarga_show_logo ?? settings.partner_logo_show_precarga ?? true;
-              const activeTarget = precargaTextTarget === 'button' ? 'title' : precargaTextTarget;
-              const isPoweredByDisabled = activeTarget === 'powered_by' && !partnerEnabled;
+              const isQrView = previewView === 'qr';
+
+              // Determinar el target efectivo según la vista activa del preview
+              const effectiveTarget = isQrView
+                ? (precargaTextTarget === 'title' || precargaTextTarget === 'subtitle' ? 'button' : precargaTextTarget)
+                : (precargaTextTarget === 'button' || precargaTextTarget === 'code' ? 'title' : precargaTextTarget);
+
+              const isPoweredByDisabled = effectiveTarget === 'powered_by' && !partnerEnabled;
+
+              const targetLabels: Record<string, string> = {
+                title: 'Título Principal ("Cargando")',
+                subtitle: 'Subtítulo ("Espere por favor")',
+                button: 'Botón Entrar',
+                code: 'Cuadro de Código QR',
+                powered_by: 'Texto Powered by',
+              };
 
               return (
                 <div className="space-y-4">
-                  {/* 1. TARJETA SUPERIOR: FUENTES Y TEXTOS (TÍTULO, SUBTÍTULO, GENERAL) */}
+                  {/* TARJETA PRINCIPAL: FUENTES Y TEXTOS */}
                   <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                    <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                    <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
                       <div className="flex items-center gap-2.5">
                         <Type size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
                         <div className="flex flex-col leading-tight">
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                            Fuentes y Textos
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                            <span>Fuentes y Textos</span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                              {isQrView ? 'Escáner QR' : 'Precarga'}
+                            </span>
                           </h3>
                           <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            {activeTarget === 'title' ? 'Título Principal' : activeTarget === 'subtitle' ? 'Subtítulo' : 'Contenido'}
+                            {targetLabels[effectiveTarget] || 'Texto'}
                           </span>
                         </div>
                       </div>
 
-                      {/* PESTAÑAS TÍTULO / SUBTÍTULO / CONTENIDO EN EL LADO DERECHO */}
-                      <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                        {[
-                          { id: 'title', label: 'Título' },
-                          { id: 'subtitle', label: 'Subtítulo' },
-                          { id: 'powered_by', label: 'Contenido' },
-                        ].map((targetItem) => {
-                          const isTargetActive = activeTarget === targetItem.id;
-                          const isPoweredByItem = targetItem.id === 'powered_by';
-                          const isItemDisabled = isPoweredByItem && !partnerEnabled;
+                      {/* SELECTOR CONTEXTUAL DE PANTALLA Y ELEMENTO */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Selector de Pantalla Precarga / QR */}
+                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                          {[
+                            { id: 'precarga', label: 'Precarga', icon: Hourglass },
+                            { id: 'qr', label: 'QR', icon: QrCode },
+                          ].map((vw) => {
+                            const Icon = vw.icon;
+                            const isVwActive = previewView === vw.id;
+                            return (
+                              <button
+                                key={vw.id}
+                                type="button"
+                                onClick={() => {
+                                  setPreviewView(vw.id);
+                                  setPrecargaLogoState(vw.id as any);
+                                  if (vw.id === 'qr') setPrecargaTextTarget('button');
+                                  else setPrecargaTextTarget('title');
+                                }}
+                                className="botab-item"
+                                style={{
+                                  backgroundColor: isVwActive ? 'var(--primary-accent)' : 'transparent',
+                                  color: isVwActive ? '#ffffff' : 'var(--text-muted)',
+                                }}
+                              >
+                                <Icon size={12} />
+                                <span>{vw.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                          return (
-                            <button
-                              key={targetItem.id}
-                              type="button"
-                              onClick={() => setPrecargaTextTarget(targetItem.id as any)}
-                              className="botab-item"
-                              style={{
-                                backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
-                                color: isTargetActive ? '#ffffff' : isItemDisabled ? 'var(--text-muted)' : 'var(--text-muted)',
-                                opacity: isItemDisabled ? 0.6 : 1,
-                              }}
-                              title={isItemDisabled ? 'Visibilidad desactivada en la pestaña Logos' : undefined}
-                            >
-                              <span>{targetItem.label}</span>
-                              {isItemDisabled && <EyeOff size={11} className="shrink-0" />}
-                            </button>
-                          );
-                        })}
+                        {/* Selector de Elementos según la pantalla activa */}
+                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                          {(isQrView
+                            ? [
+                                { id: 'button', label: 'Botón Entrar' },
+                                { id: 'code', label: 'Cuadro Código' },
+                                { id: 'powered_by', label: 'Powered by' },
+                              ]
+                            : [
+                                { id: 'title', label: 'Título' },
+                                { id: 'subtitle', label: 'Subtítulo' },
+                                { id: 'powered_by', label: 'Powered by' },
+                              ]
+                          ).map((targetItem) => {
+                            const isTargetActive = effectiveTarget === targetItem.id;
+                            const isPoweredByItem = targetItem.id === 'powered_by';
+                            const isItemDisabled = isPoweredByItem && !partnerEnabled;
+
+                            return (
+                              <button
+                                key={targetItem.id}
+                                type="button"
+                                onClick={() => setPrecargaTextTarget(targetItem.id as any)}
+                                className="botab-item"
+                                style={{
+                                  backgroundColor: isTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                  color: isTargetActive ? '#ffffff' : isItemDisabled ? 'var(--text-muted)' : 'var(--text-muted)',
+                                  opacity: isItemDisabled ? 0.6 : 1,
+                                }}
+                                title={isItemDisabled ? 'Visibilidad desactivada en la pestaña Logos' : undefined}
+                              >
+                                <span>{targetItem.label}</span>
+                                {isItemDisabled && <EyeOff size={11} className="shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
-                    {/* ADVERTENCIA DE VISIBILIDAD SI POWERED BY ESTÁ DESACTIVADO */}
+                    {/* ADVERTENCIA SI POWERED BY ESTÁ DESACTIVADO */}
                     {isPoweredByDisabled && (
                       <div className="p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--primary-accent)' }}>
                         <EyeOff size={16} className="shrink-0" />
@@ -486,38 +571,89 @@ export default function AppMovilConfig() {
                       </div>
                     )}
 
-                    {/* CONTROLES DE TEXTO, TIPOGRAFÍA Y ESTILOS */}
+                    {/* SI EL TARGET ES EL BOTÓN ENTRAR: MOSTRAR SUB-PESTAÑA NORMAL / SOBRE */}
+                    {effectiveTarget === 'button' && (
+                      <div className="flex items-center justify-between pb-1 pt-0.5 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                        <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
+                          Estado del Botón en Simulador:
+                        </span>
+                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                          {[
+                            { id: 'normal', label: 'Normal' },
+                            { id: 'hover', label: 'Sobre' },
+                          ].map((modeItem) => {
+                            const isModeActive = buttonState === modeItem.id;
+                            return (
+                              <button
+                                key={modeItem.id}
+                                type="button"
+                                onClick={() => setButtonState(modeItem.id as any)}
+                                className="botab-item"
+                                style={{
+                                  backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
+                                  color: isModeActive ? '#ffffff' : 'var(--text-muted)',
+                                }}
+                              >
+                                {modeItem.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* FILA DE CONTROLES PRINCIPALES */}
                     <div className={`flex flex-col md:flex-row items-stretch md:items-end gap-3 ${isPoweredByDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {/* CAMPO TEXTO / CONTENIDO */}
+                      {/* 1. CAMPO DE TEXTO / PLACEHOLDER */}
                       <div className="w-full md:w-52 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                          {activeTarget === 'title' ? 'Texto del Título' : activeTarget === 'subtitle' ? 'Texto del Contenido' : 'Texto de Powered by'}
+                          {effectiveTarget === 'title'
+                            ? 'Texto del Título'
+                            : effectiveTarget === 'subtitle'
+                            ? 'Texto del Subtítulo'
+                            : effectiveTarget === 'button'
+                            ? 'Texto del Botón'
+                            : effectiveTarget === 'code'
+                            ? 'Placeholder de Código'
+                            : 'Texto de Powered by'}
                         </label>
                         <input
                           type="text"
                           disabled={isPoweredByDisabled}
                           value={
-                            activeTarget === 'title'
+                            effectiveTarget === 'title'
                               ? (settings.welcome_precarga_text ?? settings.precarga_title ?? 'Cargando')
-                              : activeTarget === 'subtitle'
+                              : effectiveTarget === 'subtitle'
                               ? (settings.precarga_subtitle ?? 'Espere por favor')
+                              : effectiveTarget === 'button'
+                              ? (settings.welcome_button_text ?? 'Entrar')
+                              : effectiveTarget === 'code'
+                              ? (settings.welcome_qr_placeholder ?? 'CÓDIGO')
                               : (settings.precarga_powered_by_text ?? 'Powered by')
                           }
-                          onChange={(e) => {
-                            if (activeTarget === 'title') {
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            if (effectiveTarget === 'title') {
                               updateSetting('welcome_precarga_text', e.target.value);
                               updateSetting('precarga_title', e.target.value);
-                            } else if (activeTarget === 'subtitle') {
+                            } else if (effectiveTarget === 'subtitle') {
                               updateSetting('precarga_subtitle', e.target.value);
+                            } else if (effectiveTarget === 'button') {
+                              updateSetting('welcome_button_text', e.target.value);
+                            } else if (effectiveTarget === 'code') {
+                              updateSetting('welcome_qr_placeholder', e.target.value);
                             } else {
                               updateSetting('precarga_powered_by_text', e.target.value);
                             }
                           }}
                           placeholder={
-                            activeTarget === 'title'
+                            effectiveTarget === 'title'
                               ? 'Ej: Cargando'
-                              : activeTarget === 'subtitle'
+                              : effectiveTarget === 'subtitle'
                               ? 'Ej: Espere por favor'
+                              : effectiveTarget === 'button'
+                              ? 'Ej: Entrar'
+                              : effectiveTarget === 'code'
+                              ? 'Ej: CÓDIGO'
                               : 'Ej: Powered by'
                           }
                           className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
@@ -525,19 +661,35 @@ export default function AppMovilConfig() {
                         />
                       </div>
 
-                      {/* FUENTE */}
+                      {/* 2. FUENTE */}
                       <div className="flex-1 min-w-[180px]">
                         <FontPicker
                           label="Fuente"
                           value={
-                            settings[`precarga_${activeTarget}_font_family`] ||
-                            (activeTarget === 'title' ? (settings.global_title_font_family || 'Inter') : (settings.global_text_font_family || 'Inter'))
+                            effectiveTarget === 'button'
+                              ? (settings.precarga_button_font_family || settings.global_button_font_family || 'Inter')
+                              : effectiveTarget === 'code'
+                              ? (settings.qr_input_font_family || settings.global_text_font_family || 'Inter')
+                              : effectiveTarget === 'title'
+                              ? (settings.precarga_title_font_family || settings.global_title_font_family || 'Inter')
+                              : effectiveTarget === 'subtitle'
+                              ? (settings.precarga_subtitle_font_family || settings.global_text_font_family || 'Inter')
+                              : (settings.precarga_powered_by_font_family || 'Inter')
                           }
-                          onChange={(f) => updateSetting(`precarga_${activeTarget}_font_family`, f)}
+                          onChange={(f: string) => {
+                            if (effectiveTarget === 'button') {
+                              updateSetting('precarga_button_font_family', f);
+                              updateSetting('global_button_font_family', f);
+                            } else if (effectiveTarget === 'code') {
+                              updateSetting('qr_input_font_family', f);
+                            } else {
+                              updateSetting(`precarga_${effectiveTarget}_font_family`, f);
+                            }
+                          }}
                         />
                       </div>
 
-                      {/* TAMAÑO */}
+                      {/* 3. TAMAÑO */}
                       <div className="w-full md:w-36 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                           Tamaño
@@ -552,10 +704,12 @@ export default function AppMovilConfig() {
                           <button
                             type="button"
                             onClick={() => {
-                              const defaultSize = activeTarget === 'title' ? 13 : activeTarget === 'subtitle' ? 10 : 8.5;
-                              const curr = parseFloat(settings[`precarga_${activeTarget}_font_size`] || defaultSize.toString());
+                              const defaultSize = effectiveTarget === 'title' ? 14 : effectiveTarget === 'subtitle' ? 10 : effectiveTarget === 'button' ? 10 : effectiveTarget === 'code' ? 11 : 8.5;
+                              const key = effectiveTarget === 'code' ? 'qr_input_font_size' : `precarga_${effectiveTarget}_font_size`;
+                              const curr = parseFloat(settings[key] || defaultSize.toString());
                               const nextVal = Math.max(5, curr - 0.5);
-                              updateSetting(`precarga_${activeTarget}_font_size`, nextVal.toString());
+                              updateSetting(key, nextVal.toString());
+                              if (effectiveTarget === 'button') updateSetting('global_button_font_size', nextVal.toString());
                             }}
                             className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
                             style={{
@@ -575,10 +729,15 @@ export default function AppMovilConfig() {
                               max={80}
                               step={0.5}
                               value={
-                                settings[`precarga_${activeTarget}_font_size`] ||
-                                (activeTarget === 'title' ? '13' : activeTarget === 'subtitle' ? '10' : '8.5')
+                                effectiveTarget === 'code'
+                                  ? (settings.qr_input_font_size || '11')
+                                  : (settings[`precarga_${effectiveTarget}_font_size`] || (effectiveTarget === 'title' ? '14' : effectiveTarget === 'subtitle' ? '10' : effectiveTarget === 'button' ? '10' : '8.5'))
                               }
-                              onChange={(e) => updateSetting(`precarga_${activeTarget}_font_size`, e.target.value)}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const key = effectiveTarget === 'code' ? 'qr_input_font_size' : `precarga_${effectiveTarget}_font_size`;
+                                updateSetting(key, e.target.value);
+                                if (effectiveTarget === 'button') updateSetting('global_button_font_size', e.target.value);
+                              }}
                               className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               style={{ color: 'var(--text-main)' }}
                             />
@@ -590,10 +749,12 @@ export default function AppMovilConfig() {
                           <button
                             type="button"
                             onClick={() => {
-                              const defaultSize = activeTarget === 'title' ? 13 : activeTarget === 'subtitle' ? 10 : 8.5;
-                              const curr = parseFloat(settings[`precarga_${activeTarget}_font_size`] || defaultSize.toString());
+                              const defaultSize = effectiveTarget === 'title' ? 14 : effectiveTarget === 'subtitle' ? 10 : effectiveTarget === 'button' ? 10 : effectiveTarget === 'code' ? 11 : 8.5;
+                              const key = effectiveTarget === 'code' ? 'qr_input_font_size' : `precarga_${effectiveTarget}_font_size`;
+                              const curr = parseFloat(settings[key] || defaultSize.toString());
                               const nextVal = Math.min(80, curr + 0.5);
-                              updateSetting(`precarga_${activeTarget}_font_size`, nextVal.toString());
+                              updateSetting(key, nextVal.toString());
+                              if (effectiveTarget === 'button') updateSetting('global_button_font_size', nextVal.toString());
                             }}
                             className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
                             style={{
@@ -608,7 +769,7 @@ export default function AppMovilConfig() {
                         </div>
                       </div>
 
-                      {/* FORMATO (NEGRITA, ITÁLICA, SUBRAYADO) */}
+                      {/* 4. FORMATO (NEGRITA, ITÁLICA, SUBRAYADO) */}
                       <div className="w-full md:w-28 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
                           Formato
@@ -620,301 +781,60 @@ export default function AppMovilConfig() {
                             borderColor: 'var(--border-color)',
                           }}
                         >
-                          <button
-                            type="button"
-                            onClick={() => updateSetting(`precarga_${activeTarget}_font_weight`, settings[`precarga_${activeTarget}_font_weight`] === 'bold' ? 'normal' : 'bold')}
-                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                            style={{
-                              backgroundColor: settings[`precarga_${activeTarget}_font_weight`] === 'bold' ? 'var(--primary-accent)' : 'transparent',
-                              color: settings[`precarga_${activeTarget}_font_weight`] === 'bold' ? '#ffffff' : 'var(--text-muted)',
-                            }}
-                            title="Negrita"
-                          >
-                            <Bold size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSetting(`precarga_${activeTarget}_font_style`, settings[`precarga_${activeTarget}_font_style`] === 'italic' ? 'normal' : 'italic')}
-                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                            style={{
-                              backgroundColor: settings[`precarga_${activeTarget}_font_style`] === 'italic' ? 'var(--primary-accent)' : 'transparent',
-                              color: settings[`precarga_${activeTarget}_font_style`] === 'italic' ? '#ffffff' : 'var(--text-muted)',
-                            }}
-                            title="Itálica"
-                          >
-                            <Italic size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSetting(`precarga_${activeTarget}_text_decoration`, settings[`precarga_${activeTarget}_text_decoration`] === 'underline' ? 'none' : 'underline')}
-                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                            style={{
-                              backgroundColor: settings[`precarga_${activeTarget}_text_decoration`] === 'underline' ? 'var(--primary-accent)' : 'transparent',
-                              color: settings[`precarga_${activeTarget}_text_decoration`] === 'underline' ? '#ffffff' : 'var(--text-muted)',
-                            }}
-                            title="Subrayado"
-                          >
-                            <Underline size={13} />
-                          </button>
-                        </div>
-                      </div>
+                          {(() => {
+                            const weightKey = effectiveTarget === 'code' ? 'qr_input_font_weight' : `precarga_${effectiveTarget}_font_weight`;
+                            const styleKey = effectiveTarget === 'code' ? 'qr_input_font_style' : `precarga_${effectiveTarget}_font_style`;
+                            const decorKey = effectiveTarget === 'code' ? 'qr_input_text_decoration' : `precarga_${effectiveTarget}_text_decoration`;
 
-                      {/* ALINEACIÓN */}
-                      <div className="w-full md:w-32 shrink-0">
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Alineación</label>
-                        <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                          {[
-                            { id: 'left', icon: AlignLeft, title: 'Izquierda' },
-                            { id: 'center', icon: AlignCenter, title: 'Centro' },
-                            { id: 'right', icon: AlignRight, title: 'Derecha' },
-                            { id: 'justify', icon: AlignJustify, title: 'Justificado' },
-                          ].map((align) => {
-                            const AlignIcon = align.icon;
-                            const isAlignActive = (settings[`precarga_${activeTarget}_text_align`] || 'center') === align.id;
+                            const isBold = settings[weightKey] === 'bold' || settings[weightKey] === '900' || (effectiveTarget === 'title' && settings[weightKey] !== 'normal') || (effectiveTarget === 'button' && settings[weightKey] !== 'normal');
+                            const isItalic = settings[styleKey] === 'italic';
+                            const isUnderline = settings[decorKey] === 'underline';
+
                             return (
-                              <button
-                                key={align.id}
-                                type="button"
-                                onClick={() => updateSetting(`precarga_${activeTarget}_text_align`, align.id)}
-                                className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                                style={{
-                                  backgroundColor: isAlignActive ? 'var(--primary-accent)' : 'transparent',
-                                  color: isAlignActive ? '#ffffff' : 'var(--text-muted)',
-                                }}
-                                title={align.title}
-                              >
-                                <AlignIcon size={13} />
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting(weightKey, isBold ? 'normal' : 'bold')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: isBold ? 'var(--primary-accent)' : 'transparent',
+                                    color: isBold ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Negrita"
+                                >
+                                  <Bold size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting(styleKey, isItalic ? 'normal' : 'italic')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: isItalic ? 'var(--primary-accent)' : 'transparent',
+                                    color: isItalic ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Itálica"
+                                >
+                                  <Italic size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSetting(decorKey, isUnderline ? 'none' : 'underline')}
+                                  className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: isUnderline ? 'var(--primary-accent)' : 'transparent',
+                                    color: isUnderline ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                  title="Subrayado"
+                                >
+                                  <Underline size={13} />
+                                </button>
+                              </>
                             );
-                          })}
+                          })()}
                         </div>
                       </div>
 
-                      {/* ESTILO DEL TEXTO (StylePickerPopover) */}
-                      <div className="w-full md:w-32 shrink-0">
-                        <StylePickerPopover
-                          label="Estilo texto"
-                          elementType="text"
-                          eventColors={eventColors}
-                          eventColorImage={eventColorImage}
-                          styleConfig={{
-                            fillType: 'color',
-                            fillColor: settings[`precarga_${activeTarget}_font_color`] || (activeTarget === 'title' ? '#ffffff' : activeTarget === 'subtitle' ? '#e2e8f0' : '#ffffff'),
-                            strokeActive: settings[`precarga_${activeTarget}_stroke_active`] || false,
-                            strokeColor: settings[`precarga_${activeTarget}_stroke_color`] || '#000000',
-                            strokeWidth: parseInt(settings[`precarga_${activeTarget}_stroke_width`] || '2'),
-                            strokeType: settings[`precarga_${activeTarget}_stroke_type`] || 'OUT',
-                            shadowActive: settings[`precarga_${activeTarget}_shadow_active`] || false,
-                            shadowColor: settings[`precarga_${activeTarget}_shadow_color`] || '#000000',
-                            shadowBlur: parseInt(settings[`precarga_${activeTarget}_shadow_blur`] || '8'),
-                          }}
-                          onChange={(updated) => {
-                            if (updated.fillColor) updateSetting(`precarga_${activeTarget}_font_color`, updated.fillColor);
-                            if (updated.strokeActive !== undefined) updateSetting(`precarga_${activeTarget}_stroke_active`, updated.strokeActive);
-                            if (updated.strokeColor) updateSetting(`precarga_${activeTarget}_stroke_color`, updated.strokeColor);
-                            if (updated.strokeWidth !== undefined) updateSetting(`precarga_${activeTarget}_stroke_width`, updated.strokeWidth.toString());
-                            if (updated.strokeType) updateSetting(`precarga_${activeTarget}_stroke_type`, updated.strokeType);
-                            if (updated.shadowActive !== undefined) updateSetting(`precarga_${activeTarget}_shadow_active`, updated.shadowActive);
-                            if (updated.shadowColor) updateSetting(`precarga_${activeTarget}_shadow_color`, updated.shadowColor);
-                            if (updated.shadowBlur !== undefined) updateSetting(`precarga_${activeTarget}_shadow_blur`, updated.shadowBlur.toString());
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 2. TARJETA INFERIOR: FUENTE DE BOTÓN (NORMAL / SOBRE) */}
-                  <div className="rounded-2xl p-4 border space-y-4 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
-                    <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
-                      <div className="flex items-center gap-2.5">
-                        <MousePointer2 size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
-                        <div className="flex flex-col leading-tight">
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                            Fuente de Botón ({buttonState === 'hover' ? 'Sobre' : 'Normal'})
-                          </h3>
-                          <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            Tipografía, texto y estilo del botón "Entrar"
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* PESTAÑAS NORMAL / SOBRE */}
-                      <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                        {[
-                          { id: 'normal', label: 'Normal' },
-                          { id: 'hover', label: 'Sobre' },
-                        ].map((modeItem) => {
-                          const isModeActive = buttonState === modeItem.id;
-                          return (
-                            <button
-                              key={modeItem.id}
-                              type="button"
-                              onClick={() => setButtonState(modeItem.id as any)}
-                              className="botab-item"
-                              style={{
-                                backgroundColor: isModeActive ? 'var(--primary-accent)' : 'transparent',
-                                color: isModeActive ? '#ffffff' : 'var(--text-muted)',
-                              }}
-                            >
-                              {modeItem.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* CONTROLES DE TEXTO, TIPOGRAFÍA Y ESTILOS PARA BOTÓN */}
-                    <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3">
-                      {/* TEXTO DEL BOTÓN */}
-                      <div className="w-full md:w-52 shrink-0">
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                          Texto del Botón
-                        </label>
-                        <input
-                          type="text"
-                          value={settings.welcome_button_text ?? 'Entrar'}
-                          onChange={(e) => updateSetting('welcome_button_text', e.target.value)}
-                          placeholder="Ej: Entrar"
-                          className="w-full h-9 rounded-xl px-3 border outline-none text-xs font-medium"
-                          style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                        />
-                      </div>
-
-                      {/* FUENTE */}
-                      <div className="flex-1 min-w-[180px]">
-                        <FontPicker
-                          label="Fuente"
-                          value={settings.precarga_button_font_family || settings.global_button_font_family || 'Inter'}
-                          onChange={(f) => {
-                            updateSetting('precarga_button_font_family', f);
-                            updateSetting('global_button_font_family', f);
-                          }}
-                        />
-                      </div>
-
-                      {/* TAMAÑO */}
-                      <div className="w-full md:w-36 shrink-0">
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                          Tamaño
-                        </label>
-                        <div
-                          className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const curr = parseFloat(settings.precarga_button_font_size || settings.global_button_font_size || '14');
-                              const nextVal = Math.max(5, curr - 0.5);
-                              updateSetting('precarga_button_font_size', nextVal.toString());
-                              updateSetting('global_button_font_size', nextVal.toString());
-                            }}
-                            className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                            style={{
-                              backgroundColor: 'var(--bg-card)',
-                              borderColor: 'var(--border-color)',
-                              color: 'var(--primary-accent)',
-                            }}
-                            title="Disminuir tamaño"
-                          >
-                            <Minus size={12} />
-                          </button>
-
-                          <div className="flex-1 flex items-center justify-center px-1">
-                            <input
-                              type="number"
-                              min={5}
-                              max={80}
-                              step={0.5}
-                              value={settings.precarga_button_font_size || settings.global_button_font_size || '14'}
-                              onChange={(e) => {
-                                updateSetting('precarga_button_font_size', e.target.value);
-                                updateSetting('global_button_font_size', e.target.value);
-                              }}
-                              className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              style={{ color: 'var(--text-main)' }}
-                            />
-                            <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
-                              px
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const curr = parseFloat(settings.precarga_button_font_size || settings.global_button_font_size || '14');
-                              const nextVal = Math.min(80, curr + 0.5);
-                              updateSetting('precarga_button_font_size', nextVal.toString());
-                              updateSetting('global_button_font_size', nextVal.toString());
-                            }}
-                            className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                            style={{
-                              backgroundColor: 'var(--bg-card)',
-                              borderColor: 'var(--border-color)',
-                              color: 'var(--primary-accent)',
-                            }}
-                            title="Aumentar tamaño"
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* FORMATO */}
-                      <div className="w-full md:w-28 shrink-0">
-                        <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                          Formato
-                        </label>
-                        <div
-                          className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs"
-                          style={{
-                            backgroundColor: 'var(--bg-app)',
-                            borderColor: 'var(--border-color)',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => updateSetting('precarga_button_font_weight', settings.precarga_button_font_weight === 'bold' ? 'normal' : 'bold')}
-                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                            style={{
-                              backgroundColor: settings.precarga_button_font_weight === 'bold' ? 'var(--primary-accent)' : 'transparent',
-                              color: settings.precarga_button_font_weight === 'bold' ? '#ffffff' : 'var(--text-muted)',
-                            }}
-                            title="Negrita"
-                          >
-                            <Bold size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSetting('precarga_button_font_style', settings.precarga_button_font_style === 'italic' ? 'normal' : 'italic')}
-                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                            style={{
-                              backgroundColor: settings.precarga_button_font_style === 'italic' ? 'var(--primary-accent)' : 'transparent',
-                              color: settings.precarga_button_font_style === 'italic' ? '#ffffff' : 'var(--text-muted)',
-                            }}
-                            title="Itálica"
-                          >
-                            <Italic size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSetting('precarga_button_text_decoration', settings.precarga_button_text_decoration === 'underline' ? 'none' : 'underline')}
-                            className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                            style={{
-                              backgroundColor: settings.precarga_button_text_decoration === 'underline' ? 'var(--primary-accent)' : 'transparent',
-                              color: settings.precarga_button_text_decoration === 'underline' ? '#ffffff' : 'var(--text-muted)',
-                            }}
-                            title="Subrayado"
-                          >
-                            <Underline size={13} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* ALINEACIÓN */}
+                      {/* 5. ALINEACIÓN */}
                       <div className="w-full md:w-32 shrink-0">
                         <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>Alineación</label>
                         <div className="flex items-center h-9 rounded-xl border p-0.5 gap-0.5 shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
@@ -925,14 +845,15 @@ export default function AppMovilConfig() {
                             { id: 'justify', icon: AlignJustify, title: 'Justificado' },
                           ].map((align) => {
                             const AlignIcon = align.icon;
-                            const isAlignActive = (settings.precarga_button_text_align || settings.global_button_text_align || 'center') === align.id;
+                            const alignKey = effectiveTarget === 'code' ? 'qr_input_text_align' : `precarga_${effectiveTarget}_text_align`;
+                            const isAlignActive = (settings[alignKey] || 'center') === align.id;
                             return (
                               <button
                                 key={align.id}
                                 type="button"
                                 onClick={() => {
-                                  updateSetting('precarga_button_text_align', align.id);
-                                  updateSetting('global_button_text_align', align.id);
+                                  updateSetting(alignKey, align.id);
+                                  if (effectiveTarget === 'button') updateSetting('global_button_text_align', align.id);
                                 }}
                                 className="flex-1 h-full rounded-lg flex items-center justify-center transition-all cursor-pointer"
                                 style={{
@@ -948,51 +869,59 @@ export default function AppMovilConfig() {
                         </div>
                       </div>
 
-                      {/* ESTILO DEL TEXTO DEL BOTÓN */}
+                      {/* 6. ESTILO DEL TEXTO (StylePickerPopover) */}
                       <div className="w-full md:w-32 shrink-0">
-                        <StylePickerPopover
-                          label={`Estilo (${buttonState === 'hover' ? 'Sobre' : 'Normal'})`}
-                          elementType="text"
-                          eventColors={eventColors}
-                          eventColorImage={eventColorImage}
-                          styleConfig={{
-                            fillType: 'color',
-                            fillColor: buttonState === 'hover'
-                              ? (settings.precarga_button_hover_font_color || settings.global_button_hover_text || '#ffffff')
-                              : (settings.precarga_button_font_color || settings.global_button_text || '#ffffff'),
-                            strokeActive: buttonState === 'hover' ? (settings.precarga_button_hover_stroke_active || false) : (settings.precarga_button_stroke_active || false),
-                            strokeColor: buttonState === 'hover' ? (settings.precarga_button_hover_stroke_color || '#000000') : (settings.precarga_button_stroke_color || '#000000'),
-                            strokeWidth: parseInt(buttonState === 'hover' ? (settings.precarga_button_hover_stroke_width || '2') : (settings.precarga_button_stroke_width || '2')),
-                            strokeType: buttonState === 'hover' ? (settings.precarga_button_hover_stroke_type || 'OUT') : (settings.precarga_button_stroke_type || 'OUT'),
-                            shadowActive: buttonState === 'hover' ? (settings.precarga_button_hover_shadow_active || false) : (settings.precarga_button_shadow_active || false),
-                            shadowColor: buttonState === 'hover' ? (settings.precarga_button_hover_shadow_color || '#000000') : (settings.precarga_button_shadow_color || '#000000'),
-                            shadowBlur: parseInt(buttonState === 'hover' ? (settings.precarga_button_hover_shadow_blur || '8') : (settings.precarga_button_shadow_blur || '8')),
-                          }}
-                          onChange={(updated) => {
-                            const isH = buttonState === 'hover';
-                            const colorKey = isH ? 'precarga_button_hover_font_color' : 'precarga_button_font_color';
-                            const globalColorKey = isH ? 'global_button_hover_text' : 'global_button_text';
-                            const strokeActiveKey = isH ? 'precarga_button_hover_stroke_active' : 'precarga_button_stroke_active';
-                            const strokeColorKey = isH ? 'precarga_button_hover_stroke_color' : 'precarga_button_stroke_color';
-                            const strokeWidthKey = isH ? 'precarga_button_hover_stroke_width' : 'precarga_button_stroke_width';
-                            const strokeTypeKey = isH ? 'precarga_button_hover_stroke_type' : 'precarga_button_stroke_type';
-                            const shadowActiveKey = isH ? 'precarga_button_hover_shadow_active' : 'precarga_button_shadow_active';
-                            const shadowColorKey = isH ? 'precarga_button_hover_shadow_color' : 'precarga_button_shadow_color';
-                            const shadowBlurKey = isH ? 'precarga_button_hover_shadow_blur' : 'precarga_button_shadow_blur';
+                        {(() => {
+                          const isBtn = effectiveTarget === 'button';
+                          const isH = isBtn && buttonState === 'hover';
+                          const colorKey = isBtn
+                            ? (isH ? 'precarga_button_hover_font_color' : 'precarga_button_font_color')
+                            : effectiveTarget === 'code'
+                            ? 'qr_input_font_color'
+                            : `precarga_${effectiveTarget}_font_color`;
+                          const strokeActiveKey = isBtn ? (isH ? 'precarga_button_hover_stroke_active' : 'precarga_button_stroke_active') : `precarga_${effectiveTarget}_stroke_active`;
+                          const strokeColorKey = isBtn ? (isH ? 'precarga_button_hover_stroke_color' : 'precarga_button_stroke_color') : `precarga_${effectiveTarget}_stroke_color`;
+                          const strokeWidthKey = isBtn ? (isH ? 'precarga_button_hover_stroke_width' : 'precarga_button_stroke_width') : `precarga_${effectiveTarget}_stroke_width`;
+                          const strokeTypeKey = isBtn ? (isH ? 'precarga_button_hover_stroke_type' : 'precarga_button_stroke_type') : `precarga_${effectiveTarget}_stroke_type`;
+                          const shadowActiveKey = isBtn ? (isH ? 'precarga_button_hover_shadow_active' : 'precarga_button_shadow_active') : `precarga_${effectiveTarget}_shadow_active`;
+                          const shadowColorKey = isBtn ? (isH ? 'precarga_button_hover_shadow_color' : 'precarga_button_shadow_color') : `precarga_${effectiveTarget}_shadow_color`;
+                          const shadowBlurKey = isBtn ? (isH ? 'precarga_button_hover_shadow_blur' : 'precarga_button_shadow_blur') : `precarga_${effectiveTarget}_shadow_blur`;
 
-                            if (updated.fillColor) {
-                              updateSetting(colorKey, updated.fillColor);
-                              updateSetting(globalColorKey, updated.fillColor);
-                            }
-                            if (updated.strokeActive !== undefined) updateSetting(strokeActiveKey, updated.strokeActive);
-                            if (updated.strokeColor) updateSetting(strokeColorKey, updated.strokeColor);
-                            if (updated.strokeWidth !== undefined) updateSetting(strokeWidthKey, updated.strokeWidth.toString());
-                            if (updated.strokeType) updateSetting(strokeTypeKey, updated.strokeType);
-                            if (updated.shadowActive !== undefined) updateSetting(shadowActiveKey, updated.shadowActive);
-                            if (updated.shadowColor) updateSetting(shadowColorKey, updated.shadowColor);
-                            if (updated.shadowBlur !== undefined) updateSetting(shadowBlurKey, updated.shadowBlur.toString());
-                          }}
-                        />
+                          const defaultColor = isH ? '#ffffff' : (effectiveTarget === 'title' ? '#ffffff' : effectiveTarget === 'subtitle' ? '#e2e8f0' : '#ffffff');
+
+                          return (
+                            <StylePickerPopover
+                              label={isBtn ? `Estilo (${isH ? 'Sobre' : 'Normal'})` : 'Estilo texto'}
+                              elementType="text"
+                              eventColors={eventColors}
+                              eventColorImage={eventColorImage}
+                              styleConfig={{
+                                fillType: 'color',
+                                fillColor: settings[colorKey] || defaultColor,
+                                strokeActive: settings[strokeActiveKey] || false,
+                                strokeColor: settings[strokeColorKey] || '#000000',
+                                strokeWidth: parseInt(settings[strokeWidthKey] || '2'),
+                                strokeType: settings[strokeTypeKey] || 'OUT',
+                                shadowActive: settings[shadowActiveKey] || false,
+                                shadowColor: settings[shadowColorKey] || '#000000',
+                                shadowBlur: parseInt(settings[shadowBlurKey] || '8'),
+                              }}
+                              onChange={(updated: any) => {
+                                if (updated.fillColor) {
+                                  updateSetting(colorKey, updated.fillColor);
+                                  if (isBtn) updateSetting(isH ? 'global_button_hover_text' : 'global_button_text', updated.fillColor);
+                                }
+                                if (updated.strokeActive !== undefined) updateSetting(strokeActiveKey, updated.strokeActive);
+                                if (updated.strokeColor) updateSetting(strokeColorKey, updated.strokeColor);
+                                if (updated.strokeWidth !== undefined) updateSetting(strokeWidthKey, updated.strokeWidth.toString());
+                                if (updated.strokeType) updateSetting(strokeTypeKey, updated.strokeType);
+                                if (updated.shadowActive !== undefined) updateSetting(shadowActiveKey, updated.shadowActive);
+                                if (updated.shadowColor) updateSetting(shadowColorKey, updated.shadowColor);
+                                if (updated.shadowBlur !== undefined) updateSetting(shadowBlurKey, updated.shadowBlur.toString());
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1002,8 +931,13 @@ export default function AppMovilConfig() {
 
             {/* 2.1.2 SUB-PESTAÑA CONTENEDOR EN PRECARGA / QR (2 COLUMNAS COMO GENERAL) */}
             {precargaSubTab === 'fondos' && (() => {
-              const activeLeftTarget = precargaContainerTarget === 'boton' ? 'fondo' : precargaContainerTarget;
-              const isFondoTarget = activeLeftTarget === 'fondo';
+              const isQrView = previewView === 'qr';
+              const effectiveLeftTarget = isQrView
+                ? (precargaContainerTarget === 'fondo' ? 'mensaje' : precargaContainerTarget)
+                : (precargaContainerTarget === 'input' ? 'fondo' : precargaContainerTarget);
+
+              const isFondoTarget = effectiveLeftTarget === 'fondo';
+              const isInputTarget = effectiveLeftTarget === 'input';
               const prefix = isFondoTarget ? 'precarga_screen' : 'precarga_card';
               const bgTypeKey = isFondoTarget ? 'precarga_bg_type' : 'precarga_card_bg_type';
               const bgColorKey = isFondoTarget ? 'precarga_bg_color' : 'precarga_card_bg_color';
@@ -1029,108 +963,326 @@ export default function AppMovilConfig() {
 
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* COLUMNA IZQUIERDA: CONTENEDORES (FONDO / MENSAJE) */}
+                  {/* COLUMNA IZQUIERDA: CONTENEDORES */}
                   <div className="rounded-2xl p-3 border space-y-3 shadow-sm flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                     <div>
-                      <div className="pb-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
+                      <div className="pb-2 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
                         <div className="flex items-center gap-2">
                           <Palette size={20} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
                           <div className="flex flex-col leading-tight">
-                            <h3 className="text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>
-                              Contenedores ({activeLeftTarget === 'fondo' ? 'Fondo' : 'Mensaje'})
+                            <h3 className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-main)' }}>
+                              <span>Contenedores</span>
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: 'var(--primary-accent)' }}>
+                                {isQrView ? 'Escáner QR' : 'Precarga'}
+                              </span>
                             </h3>
                             <span className="text-[10px] font-semibold opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                              Estilos y fondos de pantalla de precarga
+                              {isQrView
+                                ? (isInputTarget ? 'Estilo del cuadro de código QR' : 'Fondo y media luna cóncava')
+                                : (isFondoTarget ? 'Fondo general de pantalla' : 'Recuadro central de carga')}
                             </span>
                           </div>
                         </div>
 
-                        {/* PESTAÑAS FONDO / MENSAJES */}
-                        <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
-                          {[
-                            { id: 'fondo', label: 'Fondo' },
-                            { id: 'mensaje', label: 'Mensajes' },
-                          ].map((cTarget) => {
-                            const isCTargetActive = activeLeftTarget === cTarget.id;
-                            return (
-                              <button
-                                key={cTarget.id}
-                                type="button"
-                                onClick={() => setPrecargaContainerTarget(cTarget.id as any)}
-                                className="botab-item"
-                                style={{
-                                  backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
-                                  color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
-                                }}
-                              >
-                                {cTarget.label}
-                              </button>
-                            );
-                          })}
+                        {/* SELECTORES DE PANTALLA Y CONTENEDOR */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Selector de Pantalla */}
+                          <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            {[
+                              { id: 'precarga', label: 'Precarga', icon: Hourglass },
+                              { id: 'qr', label: 'QR', icon: QrCode },
+                            ].map((vw) => {
+                              const Icon = vw.icon;
+                              const isVwActive = previewView === vw.id;
+                              return (
+                                <button
+                                  key={vw.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewView(vw.id);
+                                    setPrecargaLogoState(vw.id as any);
+                                    if (vw.id === 'qr') setPrecargaContainerTarget('mensaje');
+                                    else setPrecargaContainerTarget('fondo');
+                                  }}
+                                  className="botab-item"
+                                  style={{
+                                    backgroundColor: isVwActive ? 'var(--primary-accent)' : 'transparent',
+                                    color: isVwActive ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  <Icon size={12} />
+                                  <span>{vw.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* PESTAÑAS DE CONTENEDOR */}
+                          <div className="botab-container" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                            {(isQrView
+                              ? [
+                                  { id: 'mensaje', label: 'Media Luna' },
+                                  { id: 'input', label: 'Cuadro Código' },
+                                ]
+                              : [
+                                  { id: 'fondo', label: 'Fondo' },
+                                  { id: 'mensaje', label: 'Recuadro' },
+                                ]
+                            ).map((cTarget) => {
+                              const isCTargetActive = effectiveLeftTarget === cTarget.id;
+                              return (
+                                <button
+                                  key={cTarget.id}
+                                  type="button"
+                                  onClick={() => setPrecargaContainerTarget(cTarget.id as any)}
+                                  className="botab-item"
+                                  style={{
+                                    backgroundColor: isCTargetActive ? 'var(--primary-accent)' : 'transparent',
+                                    color: isCTargetActive ? '#ffffff' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  {cTarget.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
                       <div className="space-y-3 pt-2">
-                        {/* SUBIR IMAGEN / VIDEO DEL CONTENEDOR */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                              Imagen / Video ({isFondoTarget ? 'Fondo General' : 'Recuadro Central'})
-                            </label>
-                            <div className="flex items-center gap-3">
-                              <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Rotar orientación de video 90° en la pantalla del teléfono">
-                                <input
-                                  type="checkbox"
-                                  checked={videoRotate}
-                                  onChange={(e) => updateSetting(videoRotateKey, e.target.checked)}
-                                  className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
-                                  style={{ accentColor: 'var(--primary-accent)' }}
+                        {isInputTarget ? (
+                          /* CONTROLES ESPECÍFICOS PARA CUADRO DE CÓDIGO QR */
+                          <div className="space-y-3 pt-1">
+                            <div className="p-2 rounded-xl border flex items-center gap-2 text-xs font-semibold shadow-2xs" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                              <QrCode size={16} style={{ color: 'var(--primary-accent)' }} className="shrink-0" />
+                              <span>Configura los colores, bordes y redondez del cuadro de texto donde el invitado escribe su código.</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
+                              {/* Estilo / Color de Fondo y Borde del Cuadro */}
+                              <div>
+                                <StylePickerPopover
+                                  label="Fondo y Bordes"
+                                  elementType="box"
+                                  eventColors={eventColors}
+                                  eventColorImage={eventColorImage}
+                                  styleConfig={{
+                                    backgroundColor: settings.qr_input_bg_color || 'rgba(0, 0, 0, 0.6)',
+                                    borderWidth: settings.qr_input_border_width ?? 1,
+                                    borderStyle: settings.qr_input_border_style || 'solid',
+                                    borderColor: settings.qr_input_border_color || 'rgba(255, 255, 255, 0.2)',
+                                    borderRadius: settings.qr_input_border_radius ?? 8,
+                                  }}
+                                  onChange={(updated: any) => {
+                                    const selectedColor = updated.backgroundColor || updated.fillColor;
+                                    if (selectedColor) updateSetting('qr_input_bg_color', selectedColor);
+                                    if (updated.borderWidth !== undefined) updateSetting('qr_input_border_width', updated.borderWidth);
+                                    if (updated.borderStyle !== undefined) updateSetting('qr_input_border_style', updated.borderStyle);
+                                    if (updated.borderColor !== undefined) updateSetting('qr_input_border_color', updated.borderColor);
+                                    if (updated.borderRadius !== undefined) updateSetting('qr_input_border_radius', updated.borderRadius);
+                                  }}
                                 />
-                                <span>Rotar</span>
-                              </label>
-                              <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Habilitar o deshabilitar el uso de la imagen/video">
-                                <input
-                                  type="checkbox"
-                                  checked={useMedia}
-                                  onChange={(e) => updateSetting(useMediaKey, e.target.checked)}
-                                  className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
-                                  style={{ accentColor: 'var(--primary-accent)' }}
-                                />
-                                <span>Utilizar</span>
-                              </label>
+                              </div>
+
+                              {/* Redondez Cuadro */}
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Redondez
+                                </label>
+                                <div
+                                  className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const curr = parseInt(settings.qr_input_border_radius ?? 8);
+                                      updateSetting('qr_input_border_radius', Math.max(0, curr - 2));
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Disminuir redondez"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                  <div className="flex-1 flex items-center justify-center px-1">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={50}
+                                      value={settings.qr_input_border_radius ?? 8}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        updateSetting('qr_input_border_radius', parseInt(e.target.value) || 0);
+                                      }}
+                                      className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      style={{ color: 'var(--text-main)' }}
+                                    />
+                                    <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                      px
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const curr = parseInt(settings.qr_input_border_radius ?? 8);
+                                      updateSetting('qr_input_border_radius', Math.min(50, curr + 2));
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Aumentar redondez"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Glass Blur Cuadro */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                    Glass (Blur)
+                                  </label>
+                                  <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={settings.qr_input_glass_enabled ?? true}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        updateSetting('qr_input_glass_enabled', e.target.checked);
+                                      }}
+                                      className="sr-only peer"
+                                    />
+                                    <div
+                                      className="w-4 h-4 rounded border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                      style={{
+                                        borderColor: (settings.qr_input_glass_enabled ?? true) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        backgroundColor: (settings.qr_input_glass_enabled ?? true) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                      }}
+                                    >
+                                      {(settings.qr_input_glass_enabled ?? true) && (
+                                        <Check size={11} className="text-white stroke-[3]" />
+                                      )}
+                                    </div>
+                                  </label>
+                                </div>
+                                <div className="flex items-center h-9 rounded-xl border px-3" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}>
+                                  <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Desenfoque suave</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          
-                          <div
-                            className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[120px] min-h-[120px]"
-                            style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
-                          >
-                            {imageUrl ? (
-                              <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
-                                {bgType === 'video' || String(imageUrl).startsWith('data:video') || String(imageUrl).match(/\.(mp4|webm|ogg)$/i) ? (
-                                  <video
-                                    src={imageUrl}
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    className="w-full h-full object-contain"
-                                  />
+                        ) : (
+                          /* CONTROLES PARA FONDO GENERAL O MEDIA LUNA / RECUADRO */
+                          <>
+                            {/* SUBIR IMAGEN / VIDEO DEL CONTENEDOR */}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                  Imagen / Video ({isFondoTarget ? 'Fondo General' : isQrView ? 'Media Luna' : 'Recuadro Central'})
+                                </label>
+                                <div className="flex items-center gap-3">
+                                  <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Rotar orientación de video 90° en la pantalla del teléfono">
+                                    <input
+                                      type="checkbox"
+                                      checked={videoRotate}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSetting(videoRotateKey, e.target.checked)}
+                                      className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                    <span>Rotar</span>
+                                  </label>
+                                  <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: 'var(--text-muted)' }} title="Habilitar o deshabilitar el uso de la imagen/video">
+                                    <input
+                                      type="checkbox"
+                                      checked={useMedia}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSetting(useMediaKey, e.target.checked)}
+                                      className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
+                                      style={{ accentColor: 'var(--primary-accent)' }}
+                                    />
+                                    <span>Utilizar</span>
+                                  </label>
+                                </div>
+                              </div>
+                              
+                              <div
+                                className="border-2 border-dashed rounded-2xl p-2 text-center flex flex-col items-center justify-center transition-all relative overflow-hidden group h-[120px] min-h-[120px]"
+                                style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                              >
+                                {imageUrl ? (
+                                  <div className="relative w-full h-full rounded-xl overflow-hidden group bg-black/40 flex items-center justify-center">
+                                    {bgType === 'video' || String(imageUrl).startsWith('data:video') || String(imageUrl).match(/\.(mp4|webm|ogg)$/i) ? (
+                                      <video
+                                        src={imageUrl}
+                                        autoPlay
+                                        loop
+                                        muted
+                                        playsInline
+                                        className="w-full h-full object-contain"
+                                      />
+                                    ) : (
+                                      <img
+                                        src={imageUrl}
+                                        alt="Imagen de fondo"
+                                        className="w-full h-full object-contain"
+                                      />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                      <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
+                                        <Upload size={16} />
+                                        <input
+                                          type="file"
+                                          accept="image/*,video/*"
+                                          className="hidden"
+                                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const isVideo = file.type.startsWith('video/');
+                                              const reader = new FileReader();
+                                              reader.onload = (ev) => {
+                                                updateSetting(imageKey, ev.target?.result);
+                                                updateSetting(bgTypeKey, isVideo ? 'video' : 'image');
+                                                if (isFondoTarget) updateSetting('precarga_bg_type', isVideo ? 'video' : 'image');
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateSetting(imageKey, '');
+                                          if (isFondoTarget) updateSetting('precarga_bg_image_url', '');
+                                        }}
+                                        className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
+                                        title="Eliminar archivo"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
                                 ) : (
-                                  <img
-                                    src={imageUrl}
-                                    alt="Imagen de fondo"
-                                    className="w-full h-full object-contain"
-                                  />
-                                )}
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                  <label className="p-2 bg-white/20 rounded-lg text-white hover:bg-white/40 cursor-pointer transition-colors" title="Cambiar archivo">
-                                    <Upload size={16} />
+                                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
+                                    <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
+                                      <Upload size={18} />
+                                    </div>
+                                    <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
+                                    <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM</span>
                                     <input
                                       type="file"
                                       accept="image/*,video/*"
                                       className="hidden"
-                                      onChange={(e) => {
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
                                           const isVideo = file.type.startsWith('video/');
@@ -1138,247 +1290,210 @@ export default function AppMovilConfig() {
                                           reader.onload = (ev) => {
                                             updateSetting(imageKey, ev.target?.result);
                                             updateSetting(bgTypeKey, isVideo ? 'video' : 'image');
-                                            if (isFondoTarget) updateSetting('precarga_bg_type', isVideo ? 'video' : 'image');
+                                            if (isFondoTarget) {
+                                              updateSetting('precarga_bg_image_url', ev.target?.result);
+                                              updateSetting('precarga_bg_type', isVideo ? 'video' : 'image');
+                                            }
                                           };
                                           reader.readAsDataURL(file);
                                         }
                                       }}
                                     />
                                   </label>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* CONTROLES: ESTILO, REDONDEZ, GLASS */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
+                              {/* Estilo */}
+                              <div>
+                                <StylePickerPopover
+                                  label="Estilo"
+                                  elementType="box"
+                                  eventColors={eventColors}
+                                  eventColorImage={eventColorImage}
+                                  styleConfig={{
+                                    backgroundColor: settings[bgTypeKey] === 'gradient' && settings[gradKey]
+                                      ? (typeof settings[gradKey] === 'string' ? settings[gradKey] : settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000'))
+                                      : (settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000')),
+                                    borderWidth: settings[`${prefix}_border_width`] ?? 0,
+                                    borderStyle: settings[`${prefix}_border_style`] || 'solid',
+                                    borderColor: settings[`${prefix}_border_color`] || '#E07A5F',
+                                    borderRadius: settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16),
+                                    shadowColor: settings[`${prefix}_shadow_color`] || '#000000',
+                                    shadowBlur: settings[`${prefix}_shadow_blur`] ?? 0,
+                                    shadowOffsetX: settings[`${prefix}_shadow_offset_x`] ?? 0,
+                                    shadowOffsetY: settings[`${prefix}_shadow_offset_y`] ?? 0,
+                                  }}
+                                  onChange={(updated: any) => {
+                                    const selectedColor = updated.backgroundColor || updated.fillColor;
+                                    const selectedGradient = updated.fillGradient;
+
+                                    if (updated.fillType === 'gradient' && selectedGradient) {
+                                      updateSetting(bgTypeKey, 'gradient');
+                                      updateSetting(gradKey, selectedGradient);
+                                      if (isFondoTarget) {
+                                        updateSetting('precarga_bg_type', 'gradient');
+                                        updateSetting('precarga_bg_gradient', selectedGradient);
+                                      }
+                                    } else if (selectedColor) {
+                                      if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
+                                        updateSetting(bgTypeKey, 'gradient');
+                                        updateSetting(gradKey, selectedColor);
+                                        if (isFondoTarget) {
+                                          updateSetting('precarga_bg_type', 'gradient');
+                                          updateSetting('precarga_bg_gradient', selectedColor);
+                                        }
+                                      } else {
+                                        updateSetting(bgTypeKey, 'color');
+                                        updateSetting(bgColorKey, selectedColor);
+                                        if (isFondoTarget) {
+                                          updateSetting('precarga_bg_type', 'color');
+                                          updateSetting('precarga_bg_color', selectedColor);
+                                        }
+                                      }
+                                    }
+
+                                    if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
+                                    if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
+                                    if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
+                                    if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
+                                    if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
+                                    if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
+                                    if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
+                                    if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
+                                  }}
+                                />
+                              </div>
+
+                              {/* Redondez */}
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Redondez
+                                </label>
+                                <div
+                                  className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
+                                  style={{
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
+                                  }}
+                                >
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      updateSetting(imageKey, '');
-                                      if (isFondoTarget) updateSetting('precarga_bg_image_url', '');
+                                      const key = `${prefix}_border_radius`;
+                                      const curr = parseInt(settings[key] ?? (isFondoTarget ? '0' : '16'));
+                                      const nextVal = Math.max(0, curr - 2);
+                                      updateSetting(key, nextVal);
                                     }}
-                                    className="p-2 bg-red-500/80 rounded-lg text-white hover:bg-red-600 transition-colors"
-                                    title="Eliminar archivo"
+                                    className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Disminuir redondez"
                                   >
-                                    <Trash2 size={16} />
+                                    <Minus size={12} />
+                                  </button>
+
+                                  <div className="flex-1 flex items-center justify-center px-1">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16)}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        const key = `${prefix}_border_radius`;
+                                        updateSetting(key, parseInt(e.target.value) || 0);
+                                      }}
+                                      className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      style={{ color: 'var(--text-main)' }}
+                                    />
+                                    <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
+                                      px
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const key = `${prefix}_border_radius`;
+                                      const curr = parseInt(settings[key] ?? (isFondoTarget ? '0' : '16'));
+                                      const nextVal = Math.min(100, curr + 2);
+                                      updateSetting(key, nextVal);
+                                    }}
+                                    className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
+                                    style={{
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderColor: 'var(--border-color)',
+                                      color: 'var(--primary-accent)',
+                                    }}
+                                    title="Aumentar redondez"
+                                  >
+                                    <Plus size={12} />
                                   </button>
                                 </div>
                               </div>
-                            ) : (
-                              <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4">
-                                <div className="p-2.5 rounded-full mb-1.5" style={{ backgroundColor: 'var(--primary-accent-light)', color: 'var(--primary-accent)' }}>
-                                  <Upload size={18} />
+
+                              {/* Glass / Cristal */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                                    Glass (Blur)
+                                  </label>
+                                  <label className="relative flex items-center cursor-pointer shrink-0 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        isFondoTarget
+                                          ? (settings.precarga_screen_glass_enabled ?? false)
+                                          : (settings.precarga_card_glass_enabled ?? true)
+                                      }
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        const key = isFondoTarget ? 'precarga_screen_glass_enabled' : 'precarga_card_glass_enabled';
+                                        updateSetting(key, e.target.checked);
+                                      }}
+                                      className="sr-only peer"
+                                    />
+                                    <div
+                                      className="w-4 h-4 rounded border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                      style={{
+                                        borderColor: (isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--border-color)',
+                                        backgroundColor: (isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                      }}
+                                    >
+                                      {(isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) && (
+                                        <Check size={11} className="text-white stroke-[3]" />
+                                      )}
+                                    </div>
+                                  </label>
                                 </div>
-                                <span className="text-xs font-bold" style={{ color: 'var(--text-main)' }}>Subir Imagen / Video</span>
-                                <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>PNG, JPG, MP4 o WEBM</span>
-                                <input
-                                  type="file"
-                                  accept="image/*,video/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const isVideo = file.type.startsWith('video/');
-                                      const reader = new FileReader();
-                                      reader.onload = (ev) => {
-                                        updateSetting(imageKey, ev.target?.result);
-                                        updateSetting(bgTypeKey, isVideo ? 'video' : 'image');
-                                        if (isFondoTarget) {
-                                          updateSetting('precarga_bg_image_url', ev.target?.result);
-                                          updateSetting('precarga_bg_type', isVideo ? 'video' : 'image');
-                                        }
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                />
-                              </label>
-                            )}
-                          </div>
-                        </div>
 
-                        {/* CONTROLES IZQUIERDA: ESTILO, REDONDEZ, GLASS */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end pt-1">
-                          {/* Estilo */}
-                          <div>
-                            <StylePickerPopover
-                              label="Estilo"
-                              elementType="box"
-                              eventColors={eventColors}
-                              eventColorImage={eventColorImage}
-                              styleConfig={{
-                                backgroundColor: settings[bgTypeKey] === 'gradient' && settings[gradKey]
-                                  ? (typeof settings[gradKey] === 'string' ? settings[gradKey] : settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000'))
-                                  : (settings[bgColorKey] || (isFondoTarget ? '#0f172a' : '#000000')),
-                                borderWidth: settings[`${prefix}_border_width`] ?? 0,
-                                borderStyle: settings[`${prefix}_border_style`] || 'solid',
-                                borderColor: settings[`${prefix}_border_color`] || '#E07A5F',
-                                borderRadius: settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16),
-                                shadowColor: settings[`${prefix}_shadow_color`] || '#000000',
-                                shadowBlur: settings[`${prefix}_shadow_blur`] ?? 0,
-                                shadowOffsetX: settings[`${prefix}_shadow_offset_x`] ?? 0,
-                                shadowOffsetY: settings[`${prefix}_shadow_offset_y`] ?? 0,
-                              }}
-                              onChange={(updated) => {
-                                const selectedColor = updated.backgroundColor || updated.fillColor;
-                                const selectedGradient = updated.fillGradient;
-
-                                if (updated.fillType === 'gradient' && selectedGradient) {
-                                  updateSetting(bgTypeKey, 'gradient');
-                                  updateSetting(gradKey, selectedGradient);
-                                  if (isFondoTarget) {
-                                    updateSetting('precarga_bg_type', 'gradient');
-                                    updateSetting('precarga_bg_gradient', selectedGradient);
-                                  }
-                                } else if (selectedColor) {
-                                  if (typeof selectedColor === 'string' && selectedColor.includes('gradient')) {
-                                    updateSetting(bgTypeKey, 'gradient');
-                                    updateSetting(gradKey, selectedColor);
-                                    if (isFondoTarget) {
-                                      updateSetting('precarga_bg_type', 'gradient');
-                                      updateSetting('precarga_bg_gradient', selectedColor);
-                                    }
-                                  } else {
-                                    updateSetting(bgTypeKey, 'color');
-                                    updateSetting(bgColorKey, selectedColor);
-                                    if (isFondoTarget) {
-                                      updateSetting('precarga_bg_type', 'color');
-                                      updateSetting('precarga_bg_color', selectedColor);
-                                    }
-                                  }
-                                }
-
-                                if (updated.borderWidth !== undefined) updateSetting(`${prefix}_border_width`, updated.borderWidth);
-                                if (updated.borderStyle !== undefined) updateSetting(`${prefix}_border_style`, updated.borderStyle);
-                                if (updated.borderColor !== undefined) updateSetting(`${prefix}_border_color`, updated.borderColor);
-                                if (updated.borderRadius !== undefined) updateSetting(`${prefix}_border_radius`, updated.borderRadius);
-                                if (updated.shadowColor !== undefined) updateSetting(`${prefix}_shadow_color`, updated.shadowColor);
-                                if (updated.shadowBlur !== undefined) updateSetting(`${prefix}_shadow_blur`, updated.shadowBlur);
-                                if (updated.shadowOffsetX !== undefined) updateSetting(`${prefix}_shadow_offset_x`, updated.shadowOffsetX);
-                                if (updated.shadowOffsetY !== undefined) updateSetting(`${prefix}_shadow_offset_y`, updated.shadowOffsetY);
-                              }}
-                            />
-                          </div>
-
-                          {/* Redondez */}
-                          <div>
-                            <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
-                              Redondez
-                            </label>
-                            <div
-                              className="flex items-center h-9 rounded-xl border overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[var(--primary-accent)] w-full shadow-2xs"
-                              style={{
-                                backgroundColor: 'var(--bg-app)',
-                                borderColor: 'var(--border-color)',
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const key = `${prefix}_border_radius`;
-                                  const curr = parseInt(settings[key] ?? (isFondoTarget ? '0' : '16'));
-                                  const nextVal = Math.max(0, curr - 2);
-                                  updateSetting(key, nextVal);
-                                }}
-                                className="w-8 h-full flex items-center justify-center border-r hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                                style={{
-                                  backgroundColor: 'var(--bg-card)',
-                                  borderColor: 'var(--border-color)',
-                                  color: 'var(--primary-accent)',
-                                }}
-                                title="Disminuir redondez"
-                              >
-                                <Minus size={12} />
-                              </button>
-
-                              <div className="flex-1 flex items-center justify-center px-1">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={settings[`${prefix}_border_radius`] ?? (isFondoTarget ? 0 : 16)}
-                                  onChange={(e) => {
-                                    const key = `${prefix}_border_radius`;
-                                    updateSetting(key, parseInt(e.target.value) || 0);
-                                  }}
-                                  className="w-full h-full text-center bg-transparent outline-none font-bold text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  style={{ color: 'var(--text-main)' }}
-                                />
-                                <span className="text-xs font-extrabold opacity-60 ml-0.5 select-none" style={{ color: 'var(--text-muted)' }}>
-                                  px
-                                </span>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const key = `${prefix}_border_radius`;
-                                  const curr = parseInt(settings[key] ?? (isFondoTarget ? '0' : '16'));
-                                  const nextVal = Math.min(100, curr + 2);
-                                  updateSetting(key, nextVal);
-                                }}
-                                className="w-8 h-full flex items-center justify-center border-l hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-colors cursor-pointer shrink-0"
-                                style={{
-                                  backgroundColor: 'var(--bg-card)',
-                                  borderColor: 'var(--border-color)',
-                                  color: 'var(--primary-accent)',
-                                }}
-                                title="Aumentar redondez"
-                              >
-                                <Plus size={12} />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Glass / Cristal */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                                Glass (Blur)
-                              </label>
-                              <label className="relative flex items-center cursor-pointer shrink-0 select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    isFondoTarget
-                                      ? (settings.precarga_screen_glass_enabled ?? false)
-                                      : (settings.precarga_card_glass_enabled ?? true)
-                                  }
-                                  onChange={(e) => {
-                                    const key = isFondoTarget ? 'precarga_screen_glass_enabled' : 'precarga_card_glass_enabled';
-                                    updateSetting(key, e.target.checked);
-                                  }}
-                                  className="sr-only peer"
-                                />
                                 <div
-                                  className="w-4 h-4 rounded border flex items-center justify-center transition-all peer-checked:border-[var(--primary-accent)] peer-checked:bg-[var(--primary-accent)]"
+                                  className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
+                                    !(isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'opacity-40 pointer-events-none' : ''
+                                  }`}
                                   style={{
-                                    borderColor: (isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--border-color)',
-                                    backgroundColor: (isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'var(--primary-accent)' : 'var(--bg-card)',
+                                    backgroundColor: 'var(--bg-app)',
+                                    borderColor: 'var(--border-color)',
                                   }}
                                 >
-                                  {(isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) && (
-                                    <Check size={11} className="text-white stroke-[3]" />
-                                  )}
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="1"
+                                    value={settings[`${prefix}_bg_opacity`] ?? 100}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSetting(`${prefix}_bg_opacity`, parseInt(e.target.value))}
+                                    className="w-full accent-[var(--primary-accent)] cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none"
+                                  />
                                 </div>
-                              </label>
+                              </div>
                             </div>
-
-                            <div
-                              className={`flex items-center h-9 rounded-xl border px-3 transition-opacity ${
-                                !(isFondoTarget ? (settings.precarga_screen_glass_enabled ?? false) : (settings.precarga_card_glass_enabled ?? true)) ? 'opacity-40 pointer-events-none' : ''
-                              }`}
-                              style={{
-                                backgroundColor: 'var(--bg-app)',
-                                borderColor: 'var(--border-color)',
-                              }}
-                            >
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="1"
-                                value={settings[`${prefix}_bg_opacity`] ?? 100}
-                                onChange={(e) => updateSetting(`${prefix}_bg_opacity`, parseInt(e.target.value))}
-                                className="w-full accent-[var(--primary-accent)] cursor-pointer h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1425,6 +1540,26 @@ export default function AppMovilConfig() {
                       </div>
 
                       <div className="space-y-3 pt-2">
+                        {/* AVISO CONTEXTUAL SI SE ESTÁ EN PRECARGA */}
+                        {!isQrView && (
+                          <div
+                            onClick={() => setPreviewView('qr')}
+                            className="p-2 rounded-xl border flex items-center justify-between gap-2 text-xs font-bold cursor-pointer hover:opacity-90 transition-opacity"
+                            style={{
+                              backgroundColor: 'var(--primary-accent-light)',
+                              borderColor: 'var(--primary-accent)',
+                              color: 'var(--primary-accent)',
+                            }}
+                            title="Hacer clic para ver el botón en el simulador"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <QrCode size={14} />
+                              <span>El botón Entrar pertenece a la pantalla Escáner QR</span>
+                            </div>
+                            <span className="text-[10px] uppercase font-black tracking-wider underline">Ver en QR</span>
+                          </div>
+                        )}
+
                         {/* SUBIR IMAGEN / VIDEO DEL BOTÓN */}
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between">
@@ -1436,7 +1571,7 @@ export default function AppMovilConfig() {
                                 <input
                                   type="checkbox"
                                   checked={buttonVideoRotate}
-                                  onChange={(e) => updateSetting(buttonVideoRotateKey, e.target.checked)}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSetting(buttonVideoRotateKey, e.target.checked)}
                                   className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
                                   style={{ accentColor: 'var(--primary-accent)' }}
                                 />
@@ -1446,7 +1581,7 @@ export default function AppMovilConfig() {
                                 <input
                                   type="checkbox"
                                   checked={buttonUseMedia}
-                                  onChange={(e) => updateSetting(buttonUseMediaKey, e.target.checked)}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSetting(buttonUseMediaKey, e.target.checked)}
                                   className="rounded border-gray-400 focus:ring-0 h-3 w-3 cursor-pointer"
                                   style={{ accentColor: 'var(--primary-accent)' }}
                                 />
@@ -1484,7 +1619,7 @@ export default function AppMovilConfig() {
                                       type="file"
                                       accept="image/*,video/*"
                                       className="hidden"
-                                      onChange={(e) => {
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
                                           const isVideo = file.type.startsWith('video/');
@@ -1519,7 +1654,7 @@ export default function AppMovilConfig() {
                                   type="file"
                                   accept="image/*,video/*"
                                   className="hidden"
-                                  onChange={(e) => {
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
                                       const isVideo = file.type.startsWith('video/');
@@ -1559,7 +1694,7 @@ export default function AppMovilConfig() {
                                 shadowOffsetX: settings[`${buttonPrefix}_shadow_offset_x`] ?? 0,
                                 shadowOffsetY: settings[`${buttonPrefix}_shadow_offset_y`] ?? 0,
                               }}
-                              onChange={(updated) => {
+                              onChange={(updated: any) => {
                                 const prefix = buttonPrefix;
                                 const bgPrefix = `${prefix}_bg`;
                                 const gradKey = `${prefix}_gradient_data`;
@@ -1629,7 +1764,7 @@ export default function AppMovilConfig() {
                                   min={0}
                                   max={100}
                                   value={settings[`${buttonPrefix}_border_radius`] ?? 12}
-                                  onChange={(e) => {
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     const key = `${buttonPrefix}_border_radius`;
                                     updateSetting(key, parseInt(e.target.value) || 0);
                                   }}
@@ -1672,7 +1807,7 @@ export default function AppMovilConfig() {
                                 <input
                                   type="checkbox"
                                   checked={settings[`${buttonPrefix}_glass_enabled`] ?? true}
-                                  onChange={(e) => {
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     const key = `${buttonPrefix}_glass_enabled`;
                                     updateSetting(key, e.target.checked);
                                   }}
@@ -1707,7 +1842,7 @@ export default function AppMovilConfig() {
                                 max="100"
                                 step="1"
                                 value={settings[`${buttonPrefix}_bg_opacity`] ?? 100}
-                                onChange={(e) => {
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                   const key = `${buttonPrefix}_bg_opacity`;
                                   updateSetting(key, parseInt(e.target.value));
                                 }}

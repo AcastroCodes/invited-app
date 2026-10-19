@@ -47,6 +47,7 @@ export default function AppMovilList() {
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<number[]>([]);
   const [partnerSearch, setPartnerSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // Delete State
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -55,7 +56,8 @@ export default function AppMovilList() {
   const fetchTemplates = async () => {
     try {
       const res = await api.get('/mobile-templates');
-      setTemplates(res.data);
+      const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setTemplates(data);
     } catch (err) {
       console.error('Error cargando templates:', err);
     }
@@ -82,8 +84,9 @@ export default function AppMovilList() {
     setEditingTemplate(null);
     setModalName('');
     setModalDescription('');
-    setSelectedPartnerIds([]);
+    setSelectedPartnerIds(filterPartner ? [parseInt(filterPartner)] : []);
     setPartnerSearch('');
+    setModalError('');
     setIsModalOpen(true);
   };
 
@@ -94,6 +97,7 @@ export default function AppMovilList() {
     const currentIds = template.partners ? template.partners.map((p) => p.id) : [];
     setSelectedPartnerIds(currentIds);
     setPartnerSearch('');
+    setModalError('');
     setIsModalOpen(true);
   };
 
@@ -102,6 +106,7 @@ export default function AppMovilList() {
     if (!modalName.trim()) return;
 
     setIsSaving(true);
+    setModalError('');
     try {
       if (editingTemplate) {
         await api.put(`/mobile-templates/${editingTemplate.id}`, {
@@ -115,11 +120,16 @@ export default function AppMovilList() {
           description: modalDescription.trim() || null,
           partner_ids: selectedPartnerIds,
         });
+        if (filterPartner && !selectedPartnerIds.includes(parseInt(filterPartner))) {
+          setFilterPartner('');
+        }
       }
       await fetchTemplates();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error guardando template:', err);
+      const msg = err.response?.data?.message || err.message || 'Error al guardar el template';
+      setModalError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -521,6 +531,11 @@ export default function AppMovilList() {
             </div>
 
             <form onSubmit={handleSaveModal} className="px-5 space-y-4 pb-5 overflow-y-auto max-h-[75vh]">
+              {modalError && (
+                <div className="rounded-md p-2.5 text-xs text-white" style={{ backgroundColor: 'var(--danger)' }}>
+                  {modalError}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-main)' }}>
                   Nombre del Template <span className="text-red-500">*</span>

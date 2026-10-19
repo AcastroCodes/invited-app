@@ -35,6 +35,7 @@ interface MobileSimulatorProps {
     previewButtonState?: "normal" | "hover";
     getButtonStyles?: (hover?: boolean, type?: string) => React.CSSProperties;
     generateGradientString?: (data: any) => string;
+    onSelectElement?: (subTab: 'fuentes' | 'fondos' | 'logos', target?: string) => void;
 }
 
 export default function MobileSimulator({
@@ -45,6 +46,7 @@ export default function MobileSimulator({
     previewButtonState,
     getButtonStyles,
     generateGradientString,
+    onSelectElement,
 }: MobileSimulatorProps) {
     const settings = data?.settings || {};
 
@@ -56,7 +58,12 @@ export default function MobileSimulator({
             settings.global_text_font_family,
             settings.global_button_font_family,
             settings.title_font_family,
-            settings.subtitle_font_family
+            settings.subtitle_font_family,
+            settings.precarga_title_font_family,
+            settings.precarga_subtitle_font_family,
+            settings.precarga_button_font_family,
+            settings.precarga_powered_by_font_family,
+            settings.qr_input_font_family,
         ].filter(Boolean);
 
         fontsToLoad.forEach(fontName => {
@@ -75,7 +82,12 @@ export default function MobileSimulator({
         settings.global_text_font_family,
         settings.global_button_font_family,
         settings.title_font_family,
-        settings.subtitle_font_family
+        settings.subtitle_font_family,
+        settings.precarga_title_font_family,
+        settings.precarga_subtitle_font_family,
+        settings.precarga_button_font_family,
+        settings.precarga_powered_by_font_family,
+        settings.qr_input_font_family,
     ]);
 
     const defaultButtonStyles = (hover?: boolean, type?: string): React.CSSProperties => {
@@ -646,15 +658,21 @@ export default function MobileSimulator({
 
                     return (
                         <div
-                            className="absolute inset-0 z-30 flex flex-col items-center justify-between p-5 text-center overflow-hidden"
+                            onClick={() => onSelectElement?.('fondos', 'fondo')}
+                            className="absolute inset-0 z-30 flex flex-col items-center justify-between p-5 text-center overflow-hidden cursor-pointer"
                             style={precargaBgStyle}
+                            title="Clic para editar fondo en panel derecho"
                         >
                             {/* Espaciador superior */}
                             <div className="w-full h-6" />
 
                             {/* RECUADRO CENTRAL DE CARGA (MENSAJE) */}
                             <div
-                                className={`relative p-5 flex flex-col items-center justify-center w-full max-w-[210px] overflow-hidden`}
+                                onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    onSelectElement?.('fondos', 'mensaje');
+                                }}
+                                className={`relative p-5 flex flex-col items-center justify-center w-full max-w-[210px] overflow-hidden cursor-pointer hover:ring-1 hover:ring-[var(--primary-accent)] transition-all`}
                                 style={{
                                     borderRadius: cardBorderRadius,
                                     borderWidth: cardBorderWidth,
@@ -662,6 +680,7 @@ export default function MobileSimulator({
                                     borderColor: cardBorderColor,
                                     boxShadow: `0 ${cardShadowBlur / 2}px ${cardShadowBlur}px ${cardShadowColor}`,
                                 }}
+                                title="Clic para editar recuadro de carga en panel derecho"
                             >
                                 {/* Video de fondo para el recuadro de cargando */}
                                 {isCardVideo ? (
@@ -712,52 +731,68 @@ export default function MobileSimulator({
                                         <Loader2 size={34} className="animate-spin text-white opacity-95 drop-shadow-md" />
                                     </div>
 
-                                {/* Título: "Cargando" */}
-                                <h2
-                                    className="tracking-wider drop-shadow-md"
-                                    style={{
-                                        fontFamily: precargaTitleFontFamily,
-                                        fontSize: precargaTitleFontSize,
-                                        color: precargaTitleColor,
-                                        fontWeight: settings.precarga_title_font_weight === 'normal' ? 'normal' : 'bold',
-                                        fontStyle: settings.precarga_title_font_style === 'italic' ? 'italic' : 'normal',
-                                        textDecoration: settings.precarga_title_text_decoration === 'underline' ? 'underline' : 'none',
-                                    }}
-                                >
-                                    {precargaTitle}
-                                </h2>
-
-                                {/* Subtítulo: "Espere por favor" */}
-                                <p
-                                    className="tracking-wide mt-1 drop-shadow-sm"
-                                    style={{
-                                        fontFamily: precargaSubtitleFontFamily,
-                                        fontSize: precargaSubtitleFontSize,
-                                        color: precargaSubtitleColor,
-                                        fontWeight: settings.precarga_subtitle_font_weight === 'bold' ? 'bold' : 'normal',
-                                        fontStyle: settings.precarga_subtitle_font_style === 'italic' ? 'italic' : 'normal',
-                                        textDecoration: settings.precarga_subtitle_text_decoration === 'underline' ? 'underline' : 'none',
-                                    }}
-                                >
-                                    {precargaSubtitle}
-                                </p>
-
-                                {/* Contenido adicional (si existe) */}
-                                {settings.precarga_content && (
-                                    <p
-                                        className="tracking-tight mt-1 opacity-90 drop-shadow-xs"
-                                        style={{
-                                            fontFamily: settings.precarga_content_font_family || 'Inter',
-                                            fontSize: settings.precarga_content_font_size ? `${settings.precarga_content_font_size}px` : '9px',
-                                            color: settings.precarga_content_font_color || '#cbd5e1',
-                                            fontWeight: settings.precarga_content_font_weight === 'bold' ? 'bold' : 'normal',
-                                            fontStyle: settings.precarga_content_font_style === 'italic' ? 'italic' : 'normal',
-                                            textDecoration: settings.precarga_content_text_decoration === 'underline' ? 'underline' : 'none',
+                                    {/* Título: "Cargando" */}
+                                    <h2
+                                        onClick={(e: React.MouseEvent) => {
+                                            e.stopPropagation();
+                                            onSelectElement?.('fuentes', 'title');
                                         }}
+                                        className="tracking-wider drop-shadow-md cursor-pointer hover:opacity-80 transition-opacity"
+                                        style={{
+                                            fontFamily: precargaTitleFontFamily,
+                                            fontSize: precargaTitleFontSize,
+                                            color: precargaTitleColor,
+                                            fontWeight: settings.precarga_title_font_weight === 'normal' ? 'normal' : 'bold',
+                                            fontStyle: settings.precarga_title_font_style === 'italic' ? 'italic' : 'normal',
+                                            textDecoration: settings.precarga_title_text_decoration === 'underline' ? 'underline' : 'none',
+                                            textAlign: (settings.precarga_title_text_align || 'center') as any,
+                                            WebkitTextStroke: settings.precarga_title_stroke_active && settings.precarga_title_stroke_color ? `${settings.precarga_title_stroke_width || 1}px ${settings.precarga_title_stroke_color}` : undefined,
+                                            textShadow: settings.precarga_title_shadow_active && settings.precarga_title_shadow_color ? `0 0 ${settings.precarga_title_shadow_blur || 4}px ${settings.precarga_title_shadow_color}` : undefined,
+                                        }}
+                                        title="Clic para editar título en panel derecho"
                                     >
-                                        {settings.precarga_content}
+                                        {precargaTitle}
+                                    </h2>
+
+                                    {/* Subtítulo: "Espere por favor" */}
+                                    <p
+                                        onClick={(e: React.MouseEvent) => {
+                                            e.stopPropagation();
+                                            onSelectElement?.('fuentes', 'subtitle');
+                                        }}
+                                        className="tracking-wide mt-1 drop-shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                        style={{
+                                            fontFamily: precargaSubtitleFontFamily,
+                                            fontSize: precargaSubtitleFontSize,
+                                            color: precargaSubtitleColor,
+                                            fontWeight: settings.precarga_subtitle_font_weight === 'bold' ? 'bold' : 'normal',
+                                            fontStyle: settings.precarga_subtitle_font_style === 'italic' ? 'italic' : 'normal',
+                                            textDecoration: settings.precarga_subtitle_text_decoration === 'underline' ? 'underline' : 'none',
+                                            textAlign: (settings.precarga_subtitle_text_align || 'center') as any,
+                                            WebkitTextStroke: settings.precarga_subtitle_stroke_active && settings.precarga_subtitle_stroke_color ? `${settings.precarga_subtitle_stroke_width || 1}px ${settings.precarga_subtitle_stroke_color}` : undefined,
+                                            textShadow: settings.precarga_subtitle_shadow_active && settings.precarga_subtitle_shadow_color ? `0 0 ${settings.precarga_subtitle_shadow_blur || 4}px ${settings.precarga_subtitle_shadow_color}` : undefined,
+                                        }}
+                                        title="Clic para editar subtítulo en panel derecho"
+                                    >
+                                        {precargaSubtitle}
                                     </p>
-                                )}
+
+                                    {/* Contenido adicional (si existe) */}
+                                    {settings.precarga_content && (
+                                        <p
+                                            className="tracking-tight mt-1 opacity-90 drop-shadow-xs"
+                                            style={{
+                                                fontFamily: settings.precarga_content_font_family || 'Inter',
+                                                fontSize: settings.precarga_content_font_size ? `${settings.precarga_content_font_size}px` : '9px',
+                                                color: settings.precarga_content_font_color || '#cbd5e1',
+                                                fontWeight: settings.precarga_content_font_weight === 'bold' ? 'bold' : 'normal',
+                                                fontStyle: settings.precarga_content_font_style === 'italic' ? 'italic' : 'normal',
+                                                textDecoration: settings.precarga_content_text_decoration === 'underline' ? 'underline' : 'none',
+                                            }}
+                                        >
+                                            {settings.precarga_content}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -800,7 +835,11 @@ export default function MobileSimulator({
                                 return (
                                     <div className={`flex ${flexDirClass} items-center justify-center gap-1.5 mb-2 shrink-0 z-20`}>
                                         <span
-                                            className="tracking-widest uppercase select-none drop-shadow-xs shrink-0"
+                                            onClick={(e: React.MouseEvent) => {
+                                                e.stopPropagation();
+                                                onSelectElement?.('fuentes', 'powered_by');
+                                            }}
+                                            className="tracking-widest uppercase select-none drop-shadow-xs shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                                             style={{
                                                 fontFamily: settings.precarga_powered_by_font_family || 'Inter',
                                                 fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
@@ -808,7 +847,10 @@ export default function MobileSimulator({
                                                 fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
                                                 fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
                                                 textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
+                                                WebkitTextStroke: settings.precarga_powered_by_stroke_active && settings.precarga_powered_by_stroke_color ? `${settings.precarga_powered_by_stroke_width || 1}px ${settings.precarga_powered_by_stroke_color}` : undefined,
+                                                textShadow: settings.precarga_powered_by_shadow_active && settings.precarga_powered_by_shadow_color ? `0 0 ${settings.precarga_powered_by_shadow_blur || 4}px ${settings.precarga_powered_by_shadow_color}` : undefined,
                                             }}
+                                            title="Clic para editar Powered by en panel derecho"
                                         >
                                             {settings.precarga_powered_by_text || 'Powered by'}
                                         </span>
@@ -816,8 +858,13 @@ export default function MobileSimulator({
                                             <img
                                                 src={displayLogo}
                                                 alt="Logo del Proyecto dInvited"
+                                                onClick={(e: React.MouseEvent) => {
+                                                    e.stopPropagation();
+                                                    onSelectElement?.('logos', 'precarga');
+                                                }}
                                                 style={projectLogoStyle}
-                                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0"
+                                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0 cursor-pointer hover:opacity-100 transition-opacity"
+                                                title="Clic para editar logo en panel derecho"
                                             />
                                         )}
                                     </div>
@@ -1366,7 +1413,11 @@ export default function MobileSimulator({
                                 const qrEncodedMask = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrMaskSvg)}")`;
 
                                 return (
-                                    <div className="relative w-full h-[45%] flex flex-col justify-between shrink-0 select-none z-10 drop-shadow-[0_-8px_20px_rgba(0,0,0,0.5)]">
+                                    <div
+                                        onClick={() => onSelectElement?.('fondos', 'mensaje')}
+                                        className="relative w-full h-[45%] flex flex-col justify-between shrink-0 select-none z-10 drop-shadow-[0_-8px_20px_rgba(0,0,0,0.5)] cursor-pointer"
+                                        title="Clic para editar contenedor media luna en panel derecho"
+                                    >
                                         {/* CAPA DE FONDO UNIFICADA: CUBRE TANTO LA MEDIALUNA COMO EL RECUADRO INFERIOR COMO UN SOLO OBJETO */}
                                         <div
                                             className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
@@ -1427,33 +1478,89 @@ export default function MobileSimulator({
                                             </svg>
                                         </div>
 
-                                        {/* CONTENIDO INTERNO: ELEVADO Y CENTRADO DENTRO DEL CONTENEDOR */}
-                                        <div className="relative z-10 w-full h-full px-4 pt-7 pb-2.5 flex flex-col items-center justify-between">
-                                            {/* ZONA SUPERIOR DEL CONTENEDOR: CONTROLES DEL CÓDIGO */}
-                                            <div className="w-full flex flex-col items-center justify-start gap-2.5 flex-1 mt-1 mb-auto">
+                                        {/* CONTENIDO INTERNO: CENTRADO VERTICALMENTE ENTRE LA MEDIA LUNA Y EL LOGO */}
+                                        <div className="relative z-10 w-full h-full px-4 pb-2.5 flex flex-col items-center">
+                                            {/* ZONA CENTRAL DEL CONTENEDOR: CENTRADO ENTRE LA PARTE DE ARRIBA DE LA MEDIA LUNA Y EL LOGO */}
+                                            <div className="w-full flex-1 flex flex-col items-center justify-center gap-2.5 my-auto">
                                                 {/* Cuadro de Texto de Entrada */}
                                                 <input
                                                     type="text"
                                                     readOnly
+                                                    onClick={(e: React.MouseEvent) => {
+                                                        e.stopPropagation();
+                                                        onSelectElement?.('fuentes', 'code');
+                                                    }}
                                                     placeholder={settings.welcome_qr_placeholder || "CÓDIGO"}
-                                                    className="w-full max-w-[210px] py-1.5 px-3 rounded-lg bg-black/60 border border-white/20 text-center text-[11px] font-bold text-white placeholder:text-white/60 tracking-wider outline-none focus:border-[var(--primary-accent)] shadow-inner"
+                                                    className="w-full max-w-[210px] py-1.5 px-3 text-center tracking-wider outline-none shadow-inner transition-all select-none cursor-pointer hover:ring-1 hover:ring-[var(--primary-accent)]"
+                                                    style={{
+                                                        backgroundColor: settings.qr_input_bg_color || 'rgba(0, 0, 0, 0.6)',
+                                                        color: settings.qr_input_font_color || '#ffffff',
+                                                        fontFamily: settings.qr_input_font_family || settings.global_text_font_family || 'Inter',
+                                                        fontSize: settings.qr_input_font_size ? `${settings.qr_input_font_size}px` : '11px',
+                                                        fontWeight: (settings.qr_input_font_weight || 'bold') as any,
+                                                        fontStyle: (settings.qr_input_font_style || 'normal') as any,
+                                                        textDecoration: (settings.qr_input_text_decoration || 'none') as any,
+                                                        textAlign: (settings.qr_input_text_align || 'center') as any,
+                                                        borderRadius: settings.qr_input_border_radius !== undefined ? `${settings.qr_input_border_radius}px` : '8px',
+                                                        borderWidth: settings.qr_input_border_width !== undefined ? `${settings.qr_input_border_width}px` : '1px',
+                                                        borderStyle: settings.qr_input_border_style || 'solid',
+                                                        borderColor: settings.qr_input_border_color || 'rgba(255, 255, 255, 0.2)',
+                                                        backdropFilter: (settings.qr_input_glass_enabled ?? true) ? 'blur(4px)' : undefined,
+                                                        WebkitTextStroke: settings.qr_input_stroke_active && settings.qr_input_stroke_color ? `${settings.qr_input_stroke_width || 1}px ${settings.qr_input_stroke_color}` : undefined,
+                                                        textShadow: settings.qr_input_shadow_active && settings.qr_input_shadow_color ? `0 0 ${settings.qr_input_shadow_blur || 4}px ${settings.qr_input_shadow_color}` : undefined,
+                                                    }}
+                                                    title="Clic para editar cuadro de código en panel derecho"
                                                 />
 
                                                 {/* Botón Entrar */}
-                                                <button
-                                                    type="button"
-                                                    className="w-full max-w-[210px] py-1.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                                                    style={{
-                                                        backgroundColor: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? undefined : (settings.button_bg_color || 'var(--primary-accent)'),
-                                                        backgroundImage: settings.button_bg_type === 'gradient' && settings.button_gradient_data ? settings.button_gradient_data : undefined,
-                                                        borderRadius: settings.button_border_radius !== undefined ? `${settings.button_border_radius}px` : '8px',
-                                                        borderWidth: settings.button_border_width !== undefined ? `${settings.button_border_width}px` : '0px',
-                                                        borderStyle: settings.button_border_style || 'solid',
-                                                        borderColor: settings.button_border_color || 'var(--primary-accent)',
-                                                    }}
-                                                >
-                                                    Entrar
-                                                </button>
+                                                {(() => {
+                                                    const isBtnHover = previewButtonState === "hover";
+                                                    const btnColor = isBtnHover
+                                                        ? (settings.precarga_button_hover_font_color || settings.global_button_hover_text || '#ffffff')
+                                                        : (settings.precarga_button_font_color || settings.global_button_text || '#ffffff');
+                                                    const btnFontFamily = settings.precarga_button_font_family || settings.global_button_font_family || 'Inter';
+                                                    const btnFontSize = settings.precarga_button_font_size ? `${settings.precarga_button_font_size}px` : '10px';
+                                                    const btnFontWeight = settings.precarga_button_font_weight || 'bold';
+                                                    const btnFontStyle = settings.precarga_button_font_style || 'normal';
+                                                    const btnTextDecoration = settings.precarga_button_text_decoration || 'none';
+                                                    const btnTextAlign = settings.precarga_button_text_align || 'center';
+
+                                                    const btnStrokeActive = isBtnHover ? settings.precarga_button_hover_stroke_active : settings.precarga_button_stroke_active;
+                                                    const btnStrokeColor = isBtnHover ? settings.precarga_button_hover_stroke_color : settings.precarga_button_stroke_color;
+                                                    const btnStrokeWidth = isBtnHover ? settings.precarga_button_hover_stroke_width : settings.precarga_button_stroke_width;
+
+                                                    const btnShadowActive = isBtnHover ? settings.precarga_button_hover_shadow_active : settings.precarga_button_shadow_active;
+                                                    const btnShadowColor = isBtnHover ? settings.precarga_button_hover_shadow_color : settings.precarga_button_shadow_color;
+                                                    const btnShadowBlur = isBtnHover ? settings.precarga_button_hover_shadow_blur : settings.precarga_button_shadow_blur;
+
+                                                    const baseStyles = activeGetButtonStyles(isBtnHover);
+
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e: React.MouseEvent) => {
+                                                                e.stopPropagation();
+                                                                onSelectElement?.('fuentes', 'button');
+                                                            }}
+                                                            className="w-full max-w-[210px] py-1.5 uppercase tracking-wider shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                                                            style={{
+                                                                ...baseStyles,
+                                                                color: btnColor,
+                                                                fontFamily: btnFontFamily,
+                                                                fontSize: btnFontSize,
+                                                                fontWeight: btnFontWeight as any,
+                                                                fontStyle: btnFontStyle as any,
+                                                                textDecoration: btnTextDecoration as any,
+                                                                textAlign: btnTextAlign as any,
+                                                                WebkitTextStroke: btnStrokeActive && btnStrokeColor ? `${btnStrokeWidth || 1}px ${btnStrokeColor}` : undefined,
+                                                                textShadow: btnShadowActive && btnShadowColor ? `0 0 ${btnShadowBlur || 4}px ${btnShadowColor}` : undefined,
+                                                            }}
+                                                            title="Clic para editar botón en panel derecho"
+                                                        >
+                                                            {settings.welcome_button_text || "Entrar"}
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
 
                                             {/* PIE DE PÁGINA: LOGO DEL PROYECTO + POWERED BY */}
@@ -1461,7 +1568,11 @@ export default function MobileSimulator({
                                                 return (
                                                     <div className={`flex ${flexDirClass} items-center justify-center gap-1.5 shrink-0 z-20 pb-0.5`}>
                                                         <span
-                                                            className="tracking-widest uppercase select-none drop-shadow-xs shrink-0"
+                                                            onClick={(e: React.MouseEvent) => {
+                                                                e.stopPropagation();
+                                                                onSelectElement?.('fuentes', 'powered_by');
+                                                            }}
+                                                            className="tracking-widest uppercase select-none drop-shadow-xs shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                                                             style={{
                                                                 fontFamily: settings.precarga_powered_by_font_family || 'Inter',
                                                                 fontSize: settings.precarga_powered_by_font_size ? `${settings.precarga_powered_by_font_size}px` : '8.5px',
@@ -1469,7 +1580,10 @@ export default function MobileSimulator({
                                                                 fontWeight: settings.precarga_powered_by_font_weight === 'normal' ? 'normal' : 'extrabold',
                                                                 fontStyle: settings.precarga_powered_by_font_style === 'italic' ? 'italic' : 'normal',
                                                                 textDecoration: settings.precarga_powered_by_text_decoration === 'underline' ? 'underline' : 'none',
+                                                                WebkitTextStroke: settings.precarga_powered_by_stroke_active && settings.precarga_powered_by_stroke_color ? `${settings.precarga_powered_by_stroke_width || 1}px ${settings.precarga_powered_by_stroke_color}` : undefined,
+                                                                textShadow: settings.precarga_powered_by_shadow_active && settings.precarga_powered_by_shadow_color ? `0 0 ${settings.precarga_powered_by_shadow_blur || 4}px ${settings.precarga_powered_by_shadow_color}` : undefined,
                                                             }}
+                                                            title="Clic para editar Powered by en panel derecho"
                                                         >
                                                             {settings.precarga_powered_by_text || 'Powered by'}
                                                         </span>
@@ -1477,8 +1591,13 @@ export default function MobileSimulator({
                                                             <img
                                                                 src={displayLogo}
                                                                 alt="Logo del Proyecto dInvited"
+                                                                onClick={(e: React.MouseEvent) => {
+                                                                    e.stopPropagation();
+                                                                    onSelectElement?.('logos', 'qr');
+                                                                }}
                                                                 style={projectLogoStyle}
-                                                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0"
+                                                                className="object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] opacity-95 shrink-0 cursor-pointer hover:opacity-100 transition-opacity"
+                                                                title="Clic para editar logo en panel derecho"
                                                             />
                                                         )}
                                                     </div>
